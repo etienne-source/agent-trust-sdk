@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.local
+*.pem
+*.crt
+*.key
+certificates
+coverage
+*.log
+.DS_Store
