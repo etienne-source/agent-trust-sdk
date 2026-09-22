@@ -1,7 +1,7 @@
 {
-  "name": "agent-trust-sdk",
+  "name": "trustflow-sdk",
   "version": "0.1.0",
-  "description": "Client SDK for Agentic Trust domain identity verification",
+  "description": "Client SDK for Trustflow domain identity verification",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,6 +39,7 @@
     "verification",
     "mcp",
     "trust",
+    "trustflow",
     "llms.txt"
   ]
 }

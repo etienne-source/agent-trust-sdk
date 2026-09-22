@@ -221,7 +221,7 @@ async function verifyViaApi(
 }
 
 /**
- * Verify a domain's AI trust identity via did:web + JWS, with central API fallback.
+ * Verify a domain's Trustflow identity via did:web + JWS, with central API fallback.
  * Cache-first path targets <50ms on repeat lookups.
  */
 export async function verifyDomain(
@@ -268,7 +268,7 @@ export async function verifyDomain(
 
 /**
  * Inspect MCP / tool endpoints before agent execution.
- * Verifies owning domain and requires HTTPS.
+ * Verifies the owning domain with Trustflow and requires HTTPS.
  */
 export async function inspectEndpointBeforeExecution(
   endpoint: string,
