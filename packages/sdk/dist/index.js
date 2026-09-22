@@ -24,5 +24,5 @@ export { agenticTrustMiddleware, DEFAULT_TRUST_API_URL, DEFAULT_MIDDLEWARE_TIMEO
 export { MemoryCache, defaultCache } from "./cache.js";
 export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem } from "./jws.js";
-export { createSignedDidDocument, hashPublicKeyPem } from "./identity.js";
+export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
 //# sourceMappingURL=index.js.map

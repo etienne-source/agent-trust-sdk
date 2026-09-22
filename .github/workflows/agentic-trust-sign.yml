@@ -1,0 +1,40 @@
+# Reference workflow for AgenticTrust signing.
+#
+# Push to main runs this action. POST https://api.trustflow.systems/v1/register
+# runs when repository variable AGENTIC_TRUST_DOMAIN is set and secret
+# AGENTIC_TRUST_PRIVATE_KEY is present. Pull requests, manual dry runs, and an
+# unconfigured repository sign locally and do not call the API.
+name: AgenticTrust sign
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Sign locally and skip POST /v1/register
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sign and register
+        uses: ./.github/actions/agentic-trust-sign
+        with:
+          domain: ${{ vars.AGENTIC_TRUST_DOMAIN }}
+          business-name: ${{ vars.AGENTIC_TRUST_BUSINESS_NAME }}
+          description: ${{ vars.AGENTIC_TRUST_DESCRIPTION }}
+          services: ${{ vars.AGENTIC_TRUST_SERVICES }}
+          verification-type: ${{ vars.AGENTIC_TRUST_VERIFICATION_TYPE || 'SSL_CHALLENGE' }}
+          private-key: ${{ secrets.AGENTIC_TRUST_PRIVATE_KEY }}
+          dry-run: ${{ (github.event_name != 'push' && (github.event_name != 'workflow_dispatch' || inputs.dry_run)) || (github.event_name == 'push' && vars.AGENTIC_TRUST_DOMAIN == '') }}
+          confirm: true

@@ -55,6 +55,23 @@ npx agentic-trust init \
 
 `--confirm` attempts confirmation in the same run. `--skip-register` only writes local files.
 
+## sign
+
+`agentic-trust sign` is the non-interactive entry used by [`.github/actions/agentic-trust-sign`](../../.github/actions/agentic-trust-sign/action.yml).
+
+1. If root `llms.txt` is missing, write the standard template (`renderLlms`) there and to `.well-known/llms.txt`.
+2. Sign a `did:web` document with `@agentic-trust/sdk` (`createSignedDidDocument`) using `AGENTIC_TRUST_PRIVATE_KEY`.
+3. `POST https://api.trustflow.systems/v1/register`, including the SPKI `publicKeyPem`.
+4. Write `.well-known/agentic-trust-challenge.txt` and call `POST /v1/register/confirm` unless this is a dry run.
+
+Set `AGENTIC_TRUST_PRIVATE_KEY` in the environment (do not pass it as an argument), then:
+
+```bash
+agentic-trust sign --domain example.com --name "Example Co"
+```
+
+`--dry-run` / `AGENTIC_TRUST_DRY_RUN=true` skips the register call. The private key is never printed. See the repository README for the GitHub Action inputs.
+
 ## Secrets
 
 Do not commit `.agentic-trust/`. It contains the private key and the challenge token. `.well-known/did.json` and `llms.txt` are public and meant to be deployed.

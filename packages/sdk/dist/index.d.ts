@@ -25,7 +25,7 @@ export type { AgenticTrustMetadata, AgenticTrustMiddleware, AgenticTrustMiddlewa
 export { MemoryCache, defaultCache } from "./cache.js";
 export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem } from "./jws.js";
-export { createSignedDidDocument, hashPublicKeyPem } from "./identity.js";
+export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
 export type { CreateSignedDidInput, DidServiceEndpoint, SignedDidIdentity } from "./identity.js";
 export type { VerificationStatus, DomainClaims, VerifyResult, EndpointInspectionResult, DidDocument, VerifyDomainOptions, } from "./types.js";
 //# sourceMappingURL=index.d.ts.map

@@ -139,7 +139,57 @@ Live contract (not a guessed path):
 | `POST` | `https://api.trustflow.systems/v1/register/confirm` |
 | `GET` | `https://api.trustflow.systems/v1/verify?domain=` |
 
-`POST /v1/register` requires `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`). The response includes `challengeToken`, `instructions`, and either `challengePath` (HTTPS file `/.well-known/agentic-trust-challenge.txt`) or `dnsRecord` (`_agentic-trust.<domain>` TXT `agentic-trust-verification=<token>`). Confirm with `domain` and `challengeToken`.
+`POST /v1/register` requires `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`). Send the SPKI `publicKeyPem` as well: the live API stores that PEM and sets `publicKeyHash` from it (a hash sent on its own is not stored). The response includes `challengeToken`, `instructions`, and either `challengePath` (HTTPS file `/.well-known/agentic-trust-challenge.txt`, token body, no extra newline required) or `dnsRecord` (`_agentic-trust.<domain>` TXT `agentic-trust-verification=<token>`). Confirm with `domain` and `challengeToken` at `POST /v1/register/confirm`. No API token is required.
+
+## GitHub Action
+
+Business repositories sign on every push to `main` with the composite action in this repo:
+
+```yaml
+name: AgenticTrust sign
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: etienne-source/agent-trust-sdk/.github/actions/agentic-trust-sign@main
+        with:
+          domain: ${{ vars.AGENTIC_TRUST_DOMAIN }}
+          business-name: ${{ vars.AGENTIC_TRUST_BUSINESS_NAME }}
+          private-key: ${{ secrets.AGENTIC_TRUST_PRIVATE_KEY }}
+```
+
+The action checks root `llms.txt`. If that file is missing it writes the same template as `agentic-trust init` (`renderLlms` in `@agentic-trust/cli`) to `llms.txt` and `.well-known/llms.txt`. It then calls `createSignedDidDocument` from `@agentic-trust/sdk` with `AGENTIC_TRUST_PRIVATE_KEY` and writes `.well-known/did.json`. The private key stays in the environment and in gitignored `.agentic-trust/private-key.pem` (mode `0600`). Logs and the step summary contain the `did:web` id and `publicKeyHash` only.
+
+It then calls `POST https://api.trustflow.systems/v1/register` and, by default, `POST /v1/register/confirm`. Confirm stays green when the challenge file is not public yet; set `require-live: true` to fail until Trustflow returns `isVerified`.
+
+| Name | Kind | Required | Purpose |
+|------|------|----------|---------|
+| `AGENTIC_TRUST_PRIVATE_KEY` | Secret | Live runs | Unencrypted RSA PEM (PKCS#8 or PKCS#1). Never printed. |
+| `AGENTIC_TRUST_DOMAIN` | Variable | Live runs | Hostname passed to `/v1/register`. |
+| `AGENTIC_TRUST_BUSINESS_NAME` | Variable | No | `businessName`. Falls back to the `#` heading in `llms.txt`, then the domain. |
+| `AGENTIC_TRUST_DESCRIPTION` | Variable | No | Used only when generating a missing `llms.txt`. |
+| `AGENTIC_TRUST_SERVICES` | Variable | No | Comma-separated services for a generated `llms.txt`. |
+| `AGENTIC_TRUST_VERIFICATION_TYPE` | Variable | No | `SSL_CHALLENGE` (default) or `DNS_TXT`. |
+| `TRUSTFLOW_API_URL` | Variable | No | Override the API base. Defaults to `https://api.trustflow.systems`. |
+
+This repository's [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is the reference. On pull requests, on manual runs, and on `main` when `AGENTIC_TRUST_DOMAIN` is unset, it passes `dry-run: true`: the template and signature are still produced, and `/v1/register` is not called. An ephemeral key is used only for that dry run when the secret is absent, and that key is not printed.
+
+Local dry run from a clone:
+
+```bash
+pnpm install
+pnpm --filter @agentic-trust/sdk build
+pnpm --filter @agentic-trust/cli build
+node packages/cli/dist/cli.js sign --dry-run --domain example.invalid --name "Example Co"
+```
+
+Publish `llms.txt`, `.well-known/llms.txt`, `.well-known/did.json`, and (for SSL) `.well-known/agentic-trust-challenge.txt` on the domain. The challenge token is written to disk and is not echoed.
 
 ## Development
 

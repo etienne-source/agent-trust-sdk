@@ -8,7 +8,10 @@ export interface CreateSignedDidInput {
     /** Hostname or URL. Normalized to a lowercase hostname. */
     domain: string;
     services?: DidServiceEndpoint[];
-    /** PKCS#8 PEM. When set, `publicKeyPem` is required and no new key is generated. */
+    /**
+     * RSA private key PEM (PKCS#8 or PKCS#1). When set, the matching SPKI public
+     * key is derived unless `publicKeyPem` is also provided.
+     */
     privateKeyPem?: string;
     publicKeyPem?: string;
 }
@@ -26,8 +29,14 @@ export interface SignedDidIdentity {
  */
 export declare function hashPublicKeyPem(pem: string): string;
 /**
+ * Derive the SPKI public key and a PKCS#8 copy from an RSA private key PEM.
+ * Callers that only have `AGENTIC_TRUST_PRIVATE_KEY` use this path.
+ */
+export declare function publicKeyPemFromPrivate(privateKeyPem: string): string;
+/**
  * Create a did:web document and compact JWS (RS256) that `verifyDidJws` accepts.
- * The private key is returned to the caller; this function does not write files.
+ * The private key is returned to the caller; this function does not write files
+ * and does not log key material.
  */
 export declare function createSignedDidDocument(input: CreateSignedDidInput): Promise<SignedDidIdentity>;
 //# sourceMappingURL=identity.d.ts.map

@@ -102,7 +102,9 @@ export async function runInit(options) {
             businessName: name,
             verificationType,
             did: identity.did.id,
+            publicKeyPem: identity.publicKeyPem,
             publicKeyHash: identity.publicKeyHash,
+            manifestUrl: `https://${normalizedDomain}/.well-known/did.json`,
             services,
         }, options.fetch);
         const stored = {

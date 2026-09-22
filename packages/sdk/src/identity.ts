@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createPrivateKey, createPublicKey, type KeyObject } from "node:crypto";
 import {
   exportPKCS8,
   exportSPKI,
@@ -20,7 +20,10 @@ export interface CreateSignedDidInput {
   /** Hostname or URL. Normalized to a lowercase hostname. */
   domain: string;
   services?: DidServiceEndpoint[];
-  /** PKCS#8 PEM. When set, `publicKeyPem` is required and no new key is generated. */
+  /**
+   * RSA private key PEM (PKCS#8 or PKCS#1). When set, the matching SPKI public
+   * key is derived unless `publicKeyPem` is also provided.
+   */
   privateKeyPem?: string;
   publicKeyPem?: string;
 }
@@ -43,9 +46,38 @@ export function hashPublicKeyPem(pem: string): string {
   return createHash("sha256").update(normalized).digest("hex");
 }
 
+function pemToString(value: string | Buffer): string {
+  return typeof value === "string" ? value : value.toString("utf8");
+}
+
+/**
+ * Derive the SPKI public key and a PKCS#8 copy from an RSA private key PEM.
+ * Callers that only have `AGENTIC_TRUST_PRIVATE_KEY` use this path.
+ */
+export function publicKeyPemFromPrivate(privateKeyPem: string): string {
+  return rsaMaterial(privateKeyPem).publicKeyPem;
+}
+
+function rsaMaterial(privateKeyPem: string): { pkcs8Pem: string; publicKeyPem: string } {
+  let keyObject: KeyObject;
+  try {
+    keyObject = createPrivateKey(privateKeyPem);
+  } catch {
+    throw new Error("Private key PEM could not be read. Expected an unencrypted RSA key (PKCS#8 or PKCS#1).");
+  }
+  if (keyObject.asymmetricKeyType !== "rsa") {
+    throw new Error("Private key must be RSA (RS256 did:web).");
+  }
+  return {
+    pkcs8Pem: pemToString(keyObject.export({ type: "pkcs8", format: "pem" })),
+    publicKeyPem: pemToString(createPublicKey(keyObject).export({ type: "spki", format: "pem" })),
+  };
+}
+
 /**
  * Create a did:web document and compact JWS (RS256) that `verifyDidJws` accepts.
- * The private key is returned to the caller; this function does not write files.
+ * The private key is returned to the caller; this function does not write files
+ * and does not log key material.
  */
 export async function createSignedDidDocument(
   input: CreateSignedDidInput
@@ -53,24 +85,25 @@ export async function createSignedDidDocument(
   const domain = normalizeDomain(input.domain);
   const id = didWebId(domain);
 
-  let privateKeyPem = input.privateKeyPem;
-  let publicKeyPem = input.publicKeyPem;
-  const privateKey = privateKeyPem
-    ? await importPKCS8(privateKeyPem, "RS256")
-    : null;
+  let privateKeyPem: string;
+  let publicKeyPem: string;
+  let signingKey: Awaited<ReturnType<typeof importPKCS8>> | Awaited<ReturnType<typeof generateKeyPair>>["privateKey"];
 
-  let signingKey = privateKey;
-  if (!signingKey) {
+  if (input.privateKeyPem) {
+    privateKeyPem = input.privateKeyPem;
+    if (input.publicKeyPem) {
+      publicKeyPem = input.publicKeyPem;
+      signingKey = await importPKCS8(input.privateKeyPem, "RS256");
+    } else {
+      const material = rsaMaterial(input.privateKeyPem);
+      publicKeyPem = material.publicKeyPem;
+      signingKey = await importPKCS8(material.pkcs8Pem, "RS256");
+    }
+  } else {
     const pair = await generateKeyPair("RS256", { extractable: true });
     signingKey = pair.privateKey;
     publicKeyPem = await exportSPKI(pair.publicKey);
     privateKeyPem = await exportPKCS8(pair.privateKey);
-  } else if (!publicKeyPem) {
-    throw new Error("publicKeyPem is required when reusing a private key");
-  }
-
-  if (!publicKeyPem || !privateKeyPem) {
-    throw new Error("Failed to generate did:web keypair");
   }
 
   const services =
