@@ -43,6 +43,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
   it("does not open a response stream for an unverified llms.txt fetch", async () => {
     const contextFetch = vi.fn();
     const trust = agenticTrustVercelAiMiddleware({
+      strict: true,
       verify: async () => blocked("evil.example", "UNVERIFIED", "unsigned did:web"),
       contextFetch,
     });
@@ -102,6 +103,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
   it("gates a non-llms path when the context header is set", async () => {
     const contextFetch = vi.fn();
     const trust = agenticTrustVercelAiMiddleware({
+      mode: "strict",
       verify: async () => blocked("example.com", "RISK", "bad signature"),
       contextFetch,
     });
@@ -116,6 +118,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
 
   it("does not JSON.parse an unsigned llms.txt envelope", async () => {
     const trust = agenticTrustVercelAiMiddleware({
+      strict: true,
       verify: async () => blocked("evil.example"),
     });
     const params = {
@@ -149,6 +152,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
       }),
     }));
     const trust = agenticTrustVercelAiMiddleware({
+      mode: "strict",
       verify: async () => blocked("unsigned.example"),
     });
     const params = {
@@ -233,6 +237,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
   it("does not fetch when loadLlmsFromUrl is given an unsigned domain", async () => {
     const contextFetch = vi.fn();
     const trust = agenticTrustVercelAiMiddleware({
+      failClosed: true,
       verify: async () => blocked("unsigned.example", "UNVERIFIED", "missing signature"),
       contextFetch,
     });
@@ -262,6 +267,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
 
     await expect(
       loadVerifiedLlmsFromUrl("https://unsigned.example/llms.txt", {
+        strict: true,
         fetch: registry,
         contextFetch,
         verificationApiUrl: "https://api.trustflow.systems",
@@ -272,9 +278,14 @@ describe("agenticTrustVercelAiMiddleware", () => {
     expect(registry.mock.calls.some((call) => String(call[0]).includes("/v1/verify"))).toBe(true);
   });
 
-  it("is fail-closed by default and does not parse when failClosed is false", async () => {
+  it("audits unsigned context by default and blocks only in strict mode", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const events: string[] = [];
+    const alert =
+      "[AgenticTrust Security Alert] Unverified context payload detected for evil.example. Enable strict mode to block.";
     const contextFetch = vi.fn(async () => new Response(LLMS, { status: 200 }));
     const closed = agenticTrustVercelAiMiddleware({
+      strict: true,
       verify: async () => blocked("evil.example", "RISK", "tampered llms.txt"),
       contextFetch,
     });
@@ -287,12 +298,14 @@ describe("agenticTrustVercelAiMiddleware", () => {
     const open = agenticTrustVercelAiMiddleware({
       verify: async () => blocked("evil.example"),
       contextFetch: openFetch,
-      failClosed: false,
+      onAudit: (event) => events.push(event.message),
     });
     const response = await open.fetch("https://evil.example/llms.txt");
     expect(response.status).toBe(200);
     expect(response.headers.get("x-agentic-trust")).toBeNull();
     expect(openFetch).toHaveBeenCalledOnce();
+    expect(events).toEqual([alert]);
+    expect(warn).toHaveBeenCalledWith(alert);
 
     const read = vi.fn(() => LLMS);
     const params = {
@@ -301,5 +314,6 @@ describe("agenticTrustVercelAiMiddleware", () => {
     const rewritten = await open.transformParams({ params, type: "generate" });
     expect(rewritten).toBe(params);
     expect(read).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

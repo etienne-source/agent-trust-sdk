@@ -28,5 +28,7 @@ export { MemoryCache, defaultCache } from "./cache.js";
 export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem, allowedAlgForKey, clearPublicKeyCache, ALLOWED_JWS_ALGS, } from "./jws.js";
 export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
+export { signBuildArtifacts, renewBuildSignatures } from "./buildSign.js";
+export { emitSecurityAlert, resolveEnforcementMode, securityAlertEvent, subscribeSecurityAlerts, unverifiedContextAlert, } from "./audit.js";
 export { notifyVerifiedDomain, isCompleteVerification, buildVerifiedNotifyPayload, VERIFIED_NOTIFY_ENV, VERIFIED_SCORE_COMPLETE, } from "./verifiedNotify.js";
 //# sourceMappingURL=index.js.map

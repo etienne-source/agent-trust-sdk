@@ -80,6 +80,7 @@ describe("agenticTrustLangChainMiddleware", () => {
   it("blocks unsigned context before the body is read", async () => {
     const read = vi.fn(body("unsigned.example"));
     const trust = agenticTrustLangChainMiddleware({
+      strict: true,
       verify: async () => blocked("unsigned.example", "UNVERIFIED", "No AgenticTrust signature"),
     });
 
@@ -103,6 +104,7 @@ describe("agenticTrustLangChainMiddleware", () => {
   it("blocks RISK domains before parsing a document body", async () => {
     const read = vi.fn(body("risk.example"));
     const trust = agenticTrustLangChainMiddleware({
+      mode: "strict",
       verify: async () => blocked("risk.example", "RISK", "DID signature did not verify"),
     });
     const document = {
@@ -123,6 +125,7 @@ describe("agenticTrustLangChainMiddleware", () => {
     const first = vi.fn(body("good.example"));
     const second = vi.fn(body("bad.example"));
     const trust = agenticTrustLangChainMiddleware({
+      strict: true,
       verify: async (target) =>
         target.includes("good.example") ? verified("good.example") : blocked("bad.example"),
     });
@@ -159,6 +162,7 @@ describe("agenticTrustLangChainMiddleware", () => {
 
   it("does not JSON.parse an unsigned llms.txt envelope in a message", async () => {
     const trust = agenticTrustLangChainMiddleware({
+      failClosed: true,
       verify: async () => blocked("evil.example"),
     });
 
@@ -177,6 +181,7 @@ describe("agenticTrustLangChainMiddleware", () => {
   it("rejects an unverified llms.txt tool call before the tool runs", async () => {
     const handler = vi.fn();
     const trust = agenticTrustLangChainMiddleware({
+      strict: true,
       verify: async () => blocked("evil.example"),
     });
 
@@ -227,6 +232,7 @@ describe("agenticTrustLangChainMiddleware", () => {
     const handler = vi.fn();
     const read = vi.fn(body("unsigned.example"));
     const trust = agenticTrustLangChainMiddleware({
+      mode: "strict",
       verify: async () => blocked("unsigned.example"),
     });
 
@@ -282,9 +288,39 @@ describe("agenticTrustLangChainMiddleware", () => {
     expect(urls.every((url) => url.startsWith("https://"))).toBe(true);
   });
 
-  it("is fail-closed by default and can skip parsing when failClosed is false", async () => {
+  it("audits unsigned context by default and blocks only in strict mode", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const events: string[] = [];
     const read = vi.fn(body("unsigned.example"));
+    const alert =
+      "[AgenticTrust Security Alert] Unverified context payload detected for unsigned.example. Enable strict mode to block.";
+    const audit = agenticTrustLangChainMiddleware({
+      verify: async () => blocked("unsigned.example", "RISK", "tampered signature"),
+      onAudit: (event) => events.push(event.message),
+    });
+
+    const loaded = await audit.loadLlmsContext({
+      target: "https://unsigned.example/llms.txt",
+      content: read,
+    });
+    expect(loaded.text).toBe("");
+    expect(loaded.agenticTrust.verified).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+    expect(events).toEqual([alert]);
+    expect(warn).toHaveBeenCalledWith(alert);
+
+    const handler = vi.fn(async () => "ran");
+    await expect(
+      audit.wrapToolCall(
+        { toolCall: { name: "fetch_llms", args: { url: "https://unsigned.example/llms.txt", llmsTxt: read } } },
+        handler
+      )
+    ).resolves.toBe("ran");
+    expect(read).not.toHaveBeenCalled();
+    expect(handler).toHaveBeenCalledOnce();
+
     const closed = agenticTrustLangChainMiddleware({
+      strict: true,
       verify: async () => blocked("unsigned.example", "RISK", "tampered signature"),
     });
     await expect(
@@ -296,19 +332,6 @@ describe("agenticTrustLangChainMiddleware", () => {
       "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
     );
     expect(read).not.toHaveBeenCalled();
-
-    const handler = vi.fn(async () => "ran");
-    const open = agenticTrustLangChainMiddleware({
-      verify: async () => blocked("unsigned.example"),
-      failClosed: false,
-    });
-    await expect(
-      open.wrapToolCall(
-        { toolCall: { name: "fetch_llms", args: { url: "https://unsigned.example/llms.txt", llmsTxt: read } } },
-        handler
-      )
-    ).resolves.toBe("ran");
-    expect(read).not.toHaveBeenCalled();
-    expect(handler).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 });

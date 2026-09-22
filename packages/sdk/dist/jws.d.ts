@@ -16,7 +16,7 @@ export type AllowedJwsAlg = (typeof ALLOWED_JWS_ALGS)[number];
  * RSA, Ed448, and non-P-256 curves fail closed.
  */
 export declare function allowedAlgForKey(key: PublicKeyMaterial): AllowedJwsAlg | null;
-/** Drop imported verification keys. `clearVerifyCache` calls this. */
+/** Drop imported verification keys and cached signature results. `clearVerifyCache` calls this. */
 export declare function clearPublicKeyCache(): void;
 /**
  * Import the first verification method.

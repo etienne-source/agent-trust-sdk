@@ -1,7 +1,12 @@
 import {
   agenticTrustMiddleware,
+  emitSecurityAlert,
+  resolveEnforcementMode,
+  securityAlertEvent,
+  type AgenticTrustEnforcementMode,
   type AgenticTrustMetadata,
   type AgenticTrustMiddlewareOptions,
+  type AgenticTrustSecurityEvent,
 } from "@agentic-trust/sdk";
 import { UnverifiedDomainContextError } from "./error.js";
 import {
@@ -26,11 +31,19 @@ export interface AgenticTrustVercelAiOptions extends AgenticTrustMiddlewareOptio
    */
   verify?: (target: string) => Promise<AgenticTrustMetadata>;
   /**
-   * Fail closed by default. Unverified or tampered `llms.txt` throws
-   * `UnverifiedDomainContextError` before the response stream or the model runs.
-   * Set `false` to continue without parsing that payload.
+   * Enforcement. The default is `"audit"`: unsigned context does not throw.
+   * `"strict"` throws `UnverifiedDomainContextError` before the body is read.
+   */
+  mode?: AgenticTrustEnforcementMode;
+  /** `true` selects strict mode. */
+  strict?: boolean;
+  /**
+   * `true` selects strict mode. Omitted and `false` stay in audit mode.
+   * Fail-closed is no longer the default.
    */
   failClosed?: boolean;
+  /** Receives the audit telemetry event. The default sink is an in-process listener plus `console.warn`. */
+  onAudit?: (event: AgenticTrustSecurityEvent) => void;
   /**
    * Fetch used to load context after verification succeeds.
    * Registry calls use `fetch` on the SDK options, not this function.
@@ -71,14 +84,13 @@ export interface AgenticTrustVercelAiMiddleware {
 }
 
 function sdkOptions(options: AgenticTrustVercelAiOptions): AgenticTrustMiddlewareOptions {
-  const rest: AgenticTrustMiddlewareOptions & {
-    verify?: VerifyFn;
-    contextFetch?: typeof globalThis.fetch;
-    failClosed?: boolean;
-  } = { ...options };
+  const rest: AgenticTrustVercelAiOptions = { ...options };
   delete rest.verify;
   delete rest.contextFetch;
   delete rest.failClosed;
+  delete rest.mode;
+  delete rest.strict;
+  delete rest.onAudit;
   return rest;
 }
 
@@ -88,35 +100,33 @@ export function createVerifier(options: AgenticTrustVercelAiOptions = {}): Verif
   return (target) => trust.verify(target);
 }
 
-export function isFailClosed(options: { failClosed?: boolean } = {}): boolean {
-  return options.failClosed !== false;
-}
-
-export async function requireVerifiedDomain(
-  target: string,
-  verify: VerifyFn
-): Promise<AgenticTrustMetadata> {
-  const meta = await verify(target);
-  if (!meta.verified || meta.securityWarning) {
-    throw new UnverifiedDomainContextError(meta);
-  }
-  return meta;
+export function isStrictMode(options: AgenticTrustVercelAiOptions = {}): boolean {
+  return resolveEnforcementMode(options) === "strict";
 }
 
 async function checkDomain(
   target: string,
   verify: VerifyFn,
-  failClosed: boolean
+  strict: boolean,
+  onAudit?: (event: AgenticTrustSecurityEvent) => void
 ): Promise<AgenticTrustMetadata> {
-  if (failClosed) return requireVerifiedDomain(target, verify);
-  return verify(target);
+  const meta = await verify(target);
+  if (trusted(meta)) return meta;
+  if (strict) throw new UnverifiedDomainContextError(meta);
+  emitSecurityAlert(securityAlertEvent(meta.domain, meta.status), onAudit);
+  return meta;
 }
 
-function trusted(meta: AgenticTrustMetadata | undefined): meta is AgenticTrustMetadata {
+function trusted(meta: AgenticTrustMetadata | undefined): meta is AgenticTrustMetadata & { verified: true } {
   return Boolean(meta && meta.verified && !meta.securityWarning);
 }
 
-async function rewriteVerified<T>(value: T, verify: VerifyFn, failClosed: boolean): Promise<T> {
+async function rewriteVerified<T>(
+  value: T,
+  verify: VerifyFn,
+  strict: boolean,
+  onAudit?: (event: AgenticTrustSecurityEvent) => void
+): Promise<T> {
   const sites = collectLlmsPayloads(value);
   const targets = new Set<string>(collectContextTargets(value));
   for (const site of sites) targets.add(site.target);
@@ -124,7 +134,7 @@ async function rewriteVerified<T>(value: T, verify: VerifyFn, failClosed: boolea
 
   const metas = new Map<string, AgenticTrustMetadata>();
   for (const target of targets) {
-    metas.set(target, await checkDomain(target, verify, failClosed));
+    metas.set(target, await checkDomain(target, verify, strict, onAudit));
   }
   if (sites.length === 0) return value;
 
@@ -174,22 +184,24 @@ function trustHeader(meta: AgenticTrustMetadata): string {
  * Vercel AI SDK fetch and language-model middleware.
  *
  * Pass `fetch` to a provider factory and the object itself to `wrapLanguageModel`.
- * Unverified or tampered domain context throws `UnverifiedDomainContextError`
- * before the response stream starts and before `llms.txt` is parsed.
- * That block is the default (`failClosed: true`).
+ * The default mode is `"audit"`: unsigned context logs
+ * `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
+ * and does not throw. `{ strict: true }` or `{ mode: "strict" }` throws
+ * `UnverifiedDomainContextError` before the response stream starts and before `llms.txt` is parsed.
  */
 export function agenticTrustVercelAiMiddleware(
   options: AgenticTrustVercelAiOptions = {}
 ): AgenticTrustVercelAiMiddleware {
   const verify = createVerifier(options);
-  const failClosed = isFailClosed(options);
+  const strict = isStrictMode(options);
+  const onAudit = options.onAudit;
   const contextFetch = options.contextFetch ?? globalThis.fetch.bind(globalThis);
 
   const fetchWithTrust: AgenticTrustVercelAiMiddleware["fetch"] = async (input, init) => {
     if (!isContextFetch(input, init)) {
       return contextFetch(input, init);
     }
-    const meta = await checkDomain(requestUrl(input), verify, failClosed);
+    const meta = await checkDomain(requestUrl(input), verify, strict, onAudit);
     if (!trusted(meta)) {
       return contextFetch(input, init);
     }
@@ -204,7 +216,17 @@ export function agenticTrustVercelAiMiddleware(
   };
 
   async function loadLlmsFromUrl(url: string): Promise<VerifiedLlmsContext> {
-    const meta = await requireVerifiedDomain(url, verify);
+    const meta = await checkDomain(url, verify, strict, onAudit);
+    if (!trusted(meta)) {
+      return {
+        target: url,
+        domain: meta.domain,
+        sections: [],
+        text: "",
+        sourceText: "",
+        agenticTrust: meta,
+      };
+    }
     const response = await contextFetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch llms.txt for ${meta.domain}: HTTP ${response.status}`);
@@ -224,14 +246,14 @@ export function agenticTrustVercelAiMiddleware(
   return {
     fetch: fetchWithTrust,
     async transformParams({ params }) {
-      return rewriteVerified(params, verify, failClosed);
+      return rewriteVerified(params, verify, strict, onAudit);
     },
     async wrapGenerate({ doGenerate, params }) {
-      await rewriteVerified(params, verify, failClosed);
+      await rewriteVerified(params, verify, strict, onAudit);
       return doGenerate();
     },
     async wrapStream({ doStream, params }) {
-      await rewriteVerified(params, verify, failClosed);
+      await rewriteVerified(params, verify, strict, onAudit);
       return doStream();
     },
     loadLlmsFromUrl,
@@ -246,12 +268,15 @@ export async function loadVerifiedLlmsFromUrl(
   return agenticTrustVercelAiMiddleware(options).loadLlmsFromUrl(url);
 }
 
-/** Verify a domain and throw `UnverifiedDomainContextError` when it is not signed. */
+/**
+ * Verify a domain. Strict mode throws `UnverifiedDomainContextError`.
+ * Audit mode (the default) returns the metadata and emits the security alert.
+ */
 export async function assertVerifiedDomain(
   target: string,
   options: AgenticTrustVercelAiOptions = {}
 ): Promise<AgenticTrustMetadata> {
-  return requireVerifiedDomain(target, createVerifier(options));
+  return checkDomain(target, createVerifier(options), isStrictMode(options), options.onAudit);
 }
 
 export async function readVerifiedLlms(
@@ -259,7 +284,17 @@ export async function readVerifiedLlms(
   options: AgenticTrustVercelAiOptions = {}
 ): Promise<VerifiedLlmsContext> {
   const verify = createVerifier(options);
-  const meta = await requireVerifiedDomain(source.target, verify);
+  const meta = await checkDomain(source.target, verify, isStrictMode(options), options.onAudit);
+  if (!meta.verified || meta.securityWarning) {
+    return {
+      target: source.target,
+      domain: meta.domain,
+      sections: [],
+      text: "",
+      sourceText: "",
+      agenticTrust: meta,
+    };
+  }
   const sourceText = readBody(source.content);
   const parsed = parseLlmsTxt(sourceText);
   return {

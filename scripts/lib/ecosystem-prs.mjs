@@ -48,8 +48,8 @@ function langchainFile() {
   return `import { agenticTrustLangChainMiddleware } from "@agentic-trust/langchain-middleware";
 
 /**
- * Fail-closed AgenticTrust middleware for LangChain.js.
- * Unsigned or tampered llms.txt throws before it is parsed.
+ * AgenticTrust middleware for LangChain.js. Audit mode is the default.
+ * Set strict: true to throw before unsigned or tampered llms.txt is parsed.
 ${installComment([SDK_SPEC, LANGCHAIN_SPEC])}
  */
 export const agenticTrust = agenticTrustLangChainMiddleware({
@@ -62,9 +62,9 @@ function langgraphFile() {
   return `import { agenticTrustLangChainMiddleware } from "@agentic-trust/langchain-middleware";
 
 /**
- * Fail-closed AgenticTrust middleware for LangGraph.
- * Pass \`agenticTrust\` to \`createMiddleware\` on the graph. Execution stops
- * when llms.txt context is unverified or tampered.
+ * AgenticTrust middleware for LangGraph. Audit mode is the default.
+ * Pass \`agenticTrust\` to \`createMiddleware\` on the graph. Set strict: true
+ * to stop execution when llms.txt context is unverified or tampered.
 ${installComment([SDK_SPEC, LANGCHAIN_SPEC])}
  */
 export const agenticTrust = agenticTrustLangChainMiddleware({
@@ -77,8 +77,9 @@ function vercelAiFile() {
   return `import { agenticTrustVercelAiMiddleware } from "@agentic-trust/vercel-ai-middleware";
 
 /**
- * Fail-closed AgenticTrust middleware for the Vercel AI SDK.
+ * AgenticTrust middleware for the Vercel AI SDK. Audit mode is the default.
  * Pass \`fetch\` to the provider and this object to \`wrapLanguageModel\`.
+ * Set strict: true to block unsigned context.
 ${installComment([SDK_SPEC, VERCEL_AI_SPEC])}
  */
 export const agenticTrust = agenticTrustVercelAiMiddleware({
@@ -132,8 +133,9 @@ function mastraFile() {
   return `import { agenticTrustVercelAiMiddleware } from "@agentic-trust/vercel-ai-middleware";
 
 /**
- * Fail-closed AgenticTrust middleware for Mastra agents that use the Vercel AI SDK.
- * Pass \`fetch\` to the model provider and this object to \`wrapLanguageModel\`.
+ * AgenticTrust middleware for Mastra agents that use the Vercel AI SDK.
+ * Audit mode is the default. Pass \`fetch\` to the model provider and this object
+ * to \`wrapLanguageModel\`. Set strict: true to block unsigned context.
 ${installComment([SDK_SPEC, VERCEL_AI_SPEC])}
  */
 export const agenticTrust = agenticTrustVercelAiMiddleware({
@@ -301,10 +303,10 @@ function pullRequestBody(target) {
     "A later edit that breaks an Ed25519 or P-256 JWS is the same class of failure: the text is no longer authenticated.",
     "Context signing is the TLS check for that fetch. Verify the domain, then parse the file.",
     "",
-    `This pull request adds fail-closed **AgenticTrust** wiring for a ${target.framework} starter.`,
+    `This pull request adds **AgenticTrust** wiring for a ${target.framework} starter.`,
     "The hosted registry is **Trustflow Systems** (https://trustflow.systems).",
-    `\`${spec.path}\` runs before unverified or tampered \`llms.txt\` is parsed or executed.`,
-    "The middleware throws:",
+    "The middleware defaults to audit mode. Unsigned context logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and is not parsed.",
+    "Set `{ strict: true }` to fail closed. Strict mode throws:",
     "",
     "```text",
     "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.",
