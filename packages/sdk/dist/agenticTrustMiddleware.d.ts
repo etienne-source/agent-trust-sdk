@@ -81,9 +81,10 @@ export declare function domainFromTarget(target: string): string;
 /**
  * Demand-side verification middleware.
  *
- * When an agent fetches a domain, the wrapper calls `GET {base}/v1/verify`
- * and appends `{ verified, trustScore }` metadata. Unverified domains and
- * registry outages append `securityWarning: true` and do not throw.
+ * When an agent fetches a domain, the wrapper checks local `did:web` (JWS)
+ * or calls `GET {base}/v1/verify` and appends `{ verified, trustScore }`
+ * metadata. Unverified domains and registry outages append `securityWarning: true`
+ * and do not throw.
  *
  * @example
  * ```ts

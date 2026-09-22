@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { SignJWT, exportSPKI, generateKeyPair } from "jose";
 import {
   agenticTrustMiddleware,
   clearVerifyCache,
   defaultCache,
 } from "../src/index.js";
+import type { DidDocument } from "../src/types.js";
 
 const API = "https://api.trustflow.systems";
 
@@ -50,6 +52,35 @@ function verifyCalls(fetchFn: typeof fetch): string[] {
   return calls
     .map((call) => String(call[0]))
     .filter((url) => url.includes("/v1/verify"));
+}
+
+async function makeSignedDid(domain: string, trustScore = 95): Promise<DidDocument> {
+  const { publicKey, privateKey } = await generateKeyPair("RS256");
+  const pem = await exportSPKI(publicKey);
+  const didId = `did:web:${domain}`;
+  const payloadDoc = {
+    id: didId,
+    trustScore,
+    verificationMethod: [
+      {
+        id: `${didId}#key-1`,
+        type: "JsonWebKey2020",
+        controller: didId,
+        publicKeyPem: pem,
+      },
+    ],
+    assertionMethod: [`${didId}#key-1`],
+  };
+  const jws = await new SignJWT(payloadDoc).setProtectedHeader({ alg: "RS256" }).sign(privateKey);
+  return {
+    ...payloadDoc,
+    "@context": ["https://www.w3.org/ns/did/v1"],
+    proof: {
+      type: "JsonWebSignature2020",
+      jws,
+      verificationMethod: `${didId}#key-1`,
+    },
+  };
 }
 
 describe("agenticTrustMiddleware", () => {
@@ -277,6 +308,50 @@ describe("agenticTrustMiddleware", () => {
       verified: true,
       trustScore: 70,
     });
+  });
+
+  it("accepts a local did:web document without calling the registry", async () => {
+    const domain = "local.example";
+    const did = await makeSignedDid(domain, 95);
+    const fetchFn = mockFetch({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: verifiedBody(domain, 1) },
+    });
+    const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
+
+    const meta = await trust.verify(`https://${domain}/about`);
+    expect(meta).toMatchObject({
+      verified: true,
+      trustScore: 95,
+      domain,
+      status: "VERIFIED",
+      did: `did:web:${domain}`,
+    });
+    expect(meta.securityWarning).toBeUndefined();
+    expect(verifyCalls(fetchFn)).toHaveLength(0);
+  });
+
+  it("fail-closes on a bad local did:web signature and does not upgrade via the API", async () => {
+    const domain = "forged.example";
+    const did = await makeSignedDid(domain);
+    did.proof = {
+      type: "JsonWebSignature2020",
+      jws: "eyJhbGciOiJSUzI1NiJ9.eyJpZCI6ImJhZCJ9.invalid-signature",
+    };
+    const fetchFn = mockFetch({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: verifiedBody(domain, 99) },
+    });
+    const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
+
+    const context = await trust.annotateContext({ snippet: "x" }, domain);
+    expect(context.securityWarning).toBe(true);
+    expect(context.agenticTrust).toMatchObject({
+      verified: false,
+      securityWarning: true,
+      status: "RISK",
+    });
+    expect(verifyCalls(fetchFn)).toHaveLength(0);
   });
 
   it("does not swallow content-fetch failures", async () => {

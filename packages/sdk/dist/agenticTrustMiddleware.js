@@ -1,5 +1,6 @@
 import { defaultCache } from "./cache.js";
-import { didWebId, normalizeDomain } from "./tls.js";
+import { importPublicKey, verifyDidJws } from "./jws.js";
+import { didWebId, normalizeDomain, wellKnownDidUrl } from "./tls.js";
 /** Registry used when no base URL is configured. */
 export const DEFAULT_TRUST_API_URL = "https://api.trustflow.systems";
 /** Verification calls abort after this long so a slow registry cannot stall an agent. */
@@ -159,17 +160,85 @@ function errorWarning(err) {
     }
     return "Verification unavailable";
 }
-async function lookupRegistry(domain, options) {
-    const cached = readCache(domain, options);
-    if (cached)
-        return { meta: cached, cacheTtlMs: 0 };
+function isAbortError(err) {
+    return err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
+}
+/**
+ * Local `did:web` check. `null` means "not authoritative" — caller pings the registry.
+ * RISK and VERIFIED are terminal. Abort errors propagate so the caller fail-closes.
+ */
+async function lookupLocalDid(domain, options, signal) {
+    let response;
+    try {
+        response = await options.fetchImpl(wellKnownDidUrl(domain), {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            redirect: "follow",
+            signal,
+        });
+    }
+    catch (err) {
+        if (signal.aborted || isAbortError(err))
+            throw err;
+        return null;
+    }
+    if (!response.ok)
+        return null;
+    let body;
+    try {
+        body = await response.json();
+    }
+    catch {
+        return {
+            meta: unverified(domain, "did.json is not valid JSON", "RISK"),
+            cacheTtlMs: options.cacheTtlMs,
+        };
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return {
+            meta: unverified(domain, "did.json is not a DID document", "RISK"),
+            cacheTtlMs: options.cacheTtlMs,
+        };
+    }
+    const record = body;
+    const did = body;
+    const expected = didWebId(domain);
+    if (did.id && did.id !== expected && !String(did.id).startsWith("did:web:")) {
+        return {
+            meta: unverified(domain, "DID id is not did:web", "RISK", did.id),
+            cacheTtlMs: options.cacheTtlMs,
+        };
+    }
+    const key = await importPublicKey(did);
+    if (!key || !did.proof?.jws)
+        return null;
+    const jwsResult = await verifyDidJws(did, key);
+    if (!jwsResult.ok) {
+        return {
+            meta: unverified(domain, jwsResult.reason ?? "Signature verification failed", "RISK", did.id || expected),
+            cacheTtlMs: options.cacheTtlMs,
+        };
+    }
+    const trustScore = readTrustScore(record);
+    return {
+        meta: {
+            verified: true,
+            ...(trustScore !== undefined ? { trustScore } : {}),
+            domain,
+            status: "VERIFIED",
+            did: did.id || expected,
+        },
+        cacheTtlMs: options.cacheTtlMs,
+    };
+}
+async function lookupApi(domain, options, signal) {
     const did = didWebId(domain);
     const url = `${options.apiBase}/v1/verify?domain=${encodeURIComponent(domain)}&did=${encodeURIComponent(did)}`;
     try {
         const response = await options.fetchImpl(url, {
             method: "GET",
             headers: { Accept: "application/json" },
-            signal: AbortSignal.timeout(options.timeoutMs),
+            signal,
         });
         if (!response.ok) {
             const transient = response.status >= 500;
@@ -206,9 +275,33 @@ async function lookupRegistry(domain, options) {
         };
     }
 }
+async function lookupTrust(domain, options) {
+    const cached = readCache(domain, options);
+    if (cached)
+        return { meta: cached, cacheTtlMs: 0 };
+    const signal = AbortSignal.timeout(options.timeoutMs);
+    try {
+        const local = await lookupLocalDid(domain, options, signal);
+        if (local)
+            return local;
+    }
+    catch (err) {
+        return {
+            meta: unverified(domain, errorWarning(err)),
+            cacheTtlMs: Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS),
+        };
+    }
+    if (signal.aborted) {
+        return {
+            meta: unverified(domain, "Verification timed out; treating domain as unverified"),
+            cacheTtlMs: Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS),
+        };
+    }
+    return lookupApi(domain, options, signal);
+}
 const inflight = new WeakMap();
 async function settle(domain, options) {
-    const lookup = await lookupRegistry(domain, options);
+    const lookup = await lookupTrust(domain, options);
     if (lookup.cacheTtlMs > 0) {
         options.cache.set(cacheKeys(domain).middleware, toCacheValue(lookup.meta), lookup.cacheTtlMs);
     }
@@ -383,9 +476,10 @@ function wrapMethod(method, tool, options) {
 /**
  * Demand-side verification middleware.
  *
- * When an agent fetches a domain, the wrapper calls `GET {base}/v1/verify`
- * and appends `{ verified, trustScore }` metadata. Unverified domains and
- * registry outages append `securityWarning: true` and do not throw.
+ * When an agent fetches a domain, the wrapper checks local `did:web` (JWS)
+ * or calls `GET {base}/v1/verify` and appends `{ verified, trustScore }`
+ * metadata. Unverified domains and registry outages append `securityWarning: true`
+ * and do not throw.
  *
  * @example
  * ```ts

@@ -49,7 +49,7 @@ if (!gate.allowed) {
 
 ## Demand-side middleware
 
-`agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It calls `GET {base}/v1/verify` (default `https://api.trustflow.systems`) and appends `{ verified: true, trustScore }` when the registry verifies the domain. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
+`agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It verifies local `did:web` (JWS on `/.well-known/did.json`) or calls `GET {base}/v1/verify` (default `https://api.trustflow.systems`). Verified results append `{ verified: true, trustScore }`. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
 
 ```ts
 import { agenticTrustMiddleware } from "@agentic-trust/sdk";

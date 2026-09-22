@@ -69,7 +69,7 @@ Set `VERIFICATION_API_URL=https://api.trustflow.systems` to use the hosted regis
 
 ### Demand-side middleware
 
-`agenticTrustMiddleware` checks a domain when an agent fetches it. The wrapper calls `GET https://api.trustflow.systems/v1/verify` (base URL configurable). Verified content gets `{ verified: true, trustScore }` on the context and, for `fetch`, an `x-agentic-trust` header. Unverified domains and registry timeouts or network errors set `securityWarning: true` and do not throw. Results reuse the SDK memory cache (middleware misses for 5 minutes; transport failures for 15 seconds). The registry timeout is 4 seconds.
+`agenticTrustMiddleware` checks a domain when an agent fetches it. The wrapper verifies local `did:web` or calls `GET https://api.trustflow.systems/v1/verify` (base URL configurable). Verified content gets `{ verified: true, trustScore }` on the context and, for `fetch`, an `x-agentic-trust` header. Unverified domains and registry timeouts or network errors set `securityWarning: true` and do not throw. Results reuse the SDK memory cache (middleware misses for 5 minutes; transport failures for 15 seconds). The check times out after 4 seconds.
 
 ```ts
 import { agenticTrustMiddleware } from "@agentic-trust/sdk";
