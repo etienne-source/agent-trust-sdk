@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import {
   applyEcosystemPlan,
   assertApplyAllowed,
-  createGithubClient,
+  createOctokitClient,
   formatDryRun,
   loadAllowlist,
   planAllowlist,
@@ -47,9 +47,13 @@ function helpText() {
     "A real GitHub pull request is opened only when --apply and --targets are both set,",
     "the file is not scripts/ecosystem-targets.example.json, example is not true,",
     "and targets is a non-empty allowlist of repositories you maintain.",
+    "--apply forks the repository (or pushes to your existing fork) with Octokit.",
+    "It requires GITHUB_TOKEN or GH_TOKEN with permission to create that fork and pull request.",
     "",
     "Copy scripts/ecosystem-targets.example.json to scripts/ecosystem-targets.json.",
     "That copy is gitignored. Leave targets empty until you mean to open a pull request.",
+    "LangChain, LlamaIndex, and Next.js AI boilerplates are documentation examples only.",
+    "They are not listed in the example file and this command does not search for them.",
     "Frameworks: langchain, langgraph, vercel-ai, openai-agents, llamaindex, mastra.",
     "This command does not search GitHub and does not post to X.",
     "",
@@ -71,12 +75,12 @@ export async function run(argv, env = process.env) {
   }
 
   assertApplyAllowed(allowlist, { targetsFlag: Boolean(args.targets) });
-  const github = createGithubClient({
+  const octokit = createOctokitClient({
     token: env.GITHUB_TOKEN || env.GH_TOKEN || "",
   });
   const urls = [];
   for (const plan of plans) {
-    const opened = await applyEcosystemPlan(plan, github);
+    const opened = await applyEcosystemPlan(plan, octokit);
     urls.push(opened.url);
   }
   return { exitCode: 0, output: `${urls.join("\n")}\n` };

@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   applyEcosystemPlan,
   assertApplyAllowed,
+  createOctokitClient,
   formatDryRun,
   loadAllowlist,
   planAllowlist,
@@ -78,11 +79,17 @@ test("plans middleware files for agent frameworks", () => {
   );
   for (const plan of plans) {
     const blob = `${plan.body}\n${plan.files.map((file) => file.content).join("\n")}`;
+    assert.match(plan.body, /Executive summary: context-poisoning defense/);
     assert.match(blob, /Context Poisoning Defense Triggered/);
     assert.match(blob, /Trustflow Systems/);
     assert.doesNotMatch(blob, /npm install trustflow-sdk/);
     assert.doesNotMatch(blob, /BEGIN PRIVATE KEY/);
     assert.match(plan.body, /does not post to X/);
+    const byPath = Object.fromEntries(plan.files.map((file) => [file.path, file.content]));
+    assert.match(byPath["llms.txt"], /did:web:REPLACE_ME\.example/);
+    assert.match(byPath[".well-known/llms.txt"], /Trustflow Systems/);
+    assert.match(byPath[".well-known/did.json"], /"jws": "REPLACE_ME"/);
+    assert.match(byPath[".well-known/did.json"], /"publicKeyPem": "REPLACE_ME"/);
   }
 
   const mastra = planAllowlist(allowlist([target({ repo: "acme/mastra", framework: "mastra" })]))[0];
@@ -98,57 +105,179 @@ test("rejects targets that are not an explicit framework repo", () => {
   assert.throws(() => allowlist(many), /maximum per run is 5/);
 });
 
-test("apply creates one branch and pull request from the allowlist", async () => {
-  const [plan] = planAllowlist(allowlist([target({ framework: "vercel-ai", repo: "acme/starter" })]));
+function notFound() {
+  const error = new Error("Not Found");
+  error.status = 404;
+  return error;
+}
+
+function mockOctokit({ login = "maintainer", fork = "missing", files = new Map(), parentSha = "parentsha" } = {}) {
   const calls = [];
-  const files = new Map([
-    ["package.json", '{\n  "name": "starter",\n  "dependencies": {\n    "ai": "^4.0.0"\n  }\n}\n'],
-  ]);
-  const github = {
-    async request(method, requestPath, body) {
-      calls.push({ method, requestPath, body });
-      if (method === "GET" && requestPath.includes("/contents/")) {
-        const relative = decodeURIComponent(requestPath.split("/contents/")[1].split("?")[0]);
-        if (!files.has(relative)) return null;
-        return {
-          type: "file",
-          encoding: "base64",
-          content: Buffer.from(files.get(relative), "utf8").toString("base64"),
-        };
-      }
-      if (method === "GET" && requestPath.endsWith("/git/ref/heads/main")) return { object: { sha: "parentsha" } };
-      if (method === "GET" && requestPath.endsWith("/git/commits/parentsha")) return { tree: { sha: "treesha" } };
-      if (method === "POST" && requestPath.endsWith("/git/trees")) return { sha: "newtree" };
-      if (method === "POST" && requestPath.endsWith("/git/commits")) return { sha: "newcommit" };
-      if (method === "POST" && requestPath.endsWith("/git/refs")) return { ref: body.ref };
-      if (method === "POST" && requestPath.endsWith("/pulls")) {
-        return { html_url: "https://github.com/acme/starter/pull/3", number: 3 };
-      }
-      throw new Error(`unexpected ${method} ${requestPath}`);
+  const state = { forkReady: fork === "existing", synced: false, parentSha, files };
+  const record = (name, args) => {
+    calls.push({ name, args });
+    return args;
+  };
+  const octokit = {
+    rest: {
+      users: {
+        async getAuthenticated() {
+          record("users.getAuthenticated", {});
+          return { data: { login } };
+        },
+      },
+      search: {
+        async repos() {
+          record("search.repos", {});
+          return { data: { items: [{ full_name: "unlisted/repo" }] } };
+        },
+      },
+      repos: {
+        async get({ owner, repo }) {
+          record("repos.get", { owner, repo });
+          if (owner === login && repo === "starter" && state.forkReady) {
+            return {
+              data: {
+                fork: login !== "acme",
+                name: repo,
+                owner: { login },
+                parent: { full_name: "acme/starter" },
+              },
+            };
+          }
+          if (owner === "other" && repo === "starter") {
+            return { data: { fork: false, name: repo, owner: { login: "other" } } };
+          }
+          throw notFound();
+        },
+        async createFork({ owner, repo }) {
+          record("repos.createFork", { owner, repo });
+          state.forkReady = true;
+          return { data: { name: repo, owner: { login } } };
+        },
+        async getContent({ owner, repo, path: filePath, ref }) {
+          record("repos.getContent", { owner, repo, path: filePath, ref });
+          if (!state.files.has(filePath)) throw notFound();
+          return {
+            data: {
+              type: "file",
+              encoding: "base64",
+              content: Buffer.from(state.files.get(filePath), "utf8").toString("base64"),
+            },
+          };
+        },
+        async mergeUpstream({ owner, repo, branch }) {
+          record("repos.mergeUpstream", { owner, repo, branch });
+          state.synced = true;
+          state.parentSha = "syncedsha";
+          return { data: { merge_type: "fast-forward" } };
+        },
+      },
+      git: {
+        async getRef({ owner, repo, ref }) {
+          record("git.getRef", { owner, repo, ref });
+          return { data: { object: { sha: state.parentSha } } };
+        },
+        async getCommit({ owner, repo, commit_sha: commitSha }) {
+          record("git.getCommit", { owner, repo, commit_sha: commitSha });
+          if (state.missingOnFork && owner === login && !state.synced) throw notFound();
+          return { data: { sha: commitSha, tree: { sha: "treesha" } } };
+        },
+        async createTree({ owner, repo, tree, base_tree: baseTree }) {
+          record("git.createTree", { owner, repo, tree, base_tree: baseTree });
+          state.tree = tree;
+          return { data: { sha: "newtree" } };
+        },
+        async createCommit(args) {
+          record("git.createCommit", args);
+          return { data: { sha: "newcommit" } };
+        },
+        async createRef(args) {
+          record("git.createRef", args);
+          if (state.refExists) {
+            const error = new Error("Reference already exists");
+            error.status = 422;
+            throw error;
+          }
+          return { data: { ref: args.ref, object: { sha: args.sha } } };
+        },
+        async updateRef(args) {
+          record("git.updateRef", args);
+          return { data: { ref: `refs/${args.ref}`, object: { sha: args.sha } } };
+        },
+      },
+      pulls: {
+        async create(args) {
+          record("pulls.create", args);
+          return { data: { html_url: "https://github.com/acme/starter/pull/3", number: 3 } };
+        },
+      },
     },
   };
+  return { octokit, calls, state };
+}
 
-  const opened = await applyEcosystemPlan(plan, github);
+test("apply forks with Octokit, then opens one pull request", async () => {
+  const [plan] = planAllowlist(allowlist([target({ framework: "vercel-ai", repo: "acme/starter" })]));
+  const { octokit, calls, state } = mockOctokit({
+    files: new Map([["package.json", '{\n  "name": "starter",\n  "dependencies": {\n    "ai": "^4.0.0"\n  }\n}\n']]),
+  });
+
+  const opened = await applyEcosystemPlan(plan, octokit);
   assert.equal(opened.url, "https://github.com/acme/starter/pull/3");
-  assert.equal(calls.some((call) => call.requestPath.includes("/search/")), false);
-  const tree = calls.find((call) => call.requestPath.endsWith("/git/trees")).body;
-  const paths = tree.tree.map((entry) => entry.path);
-  assert.ok(paths.includes("src/agentic-trust-vercel-ai.ts"));
-  assert.ok(paths.includes("package.json"));
-  assert.ok(paths.includes(".gitignore"));
-  const pkg = tree.tree.find((entry) => entry.path === "package.json").content;
+  assert.equal(opened.fork, "maintainer/starter");
+  assert.equal(opened.createdFork, true);
+  assert.equal(opened.head, "maintainer:agentic-trust/framework-middleware");
+  assert.equal(calls.some((call) => call.name.startsWith("search.")), false);
+  await assert.rejects(() => octokit.rest.search.repos({ q: "langchain" }), /search/);
+  const tree = state.tree.map((entry) => entry.path);
+  assert.ok(tree.includes("src/agentic-trust-vercel-ai.ts"));
+  assert.ok(tree.includes("llms.txt"));
+  assert.ok(tree.includes(".well-known/did.json"));
+  assert.ok(tree.includes(".well-known/llms.txt"));
+  assert.ok(tree.includes("package.json"));
+  assert.ok(tree.includes(".gitignore"));
+  const pkg = state.tree.find((entry) => entry.path === "package.json").content;
+  const did = state.tree.find((entry) => entry.path === ".well-known/did.json").content;
   assert.match(pkg, /@agentic-trust\/sdk/);
   assert.match(pkg, /@agentic-trust\/vercel-ai-middleware/);
   assert.doesNotMatch(pkg, /trustflow-sdk/);
-  const pull = calls.find((call) => call.requestPath.endsWith("/pulls")).body;
-  assert.equal(pull.head, "agentic-trust/framework-middleware");
+  assert.match(did, /REPLACE_ME/);
+  assert.doesNotMatch(did, /BEGIN PRIVATE KEY/);
+  const pull = calls.find((call) => call.name === "pulls.create").args;
+  assert.equal(pull.head, "maintainer:agentic-trust/framework-middleware");
+  assert.equal(pull.base, "main");
+  assert.match(pull.body, /Executive summary: context-poisoning defense/);
   assert.match(pull.body, /does not post to X/);
+  const createRef = calls.find((call) => call.name === "git.createRef").args;
+  assert.equal(createRef.owner, "maintainer");
+  assert.equal(createRef.repo, "starter");
 
-  files.set("src/agentic-trust-vercel-ai.ts", "export {};\n");
-  await assert.rejects(() => applyEcosystemPlan(plan, github), /already has src\/agentic-trust-vercel-ai.ts/);
+  state.files.set("src/agentic-trust-vercel-ai.ts", "export {};\n");
+  await assert.rejects(() => applyEcosystemPlan(plan, octokit), /already has src\/agentic-trust-vercel-ai.ts/);
 });
 
-test("github client refuses search and a missing token", async () => {
+test("apply pushes to an existing fork and syncs when the upstream commit is absent", async () => {
+  const [plan] = planAllowlist(allowlist([target({ framework: "llamaindex", repo: "acme/starter" })]));
+  const existing = mockOctokit({ fork: "existing" });
+  existing.state.missingOnFork = true;
+  const opened = await applyEcosystemPlan(plan, existing.octokit);
+  assert.equal(opened.createdFork, false);
+  assert.equal(existing.calls.some((call) => call.name === "repos.createFork"), false);
+  assert.equal(existing.calls.some((call) => call.name === "repos.mergeUpstream"), true);
+  assert.equal(opened.head, "maintainer:agentic-trust/framework-middleware");
+
+  const owned = mockOctokit({ login: "acme", fork: "missing" });
+  const direct = await applyEcosystemPlan(plan, owned.octokit);
+  assert.equal(direct.fork, "acme/starter");
+  assert.equal(direct.head, "agentic-trust/framework-middleware");
+  assert.equal(owned.calls.some((call) => call.name === "repos.createFork"), false);
+
+  const collision = mockOctokit({ login: "other" });
+  await assert.rejects(() => applyEcosystemPlan(plan, collision.octokit), /not a fork of acme\/starter/);
+});
+
+test("github and octokit clients refuse search and a missing token", async () => {
   assert.throws(() => createGithubClient({ token: "  " }), /GITHUB_TOKEN/);
   const client = createGithubClient({
     token: "test-token",
@@ -157,6 +286,21 @@ test("github client refuses search and a missing token", async () => {
     },
   });
   await assert.rejects(() => client.request("GET", "/search/repositories"), /search/);
+
+  assert.throws(() => createOctokitClient({ token: "  " }), /GITHUB_TOKEN/);
+  class FakeOctokit {
+    constructor() {
+      this.rest = {
+        search: {
+          repos: async () => ({ data: { items: [] } }),
+        },
+      };
+      this.request = async () => ({ data: {} });
+    }
+  }
+  const octokit = createOctokitClient({ token: "test-token", OctokitImpl: FakeOctokit });
+  await assert.rejects(() => octokit.rest.search.repos({ q: "next.js" }), /search/);
+  await assert.rejects(() => octokit.request("GET /search/repositories"), /search/);
 });
 
 test("cli dry-run smoke", () => {

@@ -1,5 +1,13 @@
 import path from "node:path";
-import { createGithubClient, ensureGitignore, mergePackageDependency } from "./starter-prs.mjs";
+import { Octokit } from "@octokit/rest";
+import {
+  createGithubClient,
+  ensureGitignore,
+  loadStarterTemplates,
+  mergePackageDependency,
+  placeholderDid,
+  renderLlms,
+} from "./starter-prs.mjs";
 
 export { createGithubClient };
 
@@ -157,6 +165,9 @@ function sdkAnd(spec) {
 const ALLOWED_EXACT = new Set([
   "package.json",
   ".gitignore",
+  "llms.txt",
+  ".well-known/llms.txt",
+  ".well-known/did.json",
   ...Object.values(FRAMEWORK_FILES).map((entry) => entry.path),
 ]);
 
@@ -190,6 +201,44 @@ function assertBase(value, index) {
   return base;
 }
 
+function assertDomain(value, index) {
+  const domain = String(value ?? "REPLACE_ME.example").trim().toLowerCase();
+  if (domain === "replace_me.example") return "REPLACE_ME.example";
+  if (
+    !/^[a-z0-9.-]+$/.test(domain) ||
+    domain.length > 253 ||
+    !domain.includes(".") ||
+    domain.includes("..") ||
+    domain.startsWith("-") ||
+    domain.endsWith(".") ||
+    domain.startsWith(".")
+  ) {
+    throw new Error(`targets[${index}].domain is not a hostname`);
+  }
+  return domain;
+}
+
+function assertShort(value, index, field, max) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") throw new Error(`targets[${index}].${field} must be a string`);
+  const text = value.trim();
+  if (!text || text.length > max) throw new Error(`targets[${index}].${field} must be 1-${max} characters`);
+  return text;
+}
+
+function assertServices(value, index) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 20) {
+    throw new Error(`targets[${index}].services must be an array of at most 20 strings`);
+  }
+  return value.map((item, serviceIndex) => {
+    if (typeof item !== "string" || !item.trim() || item.length > 80) {
+      throw new Error(`targets[${index}].services[${serviceIndex}] must be a short string`);
+    }
+    return item.trim();
+  });
+}
+
 export function normalizeTarget(entry, index) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
     throw new Error(`targets[${index}] must be an object`);
@@ -204,6 +253,10 @@ export function normalizeTarget(entry, index) {
     repo: assertRepo(entry.repo, index),
     framework: entry.framework,
     base: assertBase(entry.base, index),
+    domain: assertDomain(entry.domain, index),
+    name: assertShort(entry.name, index, "name", 80),
+    description: assertShort(entry.description, index, "description", 200),
+    services: assertServices(entry.services, index),
     enabled: true,
   };
 }
@@ -241,17 +294,25 @@ function pullRequestBody(target) {
   const spec = FRAMEWORK_FILES[target.framework];
   const install = Object.values(spec.dependencies).join(" ");
   return [
-    "## AgenticTrust fail-closed middleware",
+    "## Executive summary: context-poisoning defense",
     "",
-    `Adds **AgenticTrust** domain checks to this ${target.framework} starter.`,
+    "Agents often read domain context (`llms.txt` and similar host-served instructions) before they answer.",
+    "If that hostname has no `did:web` signature, nothing binds those bytes to a key the agent trusts.",
+    "A later edit that breaks an Ed25519 or P-256 JWS is the same class of failure: the text is no longer authenticated.",
+    "Context signing is the TLS check for that fetch. Verify the domain, then parse the file.",
+    "",
+    `This pull request adds fail-closed **AgenticTrust** wiring for a ${target.framework} starter.`,
     "The hosted registry is **Trustflow Systems** (https://trustflow.systems).",
-    "",
-    `\`${spec.path}\` blocks unverified or tampered \`llms.txt\` context before execution.`,
-    "The security error is:",
+    `\`${spec.path}\` runs before unverified or tampered \`llms.txt\` is parsed or executed.`,
+    "The middleware throws:",
     "",
     "```text",
     "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.",
     "```",
+    "",
+    "`.well-known/did.json` and `llms.txt` in this change are unsigned placeholders (`proof.jws` is `REPLACE_ME`).",
+    `They do not make \`${target.domain}\` VERIFIED.`,
+    "Replace them with `npx agentic-trust init` from `@agentic-trust/cli`. Do not commit a private key or `.agentic-trust/`.",
     "",
     "### Install",
     "",
@@ -265,23 +326,44 @@ function pullRequestBody(target) {
   ].join("\n");
 }
 
-export function planTarget(target) {
+export function planTarget(target, templates = loadStarterTemplates()) {
   const spec = FRAMEWORK_FILES[target.framework];
   const content = spec.content();
   if (content.includes("BEGIN PRIVATE KEY") || content.includes("npm install trustflow-sdk")) {
     throw new Error(`Refusing to plan ${target.framework}: unsafe snippet`);
   }
-  assertSafePath(spec.path);
+  const llms = renderLlms({
+    name: target.name ?? `AgenticTrust ${target.framework} starter`,
+    description:
+      target.description ?? "Placeholder did:web identity. Replace REPLACE_ME before you publish the site.",
+    domain: target.domain,
+    services: target.services ?? [],
+  });
+  const did = placeholderDid(templates.did, target.domain);
+  const files = [
+    { path: spec.path, content },
+    { path: "llms.txt", content: llms },
+    { path: ".well-known/llms.txt", content: llms },
+    { path: ".well-known/did.json", content: did },
+  ];
+  for (const file of files) {
+    assertSafePath(file.path);
+    assertPublicContent(file.content);
+  }
+  if (!did.includes('"jws": "REPLACE_ME"')) {
+    throw new Error("Refusing to plan a did.json that is not the REPLACE_ME placeholder");
+  }
   return {
     repo: target.repo,
     framework: target.framework,
     base: target.base,
+    domain: target.domain,
     branch: ECOSYSTEM_BRANCH,
     title: "Add AgenticTrust fail-closed middleware",
     body: pullRequestBody(target),
     commitMessage:
-      "Add AgenticTrust fail-closed domain middleware\n\nInstalls @agentic-trust packages from GitHub. Does not add a private key.",
-    files: [{ path: spec.path, content }],
+      "Add AgenticTrust fail-closed domain middleware\n\nPlaceholder did:web and llms.txt only. proof.jws stays REPLACE_ME. Does not add a private key.",
+    files,
     packageDependencies: spec.dependencies,
   };
 }
@@ -306,7 +388,11 @@ export function formatDryRun(allowlist, plans) {
     );
     return lines.join("\n");
   }
-  lines.push("Dry run only. Pass --apply and --targets <allowlist.json> to open these pull requests.", "");
+  lines.push(
+    "Dry run only. Pass --apply and --targets <allowlist.json> to fork (or update an existing fork) and open these pull requests.",
+    "--apply requires GITHUB_TOKEN or GH_TOKEN. This command does not search GitHub.",
+    ""
+  );
   plans.forEach((plan, index) => {
     lines.push(
       `# ${index + 1} ${plan.repo}`,
@@ -345,25 +431,6 @@ export function assertApplyAllowed(allowlist, { targetsFlag = false } = {}) {
   }
 }
 
-function encodePath(filePath) {
-  return filePath.split("/").map((part) => encodeURIComponent(part)).join("/");
-}
-
-async function readRepoFile(github, repo, filePath, ref) {
-  assertSafePath(filePath);
-  const data = await github.request(
-    "GET",
-    `/repos/${repo}/contents/${encodePath(filePath)}?ref=${encodeURIComponent(ref)}`,
-    undefined,
-    { allow404: true }
-  );
-  if (!data) return null;
-  if (Array.isArray(data) || data.type !== "file" || typeof data.content !== "string") {
-    throw new Error(`${filePath} is not a file`);
-  }
-  return Buffer.from(data.content, data.encoding || "base64").toString("utf8");
-}
-
 function assertPublicContent(content) {
   if (content.includes("BEGIN PRIVATE KEY") || content.includes("BEGIN OPENSSH PRIVATE KEY")) {
     throw new Error("Refusing to write private key material");
@@ -373,24 +440,188 @@ function assertPublicContent(content) {
   }
 }
 
-export async function applyEcosystemPlan(plan, github) {
+const SEARCH_REFUSAL = "Refusing a GitHub search request. Targets come only from the allowlist.";
+
+function statusOf(error) {
+  return error && typeof error === "object" && "status" in error ? error.status : undefined;
+}
+
+export function sealOctokit(octokit) {
+  if (!octokit || typeof octokit !== "object") {
+    throw new Error("applyEcosystemPlan requires an Octokit client.");
+  }
+  const search = octokit.rest?.search;
+  if (search && typeof search === "object") {
+    for (const key of Object.keys(search)) {
+      if (typeof search[key] !== "function") continue;
+      const sealed = async () => {
+        throw new Error(SEARCH_REFUSAL);
+      };
+      search[key] = sealed;
+    }
+  }
+  if (typeof octokit.request === "function" && !octokit.request.__agenticTrustSealed) {
+    const original = octokit.request.bind(octokit);
+    const wrapped = async (route, options) => {
+      const text = `${typeof route === "string" ? route : ""} ${options?.url ?? ""}`;
+      if (text.includes("/search/")) throw new Error(SEARCH_REFUSAL);
+      return original(route, options);
+    };
+    wrapped.__agenticTrustSealed = true;
+    octokit.request = wrapped;
+  }
+  return octokit;
+}
+
+export function createOctokitClient({ token, OctokitImpl = Octokit } = {}) {
+  const trimmed = typeof token === "string" ? token.trim() : "";
+  if (!trimmed) throw new Error("GITHUB_TOKEN or GH_TOKEN is required for --apply.");
+  const octokit = new OctokitImpl({
+    auth: trimmed,
+    userAgent: "agentic-trust-ecosystem-prs",
+  });
+  return sealOctokit(octokit);
+}
+
+function splitRepo(repo) {
+  const [owner, name] = String(repo).split("/");
+  if (!owner || !name) throw new Error(`repo must be owner/name`);
+  return { owner, name };
+}
+
+async function readRepoFile(octokit, owner, repo, filePath, ref) {
+  assertSafePath(filePath);
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner, repo, path: filePath, ref });
+    if (Array.isArray(data) || data.type !== "file" || typeof data.content !== "string") {
+      throw new Error(`${filePath} is not a file`);
+    }
+    return Buffer.from(data.content, data.encoding || "base64").toString("utf8");
+  } catch (error) {
+    if (statusOf(error) === 404) return null;
+    throw error;
+  }
+}
+
+async function waitForFork(octokit, owner, repo, { attempts = 5, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+  let last;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const { data } = await octokit.rest.repos.get({ owner, repo });
+      return data;
+    } catch (error) {
+      last = error;
+      if (statusOf(error) !== 404) throw error;
+      if (attempt < attempts - 1) await sleep(25 * (attempt + 1));
+    }
+  }
+  throw new Error(`Fork ${owner}/${repo} was not ready (${last instanceof Error ? last.message : "unknown"}).`);
+}
+
+async function ensureFork(octokit, { login, upstreamOwner, upstreamRepo }) {
+  if (login === upstreamOwner) {
+    return { owner: upstreamOwner, repo: upstreamRepo, created: false };
+  }
+  try {
+    const { data } = await octokit.rest.repos.get({ owner: login, repo: upstreamRepo });
+    const parent = data.parent?.full_name;
+    if (data.fork === true && parent === `${upstreamOwner}/${upstreamRepo}`) {
+      return { owner: login, repo: upstreamRepo, created: false };
+    }
+    throw new Error(
+      `Refusing to push to ${login}/${upstreamRepo}; it is not a fork of ${upstreamOwner}/${upstreamRepo}.`
+    );
+  } catch (error) {
+    if (statusOf(error) !== 404) throw error;
+  }
+  const { data } = await octokit.rest.repos.createFork({ owner: upstreamOwner, repo: upstreamRepo });
+  await waitForFork(octokit, data.owner?.login || login, data.name || upstreamRepo);
+  return { owner: data.owner?.login || login, repo: data.name || upstreamRepo, created: true };
+}
+
+async function resolveParentSha(octokit, { destination, upstreamOwner, upstreamRepo, base }) {
+  const upstream = await octokit.rest.git.getRef({
+    owner: upstreamOwner,
+    repo: upstreamRepo,
+    ref: `heads/${base}`,
+  });
+  const sha = upstream.data.object.sha;
+  if (destination.owner === upstreamOwner && destination.repo === upstreamRepo) return sha;
+  try {
+    await octokit.rest.git.getCommit({
+      owner: destination.owner,
+      repo: destination.repo,
+      commit_sha: sha,
+    });
+    return sha;
+  } catch (error) {
+    if (statusOf(error) !== 404) throw error;
+    if (typeof octokit.rest.repos.mergeUpstream !== "function") {
+      throw new Error(`Fork ${destination.owner}/${destination.repo} is missing ${sha} and cannot sync.`);
+    }
+    await octokit.rest.repos.mergeUpstream({
+      owner: destination.owner,
+      repo: destination.repo,
+      branch: base,
+    });
+    const synced = await octokit.rest.git.getRef({
+      owner: destination.owner,
+      repo: destination.repo,
+      ref: `heads/${base}`,
+    });
+    return synced.data.object.sha;
+  }
+}
+
+async function pushBranch(octokit, destination, branch, sha) {
+  try {
+    await octokit.rest.git.createRef({
+      owner: destination.owner,
+      repo: destination.repo,
+      ref: `refs/heads/${branch}`,
+      sha,
+    });
+  } catch (error) {
+    if (statusOf(error) !== 422) throw error;
+    await octokit.rest.git.updateRef({
+      owner: destination.owner,
+      repo: destination.repo,
+      ref: `heads/${branch}`,
+      sha,
+      force: false,
+    });
+  }
+}
+
+export async function applyEcosystemPlan(plan, octokit) {
+  if (!octokit?.rest?.repos || !octokit?.rest?.git || !octokit?.rest?.pulls || !octokit?.rest?.users) {
+    throw new Error("applyEcosystemPlan requires an Octokit client.");
+  }
+  sealOctokit(octokit);
+
+  const { owner: upstreamOwner, name: upstreamRepo } = splitRepo(plan.repo);
+  const { data: me } = await octokit.rest.users.getAuthenticated();
+  const login = me?.login;
+  if (typeof login !== "string" || !login) throw new Error("GitHub did not return the authenticated user.");
+  const destination = await ensureFork(octokit, { login, upstreamOwner, upstreamRepo });
+
   const updates = new Map(plan.files.map((file) => [file.path, file.content]));
   for (const filePath of updates.keys()) assertSafePath(filePath);
 
   for (const filePath of updates.keys()) {
-    const existing = await readRepoFile(github, plan.repo, filePath, plan.base);
+    const existing = await readRepoFile(octokit, upstreamOwner, upstreamRepo, filePath, plan.base);
     if (existing !== null) {
       throw new Error(`${plan.repo} already has ${filePath}. Refusing to overwrite it.`);
     }
   }
 
-  const packageJson = await readRepoFile(github, plan.repo, "package.json", plan.base);
+  const packageJson = await readRepoFile(octokit, upstreamOwner, upstreamRepo, "package.json", plan.base);
   if (packageJson !== null) {
     const merged = mergePackageDependency(packageJson, plan.packageDependencies);
     if (merged !== null) updates.set("package.json", merged);
   }
 
-  const gitignore = await readRepoFile(github, plan.repo, ".gitignore", plan.base);
+  const gitignore = await readRepoFile(octokit, upstreamOwner, upstreamRepo, ".gitignore", plan.base);
   const nextIgnore = ensureGitignore(gitignore);
   if (nextIgnore !== null) updates.set(".gitignore", nextIgnore);
 
@@ -401,28 +632,47 @@ export async function applyEcosystemPlan(plan, github) {
     tree.push({ path: filePath, mode: "100644", type: "blob", content });
   }
 
-  const ref = await github.request("GET", `/repos/${plan.repo}/git/ref/heads/${plan.base}`);
-  const parentSha = ref.object.sha;
-  const parent = await github.request("GET", `/repos/${plan.repo}/git/commits/${parentSha}`);
-  const createdTree = await github.request("POST", `/repos/${plan.repo}/git/trees`, {
+  const parentSha = await resolveParentSha(octokit, {
+    destination,
+    upstreamOwner,
+    upstreamRepo,
+    base: plan.base,
+  });
+  const { data: parent } = await octokit.rest.git.getCommit({
+    owner: destination.owner,
+    repo: destination.repo,
+    commit_sha: parentSha,
+  });
+  const { data: createdTree } = await octokit.rest.git.createTree({
+    owner: destination.owner,
+    repo: destination.repo,
     base_tree: parent.tree.sha,
     tree,
   });
-  const commit = await github.request("POST", `/repos/${plan.repo}/git/commits`, {
+  const { data: commit } = await octokit.rest.git.createCommit({
+    owner: destination.owner,
+    repo: destination.repo,
     message: plan.commitMessage,
     tree: createdTree.sha,
     parents: [parentSha],
   });
-  await github.request("POST", `/repos/${plan.repo}/git/refs`, {
-    ref: `refs/heads/${plan.branch}`,
-    sha: commit.sha,
-  });
-  const pull = await github.request("POST", `/repos/${plan.repo}/pulls`, {
+  await pushBranch(octokit, destination, plan.branch, commit.sha);
+
+  const head = destination.owner === upstreamOwner ? plan.branch : `${destination.owner}:${plan.branch}`;
+  const { data: pull } = await octokit.rest.pulls.create({
+    owner: upstreamOwner,
+    repo: upstreamRepo,
     title: plan.title,
-    head: plan.branch,
+    head,
     base: plan.base,
     body: plan.body,
   });
   if (typeof pull.html_url !== "string") throw new Error("GitHub did not return a pull request URL");
-  return { url: pull.html_url, number: pull.number };
+  return {
+    url: pull.html_url,
+    number: pull.number,
+    head,
+    fork: `${destination.owner}/${destination.repo}`,
+    createdFork: destination.created,
+  };
 }
