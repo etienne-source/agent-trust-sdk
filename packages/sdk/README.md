@@ -47,6 +47,19 @@ if (!gate.allowed) {
 }
 ```
 
+## Demand-side middleware
+
+`agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It verifies local `did:web` (JWS on `/.well-known/did.json`) or calls `GET {base}/v1/verify` (default `https://api.trustflow.systems`). Verified results append `{ verified: true, trustScore }`. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
+
+```ts
+import { agenticTrustMiddleware } from "@agentic-trust/sdk";
+
+const trust = agenticTrustMiddleware();
+const context = await trust.annotateContext({ snippet }, "https://example.com");
+const response = await trust.fetch("https://example.com/data.json");
+const tool = trust.wrapTool(existingTool);
+```
+
 Point the fallback registry at Trustflow Systems:
 
 ```bash
@@ -61,6 +74,8 @@ That calls `GET /v1/verify?domain=`. The SDK only performs HTTPS fetches. It has
 verifyDomain(domainUrl, options?): Promise<VerifyResult>
 inspectEndpointBeforeExecution(endpoint, options?): Promise<EndpointInspectionResult>
 clearVerifyCache(): void
+agenticTrustMiddleware(options?): AgenticTrustMiddleware
+// middleware.verify / annotateContext / annotateDocuments / fetch / wrapTool
 createSignedDidDocument(input): Promise<SignedDidIdentity>
 hashPublicKeyPem(pem): string
 normalizeDomain, didWebId, wellKnownDidUrl, verifyDidJws, ...
