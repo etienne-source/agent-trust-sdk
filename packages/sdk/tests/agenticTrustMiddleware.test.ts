@@ -354,6 +354,98 @@ describe("agenticTrustMiddleware", () => {
     expect(verifyCalls(fetchFn)).toHaveLength(0);
   });
 
+  it("fail-closes on alg none, HS256, and a did.json that is not JSON", async () => {
+    const noneDomain = "none.example";
+    const noneDid = await makeSignedDid(noneDomain);
+    const nonePayload = Buffer.from(JSON.stringify({ id: noneDid.id })).toString("base64url");
+    noneDid.proof = {
+      type: "JsonWebSignature2020",
+      jws: `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${nonePayload}.`,
+    };
+    const noneFetch = mockFetch({
+      "/.well-known/did.json": { body: noneDid },
+      "/v1/verify": { body: verifiedBody(noneDomain, 99) },
+    });
+    const none = agenticTrustMiddleware({ fetch: noneFetch, verificationApiUrl: API });
+    const noneMeta = await none.verify(`https://${noneDomain}/x`);
+    expect(noneMeta).toMatchObject({ verified: false, securityWarning: true, status: "RISK" });
+    expect(noneMeta.warning).toMatch(/Disallowed JWS algorithm: none/);
+    expect(verifyCalls(noneFetch)).toHaveLength(0);
+
+    clearVerifyCache();
+    const hmacDomain = "hmac.example";
+    const hmacDid = await makeSignedDid(hmacDomain);
+    const hmacPayload = Buffer.from(JSON.stringify({ id: hmacDid.id })).toString("base64url");
+    hmacDid.proof = {
+      type: "JsonWebSignature2020",
+      jws: `${Buffer.from(JSON.stringify({ alg: "HS256" })).toString("base64url")}.${hmacPayload}.sig`,
+    };
+    const hmacFetch = mockFetch({
+      "/.well-known/did.json": { body: hmacDid },
+      "/v1/verify": { body: verifiedBody(hmacDomain, 99) },
+    });
+    const hmac = agenticTrustMiddleware({ fetch: hmacFetch, verificationApiUrl: API });
+    const hmacMeta = await hmac.verify(hmacDomain);
+    expect(hmacMeta.securityWarning).toBe(true);
+    expect(hmacMeta.warning).toMatch(/Disallowed symmetric JWS algorithm: HS256/);
+    expect(verifyCalls(hmacFetch)).toHaveLength(0);
+
+    clearVerifyCache();
+    const junkDomain = "junk.example";
+    const junk = agenticTrustMiddleware({
+      fetch: mockFetch({
+        "/.well-known/did.json": { text: "<html>nope</html>" },
+        "/v1/verify": { body: verifiedBody(junkDomain, 99) },
+      }),
+      verificationApiUrl: API,
+    });
+    await expect(junk.verify(`https://${junkDomain}/junk`)).resolves.toMatchObject({
+      verified: false,
+      securityWarning: true,
+      status: "RISK",
+      warning: "did.json is not valid JSON",
+    });
+  });
+
+  it("fail-closes on an empty target, a bad did:web, and a non-JSON registry body", async () => {
+    const fetchFn = mockFetch({
+      "/v1/verify": { text: "<html>down</html>" },
+    });
+    const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
+    await expect(trust.verify("")).resolves.toMatchObject({
+      verified: false,
+      securityWarning: true,
+    });
+    await expect(trust.verify("did:web:")).resolves.toMatchObject({
+      verified: false,
+      securityWarning: true,
+    });
+    const meta = await trust.verify("https://html.example/page");
+    expect(meta.verified).toBe(false);
+    expect(meta.securityWarning).toBe(true);
+    expect(meta.warning).toMatch(/invalid JSON/);
+  });
+
+  it("keeps a non-JSON content body when the content-type claims JSON", async () => {
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/v1/verify") || url.includes("did.json")) {
+        return new Response(JSON.stringify(verifiedBody("example.com", 70)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("not-json", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
+    const response = await trust.fetch("https://example.com/data.json");
+    expect(await response.text()).toBe("not-json");
+    expect(response.headers.get("x-agentic-trust")).toBeTruthy();
+  });
+
   it("does not swallow content-fetch failures", async () => {
     const fetchFn = mockFetch({
       "/v1/verify": { body: verifiedBody("example.com") },

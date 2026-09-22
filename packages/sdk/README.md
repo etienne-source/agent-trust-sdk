@@ -6,12 +6,11 @@ The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustf
 
 **License:** MIT · **Install:** GitHub only, until the npm scope exists
 
-> **Warning:** Do not run `npm install trustflow-sdk`. That npm name is an unrelated logging package.
+> **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` points at an unrelated logging package. Install this SDK from GitHub: `github:etienne-source/agent-trust-sdk`.
 
 ## Install
 
 ```bash
-# Once packages/sdk is on the default branch:
 pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
 ```
 
@@ -93,6 +92,8 @@ normalizeDomain, didWebId, wellKnownDidUrl, verifyDidJws, ...
 ```
 
 `createSignedDidDocument` returns the private key to the caller. The CLI writes it under `.agentic-trust/` and gitignores that directory.
+
+A proof with `alg: none`, `HS*`, or any other disallowed algorithm is `RISK` and is not upgraded by the registry.
 
 ## License
 

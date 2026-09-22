@@ -50,4 +50,6 @@ export declare class TrustflowApiError extends Error {
 export declare function resolveTrustflowApiBase(input?: string | null): string;
 export declare function registerDomain(apiBase: string, body: RegisterRequest, fetchFn?: typeof fetch): Promise<RegisterChallenge>;
 export declare function confirmRegistration(apiBase: string, body: ConfirmRequest, fetchFn?: typeof fetch): Promise<Record<string, unknown>>;
+/** Default deadline for POST /v1/register and POST /v1/register/confirm. */
+export declare const DEFAULT_API_TIMEOUT_MS = 20000;
 //# sourceMappingURL=api.d.ts.map

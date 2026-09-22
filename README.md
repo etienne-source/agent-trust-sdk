@@ -1,40 +1,89 @@
 # AgenticTrust
 
-Open-standard domain identity for AI agents, plus the Trustflow Systems registry client.
+Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, and the CLI. **Trustflow Systems** is the hosted registry.
 
 | Piece | Name | What it is |
 |-------|------|------------|
-| Protocol, SDK, CLI | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` |
+| Protocol, SDK, CLI | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`) |
 | Hosted platform | **Trustflow Systems** | [trustflow.systems](https://trustflow.systems) · API `https://api.trustflow.systems` |
 
-`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + JWS) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems.
+`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems.
 
 **License:** MIT
 
-> **Warning:** Do not run `npm install trustflow-sdk`. That npm name is an unrelated logging package. Do not run `npx trustflow init`.
+> **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` and `npx trustflow init` point at an unrelated logging package. This repository is not that package, and the `@agentic-trust` scope is not on npm. Install from GitHub: `github:etienne-source/agent-trust-sdk`.
 
-The `@agentic-trust` npm scope is not registered yet. Install from this Git repository.
+## Install
 
-## CLI
+Git only.
 
-`@agentic-trust/cli` exposes the `agentic-trust` binary. It depends on `@agentic-trust/sdk` via `workspace:*`. Clone the repository so that dependency resolves:
+SDK, from another project:
+
+```bash
+pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
+```
+
+CLI, from a clone. `@agentic-trust/cli` depends on `@agentic-trust/sdk` with `workspace:*`, which only resolves inside this repository:
 
 ```bash
 git clone https://github.com/etienne-source/agent-trust-sdk.git
 cd agent-trust-sdk
 pnpm install
-pnpm --filter @agentic-trust/cli exec agentic-trust init
+pnpm --filter @agentic-trust/cli exec agentic-trust --help
 ```
 
-`dist/` is already built in the repository, so you do not need a compile step to run the binary. Do not `pnpm add` only `packages/cli` from Git: pnpm cannot satisfy `workspace:*` outside this repository.
+`dist/` is already built, so the binary runs after `pnpm install`. Do not `pnpm add` only `packages/cli` from Git. Do not `npm install github:etienne-source/agent-trust-sdk` against the repository root: that package is the private workspace.
 
-`agentic-trust init`:
+## Configure
+
+Copy [`.env.example`](.env.example) when you want local overrides. A dry run needs none of these.
+
+| Variable | Used by | Purpose |
+|----------|---------|---------|
+| `VERIFICATION_API_URL` | SDK `verifyDomain` | Registry fallback, `GET /v1/verify?domain=`. Example: `https://api.trustflow.systems`. |
+| `AGENTIC_TRUST_API_URL` | SDK middleware | Checked before `VERIFICATION_API_URL`. Default `https://api.trustflow.systems`. |
+| `TRUSTFLOW_API_URL` | CLI `init` / `confirm` / `sign` | API base for `POST /v1/register`. Default `https://api.trustflow.systems`. `https://trustflow.systems/api/register` is an alias of that origin. |
+| `AGENTIC_TRUST_PRIVATE_KEY` | `agentic-trust sign` | Unencrypted Ed25519 or P-256 PEM (PKCS#8). Never printed. |
+| `AGENTIC_TRUST_DOMAIN` | `agentic-trust sign` | Hostname when `--domain` is omitted. |
+| `AGENTIC_TRUST_BUSINESS_NAME` | `agentic-trust sign` | `businessName` when `--name` is omitted. |
+
+Private keys and challenge tokens are written under `.agentic-trust/` (mode `0600`). That directory is added to `.gitignore`.
+
+## Run the CLI
+
+The binary is `agentic-trust`. The commands are `init`, `confirm`, and `sign`.
+
+```bash
+pnpm --filter @agentic-trust/cli exec agentic-trust init \
+  --non-interactive \
+  --domain example.com \
+  --name "Example Co" \
+  --description "Widgets for agents" \
+  --services "Search, Docs"
+
+pnpm --filter @agentic-trust/cli exec agentic-trust confirm
+
+pnpm --filter @agentic-trust/cli exec agentic-trust sign \
+  --dry-run \
+  --domain example.invalid \
+  --name "Example Co"
+```
+
+### `agentic-trust init`
 
 1. Looks for `llms.txt` (project root, `.well-known/`, `public/`, `static/`, `docs/`, `src/`). If it is missing, prompts for site name, description, and optional services, then writes `llms.txt` and `.well-known/llms.txt`.
 2. Generates an Ed25519 `did:web` key, signs `.well-known/did.json`, and stores the private key in `.agentic-trust/` (added to `.gitignore`, mode `0600`).
 3. Registers the domain with Trustflow: `POST https://api.trustflow.systems/v1/register` (`verificationType` `SSL_CHALLENGE` or `DNS_TXT`). `https://trustflow.systems/api/register` is an alias of that API origin.
 4. Prints the challenge instructions. `agentic-trust confirm` calls `POST /v1/register/confirm`.
 5. Prints an embeddable badge: **Verified by AgenticTrust | trustflow.systems**, linking to `https://trustflow.systems/verify/[domain]`.
+
+### `agentic-trust confirm`
+
+`POST https://api.trustflow.systems/v1/register/confirm` using `.agentic-trust/registration.json` (or `--domain` and `--token`). Prints the same badge when Trustflow accepts the challenge.
+
+### `agentic-trust sign`
+
+Non-interactive entry used by the GitHub Action. Checks root `llms.txt`, signs a `did:web` document with `AGENTIC_TRUST_PRIVATE_KEY`, and POSTs `/v1/register`. `--dry-run` skips the API call. The private key is never printed. Details are in [GitHub Action](#github-action).
 
 ## SDK
 
@@ -170,7 +219,7 @@ It then calls `POST https://api.trustflow.systems/v1/register` and, by default, 
 
 | Name | Kind | Required | Purpose |
 |------|------|----------|---------|
-| `AGENTIC_TRUST_PRIVATE_KEY` | Secret | Live runs | Unencrypted RSA PEM (PKCS#8 or PKCS#1). Never printed. |
+| `AGENTIC_TRUST_PRIVATE_KEY` | Secret | Live runs | Unencrypted Ed25519 or P-256 PEM (PKCS#8). Never printed. |
 | `AGENTIC_TRUST_DOMAIN` | Variable | Live runs | Hostname passed to `/v1/register`. |
 | `AGENTIC_TRUST_BUSINESS_NAME` | Variable | No | `businessName`. Falls back to the `#` heading in `llms.txt`, then the domain. |
 | `AGENTIC_TRUST_DESCRIPTION` | Variable | No | Used only when generating a missing `llms.txt`. |
@@ -196,9 +245,12 @@ Publish `llms.txt`, `.well-known/llms.txt`, `.well-known/did.json`, and (for SSL
 ```bash
 pnpm install
 pnpm test
+pnpm typecheck
 pnpm build
 pnpm smoke
 ```
+
+Pull requests and pushes to `main` run those three checks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
 
 `packages/*/dist` is committed so a clone can run `agentic-trust` before the npm scope exists. Rebuild and commit `dist/` when CLI or SDK sources change.
 

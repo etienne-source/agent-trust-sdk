@@ -91,12 +91,32 @@ export async function writeRegistration(cwd: string, registration: StoredRegistr
 }
 
 export async function readRegistration(cwd: string): Promise<StoredRegistration | undefined> {
+  let text: string;
   try {
-    const text = await fs.readFile(path.join(secretsDir(cwd), "registration.json"), "utf8");
-    return JSON.parse(text) as StoredRegistration;
+    text = await fs.readFile(path.join(secretsDir(cwd), "registration.json"), "utf8");
   } catch {
     return undefined;
   }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error(".agentic-trust/registration.json is not valid JSON");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(".agentic-trust/registration.json is not a JSON object");
+  }
+  return parsed as StoredRegistration;
+}
+
+export function gitignoreNotice(status: "updated" | "present"): string {
+  return status === "updated"
+    ? "Updated .gitignore to exclude .agentic-trust/ (private did:web key)."
+    : ".gitignore already excludes .agentic-trust/.";
+}
+
+export async function writeDidDocument(cwd: string, did: object): Promise<string> {
+  return writeProjectFile(cwd, ".well-known/did.json", `${JSON.stringify(did, null, 2)}\n`);
 }
 
 export async function writeProjectFile(cwd: string, relative: string, contents: string): Promise<string> {

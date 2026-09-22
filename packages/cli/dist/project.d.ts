@@ -28,5 +28,7 @@ export declare function readKeyPair(cwd: string): Promise<{
 } | undefined>;
 export declare function writeRegistration(cwd: string, registration: StoredRegistration): Promise<string>;
 export declare function readRegistration(cwd: string): Promise<StoredRegistration | undefined>;
+export declare function gitignoreNotice(status: "updated" | "present"): string;
+export declare function writeDidDocument(cwd: string, did: object): Promise<string>;
 export declare function writeProjectFile(cwd: string, relative: string, contents: string): Promise<string>;
 //# sourceMappingURL=project.d.ts.map

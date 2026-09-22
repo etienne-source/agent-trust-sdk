@@ -1,9 +1,5 @@
 import { createSignedDidDocument, normalizeDomain } from "@agentic-trust/sdk";
-import {
-  registerDomain,
-  resolveTrustflowApiBase,
-  type VerificationType,
-} from "./api.js";
+import { resolveTrustflowApiBase } from "./api.js";
 import { renderBadge } from "./badge.js";
 import {
   parseServiceList,
@@ -12,13 +8,15 @@ import {
 } from "./llms.js";
 import {
   ensureGitignore,
+  gitignoreNotice,
   readKeyPair,
+  writeDidDocument,
   writePrivateKey,
   writeProjectFile,
   writePublicKey,
-  writeRegistration,
-  type StoredRegistration,
 } from "./project.js";
+import { registerAndStore } from "./registerFlow.js";
+import { parseVerificationType } from "./verificationType.js";
 
 export interface InitOptions {
   cwd: string;
@@ -109,11 +107,7 @@ export async function runInit(options: InitOptions): Promise<number> {
 
   const verificationType = parseVerificationType(options.verificationType);
   const gitignore = await ensureGitignore(options.cwd);
-  options.log(
-    gitignore === "updated"
-      ? "Updated .gitignore to exclude .agentic-trust/ (private did:web key)."
-      : ".gitignore already excludes .agentic-trust/."
-  );
+  options.log(gitignoreNotice(gitignore));
 
   const existingKeys = options.forceKeys ? undefined : await readKeyPair(options.cwd);
   const identity = await createSignedDidDocument({
@@ -129,11 +123,7 @@ export async function runInit(options: InitOptions): Promise<number> {
     options.log("Generated did:web keypair in .agentic-trust/ (gitignored). Do not commit private-key.pem.");
   }
 
-  const didPath = await writeProjectFile(
-    options.cwd,
-    ".well-known/did.json",
-    `${JSON.stringify(identity.did, null, 2)}\n`
-  );
+  const didPath = await writeDidDocument(options.cwd, identity.did);
   options.log(`Wrote ${didPath}`);
   options.log(`DID: ${identity.did.id}`);
   options.log(`publicKeyHash: ${identity.publicKeyHash}`);
@@ -145,46 +135,23 @@ export async function runInit(options: InitOptions): Promise<number> {
   if (!options.skipRegister) {
     const apiBase = resolveTrustflowApiBase(options.apiUrl ?? options.envApiUrl);
     options.log(`Trustflow API: POST ${apiBase}/v1/register`);
-    const challenge = await registerDomain(
+    const { challenge, stored, registrationPath, challengeFile } = await registerAndStore({
+      cwd: options.cwd,
       apiBase,
-      {
-        domain: normalizedDomain,
-        businessName: name,
-        verificationType,
-        did: identity.did.id,
-        publicKeyPem: identity.publicKeyPem,
-        publicKeyHash: identity.publicKeyHash,
-        manifestUrl: `https://${normalizedDomain}/.well-known/did.json`,
-        services,
-      },
-      options.fetch
-    );
-    const stored: StoredRegistration = {
-      domain: challenge.domain || normalizedDomain,
+      fetchFn: options.fetch,
+      domain: normalizedDomain,
       businessName: name,
-      verificationType: challenge.verificationType || verificationType,
-      challengeToken: challenge.challengeToken,
-      challengePath: challenge.challengePath,
-      dnsRecord: challenge.dnsRecord,
-      instructions: challenge.instructions,
-      expiresAt: challenge.expiresAt,
-      tier: challenge.tier,
+      verificationType,
       did: identity.did.id,
+      publicKeyPem: identity.publicKeyPem,
       publicKeyHash: identity.publicKeyHash,
       services,
-      apiBase,
-    };
-    const registrationPath = await writeRegistration(options.cwd, stored);
+    });
     options.log(`Saved challenge state to ${registrationPath} (gitignored).`);
     options.log("");
     options.log(challenge.instructions);
     if (challenge.expiresAt) options.log(`Expires: ${challenge.expiresAt}`);
-    if (challenge.verificationType === "SSL_CHALLENGE" || challenge.challengePath) {
-      const challengeFile = await writeProjectFile(
-        options.cwd,
-        ".well-known/agentic-trust-challenge.txt",
-        challenge.challengeToken
-      );
+    if (challengeFile) {
       options.log(`Wrote the challenge token (no trailing newline) to ${challengeFile}`);
       options.log("Deploy that file so the URL in the instructions returns the token as the exact response body, then confirm.");
     }
@@ -246,10 +213,4 @@ async function requireValue(input: {
   const answered = (await input.prompt(input.label)).trim();
   if (!answered) throw new Error(`${input.label} is required.`);
   return answered;
-}
-
-function parseVerificationType(value: string | undefined): VerificationType {
-  if (!value || value === "SSL_CHALLENGE") return "SSL_CHALLENGE";
-  if (value === "DNS_TXT") return "DNS_TXT";
-  throw new Error("verification type must be SSL_CHALLENGE or DNS_TXT");
 }

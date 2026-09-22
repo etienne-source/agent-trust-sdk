@@ -1,5 +1,6 @@
 import { defaultCache } from "./cache.js";
-import { importPublicKey, verifyDidJws, fingerprintPem } from "./jws.js";
+import { fingerprintPem } from "./jws.js";
+import { assessDidDocument, fetchDidDocument } from "./localDid.js";
 import {
   normalizeDomain,
   didWebId,
@@ -11,6 +12,7 @@ import type {
   DidDocument,
   DomainClaims,
   EndpointInspectionResult,
+  VerificationStatus,
   VerifyDomainOptions,
   VerifyResult,
 } from "./types.js";
@@ -20,9 +22,28 @@ const DEFAULT_API =
   "http://localhost:8787";
 
 const DEFAULT_CACHE_TTL_MS = 3_600_000; // 1h — hits stay <50ms
+const LOCAL_DID_TIMEOUT_MS = 8_000;
 
 function getFetch(opts?: VerifyDomainOptions): typeof fetch {
   return opts?.fetch ?? globalThis.fetch.bind(globalThis);
+}
+
+function checkedAt(): string {
+  return new Date().toISOString();
+}
+
+function verifyResult(
+  domain: string,
+  status: VerificationStatus,
+  extra: Partial<VerifyResult> = {}
+): VerifyResult {
+  return {
+    status,
+    domain,
+    claims: {},
+    checkedAt: checkedAt(),
+    ...extra,
+  };
 }
 
 async function softFetchLlms(
@@ -82,98 +103,55 @@ async function verifyLocalDid(
   domain: string,
   fetchFn: typeof fetch
 ): Promise<VerifyResult | null> {
-  let res: Response;
-  try {
-    res = await fetchFn(wellKnownDidUrl(domain), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(8_000),
+  const loaded = await fetchDidDocument(domain, fetchFn, AbortSignal.timeout(LOCAL_DID_TIMEOUT_MS));
+  if (loaded.kind === "network") return null;
+  if (loaded.kind === "http") {
+    return verifyResult(domain, "UNVERIFIED", {
+      reason: `did.json returned HTTP ${loaded.status}`,
     });
-  } catch {
-    return null; // network / TLS failure → fall through to API
+  }
+  if (loaded.kind === "invalid-json") {
+    return verifyResult(domain, "RISK", { reason: "did.json is not valid JSON" });
   }
 
-  if (!res.ok) {
-    return {
-      status: "UNVERIFIED",
-      domain,
-      claims: {},
-      reason: `did.json returned HTTP ${res.status}`,
-      checkedAt: new Date().toISOString(),
-    };
+  const assessment = await assessDidDocument(domain, loaded.body);
+  if (assessment.outcome === "malformed") {
+    return verifyResult(domain, "RISK", { reason: assessment.reason });
+  }
+  if (assessment.outcome === "risk" && assessment.reason === "DID id is not did:web") {
+    return verifyResult(domain, "RISK", {
+      claims: assessment.didId ? { did: assessment.didId } : {},
+      reason: assessment.reason,
+    });
   }
 
-  let did: DidDocument;
-  try {
-    did = (await res.json()) as DidDocument;
-  } catch {
-    return {
-      status: "RISK",
-      domain,
-      claims: {},
-      reason: "did.json is not valid JSON",
-      checkedAt: new Date().toISOString(),
-    };
-  }
-
-  const expectedDid = didWebId(domain);
-  if (did.id && did.id !== expectedDid && did.id !== `did:web:${domain.replace(/\./g, ":")}`) {
-    // allow did:web:example.com and path-encoded forms; flag clear mismatches
-    if (!did.id.startsWith("did:web:")) {
-      return {
-        status: "RISK",
-        domain,
-        claims: { did: did.id },
-        reason: "DID id is not did:web",
-        checkedAt: new Date().toISOString(),
-      };
-    }
-  }
-
-  const key = await importPublicKey(did);
-  const pem = did.verificationMethod?.[0]?.publicKeyPem;
-  const keyFp = pem ? fingerprintPem(pem) : undefined;
+  const pem = assessment.did.verificationMethod?.[0]?.publicKeyPem;
+  const keyFp = typeof pem === "string" ? fingerprintPem(pem) : undefined;
   const llms = await softFetchLlms(domain, fetchFn);
-  const claims = buildClaims(domain, did, llms, keyFp);
+  const claims = buildClaims(domain, assessment.did, llms, keyFp);
 
-  if (!key) {
-    return {
-      status: "UNVERIFIED",
-      domain,
-      claims,
-      reason: "No usable public key in DID verificationMethod",
-      checkedAt: new Date().toISOString(),
-    };
+  if (assessment.outcome === "verified") {
+    return verifyResult(domain, "VERIFIED", { claims });
   }
-
-  if (!did.proof?.jws) {
-    return {
-      status: "UNVERIFIED",
-      domain,
+  if (assessment.outcome === "risk") {
+    return verifyResult(domain, "RISK", {
       claims,
-      reason: "DID document has no JWS proof",
-      checkedAt: new Date().toISOString(),
-    };
+      reason: assessment.reason,
+    });
   }
-
-  const jwsResult = await verifyDidJws(did, key);
-  if (!jwsResult.ok) {
-    return {
-      status: "RISK",
-      domain,
-      claims,
-      reason: jwsResult.reason ?? "Signature verification failed",
-      checkedAt: new Date().toISOString(),
-    };
-  }
-
-  return {
-    status: "VERIFIED",
-    domain,
+  return verifyResult(domain, "UNVERIFIED", {
     claims,
-    checkedAt: new Date().toISOString(),
-  };
+    reason: assessment.reason,
+  });
+}
+
+function isVerificationStatus(value: unknown): value is VerificationStatus {
+  return value === "VERIFIED" || value === "UNVERIFIED" || value === "RISK";
+}
+
+function claimsOf(value: unknown): DomainClaims {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as DomainClaims;
+  return {};
 }
 
 async function verifyViaApi(
@@ -189,34 +167,41 @@ async function verifyViaApi(
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      return {
-        status: "UNVERIFIED",
-        domain,
-        claims: {},
+      return verifyResult(domain, "UNVERIFIED", {
         reason: `Verification API HTTP ${res.status}`,
-        checkedAt: new Date().toISOString(),
-      };
+      });
     }
-    const body = (await res.json()) as VerifyResult;
-    return {
-      status: body.status,
-      domain: body.domain ?? domain,
-      claims: body.claims ?? {},
-      reason: body.reason,
-      cached: body.cached,
-      checkedAt: body.checkedAt ?? new Date().toISOString(),
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      return verifyResult(domain, "UNVERIFIED", {
+        reason: "Verification API returned invalid JSON",
+      });
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return verifyResult(domain, "UNVERIFIED", {
+        reason: "Verification API returned an unexpected payload",
+      });
+    }
+    const record = body as Partial<VerifyResult>;
+    if (!isVerificationStatus(record.status)) {
+      return verifyResult(domain, "UNVERIFIED", {
+        reason: "Verification API returned an unexpected payload",
+      });
+    }
+    const extra: Partial<VerifyResult> = {
+      claims: claimsOf(record.claims),
+      checkedAt: typeof record.checkedAt === "string" ? record.checkedAt : checkedAt(),
     };
+    if (typeof record.reason === "string") extra.reason = record.reason;
+    if (typeof record.cached === "boolean") extra.cached = record.cached;
+    return verifyResult(record.domain ?? domain, record.status, extra);
   } catch (err) {
-    return {
-      status: "UNVERIFIED",
-      domain,
-      claims: {},
+    return verifyResult(domain, "UNVERIFIED", {
       reason:
-        err instanceof Error
-          ? `API fallback failed: ${err.message}`
-          : "API fallback failed",
-      checkedAt: new Date().toISOString(),
-    };
+        err instanceof Error ? `API fallback failed: ${err.message}` : "API fallback failed",
+    });
   }
 }
 
@@ -231,7 +216,14 @@ export async function verifyDomain(
   domainUrl: string,
   options: VerifyDomainOptions = {}
 ): Promise<VerifyResult> {
-  const domain = normalizeDomain(domainUrl);
+  let domain: string;
+  try {
+    domain = normalizeDomain(domainUrl);
+  } catch {
+    return verifyResult(domainUrl.trim() || "(empty)", "UNVERIFIED", {
+      reason: "Invalid domain",
+    });
+  }
   const cacheKey = `verify:${domain}`;
   const ttl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
 

@@ -66,13 +66,32 @@ export async function writeRegistration(cwd, registration) {
     return file;
 }
 export async function readRegistration(cwd) {
+    let text;
     try {
-        const text = await fs.readFile(path.join(secretsDir(cwd), "registration.json"), "utf8");
-        return JSON.parse(text);
+        text = await fs.readFile(path.join(secretsDir(cwd), "registration.json"), "utf8");
     }
     catch {
         return undefined;
     }
+    let parsed;
+    try {
+        parsed = JSON.parse(text);
+    }
+    catch {
+        throw new Error(".agentic-trust/registration.json is not valid JSON");
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error(".agentic-trust/registration.json is not a JSON object");
+    }
+    return parsed;
+}
+export function gitignoreNotice(status) {
+    return status === "updated"
+        ? "Updated .gitignore to exclude .agentic-trust/ (private did:web key)."
+        : ".gitignore already excludes .agentic-trust/.";
+}
+export async function writeDidDocument(cwd, did) {
+    return writeProjectFile(cwd, ".well-known/did.json", `${JSON.stringify(did, null, 2)}\n`);
 }
 export async function writeProjectFile(cwd, relative, contents) {
     const full = path.resolve(cwd, relative);

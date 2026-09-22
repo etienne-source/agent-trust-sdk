@@ -1,0 +1,41 @@
+# Test, typecheck, and build on pull requests and pushes to main.
+# The AgenticTrust sign workflow is separate and is not replaced by this job.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.3 --activate
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
