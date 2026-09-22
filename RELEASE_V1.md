@@ -48,6 +48,10 @@ Stdio MCP server, binary `agentic-trust-mcp`.
 
 Both call `@agentic-trust/sdk`. The SDK middleware still annotates; these two packages are the strict gate.
 
+### Starters (`starters/`)
+
+App Router boilerplates that are not pnpm workspace packages: [starters/nextjs](starters/nextjs), [starters/v0](starters/v0), and [starters/bolt](starters/bolt). Each wraps `next.config` with `withAgenticTrust` and commits placeholder `public/llms.txt` and `public/.well-known/did.json` files (`REPLACE_ME`, no private key). `pnpm starters:check` validates them. Upstream copy notes are in [starters/UPSTREAM.md](starters/UPSTREAM.md).
+
 ### GitHub Action
 
 `.github/actions/agentic-trust-sign` checks out a repo, ensures `llms.txt`, signs with `createSignedDidDocument`, and can `POST /v1/register` plus confirm. The private key is an environment secret and is not printed. `.github/workflows/ci.yml` runs test, typecheck, and build.
@@ -70,7 +74,6 @@ Both call `@agentic-trust/sdk`. The SDK middleware still annotates; these two pa
 ## Not in 0.1.0
 
 - npm packages under `@agentic-trust/*`.
-- A `starters/` directory.
 - A hosted badge image URL. The CLI prints inline SVG. The public page is `https://trustflow.systems/verify/<domain>`.
 - The registry implementation, including `safeFetch`. That fetcher is private. The open SDK does not export it. `SPEC.md` records its SSRF limits by reference: HTTPS only, DNS public-IP checks, a 4 second timeout, and at most one apex↔www redirect on the same path.
 

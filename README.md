@@ -63,8 +63,7 @@ AgenticTrust code in this repository signs and checks documents. Trustflow Syste
 | `@agentic-trust/next-plugin` | [packages/next-plugin](packages/next-plugin) | `pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin` |
 | `@agentic-trust/langchain-middleware` | [packages/langchain-middleware](packages/langchain-middleware) | GitHub path install, plus the SDK path above |
 | `@agentic-trust/vercel-ai-middleware` | [packages/vercel-ai-middleware](packages/vercel-ai-middleware) | GitHub path install, plus the SDK path above |
-
-This repository has no `starters/` directory. The quickstart below is the scaffold.
+| Starters | [starters/](starters/README.md) | [nextjs](starters/nextjs), [v0](starters/v0), [bolt](starters/bolt). Not workspace packages. `pnpm install` inside the folder. |
 
 ## Quickstart
 
@@ -367,13 +366,14 @@ Drop-in App Router boilerplates for Next.js, v0, and Bolt.new community template
 
 ```bash
 pnpm install
+pnpm starters:check
 pnpm test
 pnpm typecheck
 pnpm build
 pnpm smoke
 ```
 
-Pull requests and pushes to `main` run those three checks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
+Pull requests and pushes to `main` run `starters:check`, test, typecheck, and build in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
 
 `packages/*/dist` is committed so a clone can run `agentic-trust` and `agentic-trust-mcp` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, MCP server, Next plugin, or framework middleware sources change.
 
