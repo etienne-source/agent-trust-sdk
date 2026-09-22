@@ -17,12 +17,15 @@
  * `trustflow-sdk` (unrelated logging package) or run `npx trustflow init`.
  * Previous names `agent-trust-sdk` and `@trustflow/sdk` migrate to `@agentic-trust/sdk`.
  *
+ * DID JWS proofs verify only for `EdDSA` (Ed25519) and `ES256`.
+ * `alg: "none"`, symmetric `HS*` algorithms, a missing `alg`, and every other algorithm are rejected.
+ *
  * @packageDocumentation
  */
 export { verifyDomain, inspectEndpointBeforeExecution, clearVerifyCache } from "./verifyDomain.js";
 export { agenticTrustMiddleware, DEFAULT_TRUST_API_URL, DEFAULT_MIDDLEWARE_TIMEOUT_MS, DEFAULT_MIDDLEWARE_CACHE_TTL_MS, } from "./agenticTrustMiddleware.js";
 export { MemoryCache, defaultCache } from "./cache.js";
 export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
-export { importPublicKey, verifyDidJws, fingerprintPem } from "./jws.js";
+export { importPublicKey, verifyDidJws, fingerprintPem, allowedAlgForKey, ALLOWED_JWS_ALGS, } from "./jws.js";
 export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
 //# sourceMappingURL=index.js.map

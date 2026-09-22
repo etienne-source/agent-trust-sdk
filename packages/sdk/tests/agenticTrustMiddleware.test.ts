@@ -55,7 +55,7 @@ function verifyCalls(fetchFn: typeof fetch): string[] {
 }
 
 async function makeSignedDid(domain: string, trustScore = 95): Promise<DidDocument> {
-  const { publicKey, privateKey } = await generateKeyPair("RS256");
+  const { publicKey, privateKey } = await generateKeyPair("ES256");
   const pem = await exportSPKI(publicKey);
   const didId = `did:web:${domain}`;
   const payloadDoc = {
@@ -71,7 +71,7 @@ async function makeSignedDid(domain: string, trustScore = 95): Promise<DidDocume
     ],
     assertionMethod: [`${didId}#key-1`],
   };
-  const jws = await new SignJWT(payloadDoc).setProtectedHeader({ alg: "RS256" }).sign(privateKey);
+  const jws = await new SignJWT(payloadDoc).setProtectedHeader({ alg: "ES256" }).sign(privateKey);
   return {
     ...payloadDoc,
     "@context": ["https://www.w3.org/ns/did/v1"],

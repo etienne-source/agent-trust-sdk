@@ -30,7 +30,7 @@ inputs:
     default: ""
   private-key:
     description: >
-      RSA private key PEM (repository secret AGENTIC_TRUST_PRIVATE_KEY).
+      Ed25519 or P-256 private key PEM (repository secret AGENTIC_TRUST_PRIVATE_KEY).
       Passed only through the environment. Never logged.
     required: false
     default: ""

@@ -13,56 +13,65 @@ function pemToString(value) {
     return typeof value === "string" ? value : value.toString("utf8");
 }
 /**
- * Derive the SPKI public key and a PKCS#8 copy from an RSA private key PEM.
+ * Derive the SPKI public key and a PKCS#8 copy from an Ed25519 or P-256 private key PEM.
  * Callers that only have `AGENTIC_TRUST_PRIVATE_KEY` use this path.
  */
 export function publicKeyPemFromPrivate(privateKeyPem) {
-    return rsaMaterial(privateKeyPem).publicKeyPem;
+    return signingMaterial(privateKeyPem).publicKeyPem;
 }
-function rsaMaterial(privateKeyPem) {
+function signingMaterial(privateKeyPem) {
     let keyObject;
     try {
         keyObject = createPrivateKey(privateKeyPem);
     }
     catch {
-        throw new Error("Private key PEM could not be read. Expected an unencrypted RSA key (PKCS#8 or PKCS#1).");
+        throw new Error("Private key PEM could not be read. Expected an unencrypted Ed25519 or P-256 key (PKCS#8).");
     }
-    if (keyObject.asymmetricKeyType !== "rsa") {
-        throw new Error("Private key must be RSA (RS256 did:web).");
+    let alg;
+    if (keyObject.asymmetricKeyType === "ed25519") {
+        alg = "EdDSA";
+    }
+    else if (keyObject.asymmetricKeyType === "ec") {
+        const curve = keyObject.asymmetricKeyDetails?.namedCurve;
+        if (curve !== "prime256v1" && curve !== "P-256") {
+            throw new Error("EC private key must be P-256 (ES256).");
+        }
+        alg = "ES256";
+    }
+    else {
+        throw new Error("Private key must be Ed25519 or P-256 (ES256).");
     }
     return {
+        alg,
         pkcs8Pem: pemToString(keyObject.export({ type: "pkcs8", format: "pem" })),
         publicKeyPem: pemToString(createPublicKey(keyObject).export({ type: "spki", format: "pem" })),
     };
 }
 /**
- * Create a did:web document and compact JWS (RS256) that `verifyDidJws` accepts.
- * The private key is returned to the caller; this function does not write files
- * and does not log key material.
+ * Create a did:web document and compact JWS (Ed25519 or ES256) that `verifyDidJws` accepts.
+ * Generated keys are Ed25519. The private key is returned to the caller; this function
+ * does not write files and does not log key material.
  */
 export async function createSignedDidDocument(input) {
     const domain = normalizeDomain(input.domain);
     const id = didWebId(domain);
     let privateKeyPem;
     let publicKeyPem;
+    let alg;
     let signingKey;
     if (input.privateKeyPem) {
-        privateKeyPem = input.privateKeyPem;
-        if (input.publicKeyPem) {
-            publicKeyPem = input.publicKeyPem;
-            signingKey = await importPKCS8(input.privateKeyPem, "RS256");
-        }
-        else {
-            const material = rsaMaterial(input.privateKeyPem);
-            publicKeyPem = material.publicKeyPem;
-            signingKey = await importPKCS8(material.pkcs8Pem, "RS256");
-        }
+        const material = signingMaterial(input.privateKeyPem);
+        privateKeyPem = material.pkcs8Pem;
+        publicKeyPem = input.publicKeyPem ?? material.publicKeyPem;
+        alg = material.alg;
+        signingKey = await importPKCS8(material.pkcs8Pem, alg);
     }
     else {
-        const pair = await generateKeyPair("RS256", { extractable: true });
+        const pair = await generateKeyPair("EdDSA", { crv: "Ed25519", extractable: true });
         signingKey = pair.privateKey;
         publicKeyPem = await exportSPKI(pair.publicKey);
         privateKeyPem = await exportPKCS8(pair.privateKey);
+        alg = "EdDSA";
     }
     const services = input.services && input.services.length > 0
         ? input.services
@@ -87,7 +96,7 @@ export async function createSignedDidDocument(input) {
         service: services,
     };
     const jws = await new SignJWT(payload)
-        .setProtectedHeader({ alg: "RS256" })
+        .setProtectedHeader({ alg })
         .setIssuedAt()
         .sign(signingKey);
     const did = {

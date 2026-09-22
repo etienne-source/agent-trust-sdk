@@ -7,7 +7,7 @@ export interface SignOptions {
     verificationType?: string;
     apiUrl?: string;
     envApiUrl?: string;
-    /** RSA private key PEM. Never written to logs. */
+    /** Ed25519 or P-256 private key PEM. Never written to logs. */
     privateKeyPem?: string;
     dryRun: boolean;
     confirm: boolean;
