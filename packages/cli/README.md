@@ -29,7 +29,7 @@ npx agentic-trust init
 
 1. Searches for `llms.txt` at `llms.txt`, `.well-known/llms.txt`, `public/llms.txt`, `public/.well-known/llms.txt`, `static/llms.txt`, `static/.well-known/llms.txt`, `docs/llms.txt`, and `src/llms.txt`.
 2. If none exist, prompts for site name, description, and optional services, then writes `llms.txt` and `.well-known/llms.txt`.
-3. Generates an RS256 `did:web` key with `@agentic-trust/sdk` (`createSignedDidDocument`), writes `.well-known/did.json`, and stores `private-key.pem` in `.agentic-trust/` with mode `0600`. That directory is appended to `.gitignore`.
+3. Generates an Ed25519 `did:web` key with `@agentic-trust/sdk` (`createSignedDidDocument`), writes `.well-known/did.json`, and stores `private-key.pem` in `.agentic-trust/` with mode `0600`. That directory is appended to `.gitignore`.
 4. Registers the domain: `POST https://api.trustflow.systems/v1/register` with `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` by default, or `DNS_TXT`). Passing `--api-url https://trustflow.systems/api/register` uses the same API. The site path is not a separate server.
 5. Writes `.well-known/agentic-trust-challenge.txt` for an SSL challenge (exact token, no trailing newline) and prints the API instructions.
 6. Prints embeddable HTML/SVG: `Verified by AgenticTrust | trustflow.systems`, linking to `https://trustflow.systems/verify/[domain]`.

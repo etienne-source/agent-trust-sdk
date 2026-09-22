@@ -9,7 +9,7 @@ export interface CreateSignedDidInput {
     domain: string;
     services?: DidServiceEndpoint[];
     /**
-     * RSA private key PEM (PKCS#8 or PKCS#1). When set, the matching SPKI public
+     * Ed25519 or P-256 private key PEM (PKCS#8). When set, the matching SPKI public
      * key is derived unless `publicKeyPem` is also provided.
      */
     privateKeyPem?: string;
@@ -29,14 +29,14 @@ export interface SignedDidIdentity {
  */
 export declare function hashPublicKeyPem(pem: string): string;
 /**
- * Derive the SPKI public key and a PKCS#8 copy from an RSA private key PEM.
+ * Derive the SPKI public key and a PKCS#8 copy from an Ed25519 or P-256 private key PEM.
  * Callers that only have `AGENTIC_TRUST_PRIVATE_KEY` use this path.
  */
 export declare function publicKeyPemFromPrivate(privateKeyPem: string): string;
 /**
- * Create a did:web document and compact JWS (RS256) that `verifyDidJws` accepts.
- * The private key is returned to the caller; this function does not write files
- * and does not log key material.
+ * Create a did:web document and compact JWS (Ed25519 or ES256) that `verifyDidJws` accepts.
+ * Generated keys are Ed25519. The private key is returned to the caller; this function
+ * does not write files and does not log key material.
  */
 export declare function createSignedDidDocument(input: CreateSignedDidInput): Promise<SignedDidIdentity>;
 //# sourceMappingURL=identity.d.ts.map

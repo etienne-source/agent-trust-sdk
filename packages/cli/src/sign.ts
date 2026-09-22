@@ -31,7 +31,7 @@ export interface SignOptions {
   verificationType?: string;
   apiUrl?: string;
   envApiUrl?: string;
-  /** RSA private key PEM. Never written to logs. */
+  /** Ed25519 or P-256 private key PEM. Never written to logs. */
   privateKeyPem?: string;
   dryRun: boolean;
   confirm: boolean;
@@ -95,7 +95,7 @@ async function signDomain(
   const providedKey = options.privateKeyPem?.trim();
   if (!options.dryRun && !providedKey) {
     throw new Error(
-      "AGENTIC_TRUST_PRIVATE_KEY is not set. Add the RSA private key as a repository secret. It is never printed."
+      "AGENTIC_TRUST_PRIVATE_KEY is not set. Add the Ed25519 or P-256 private key as a repository secret. It is never printed."
     );
   }
 

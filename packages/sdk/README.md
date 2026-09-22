@@ -68,6 +68,17 @@ export VERIFICATION_API_URL=https://api.trustflow.systems
 
 That calls `GET /v1/verify?domain=`. The SDK only performs HTTPS fetches. It has no database client.
 
+## Signature algorithms
+
+DID proofs are compact JWS. Verification accepts only:
+
+| `alg` | Key |
+|-------|-----|
+| `EdDSA` | Ed25519 (`OKP`, `crv` `Ed25519`). This is the JWS name for Ed25519. |
+| `ES256` | ECDSA P-256 |
+
+`alg: "none"`, symmetric algorithms (`HS256`, `HS384`, `HS512`), a missing or unreadable `alg`, and every other algorithm are rejected. The check fails closed before the signature is trusted. `createSignedDidDocument` generates an Ed25519 key and can also sign with a supplied P-256 key.
+
 ## API surface
 
 ```ts

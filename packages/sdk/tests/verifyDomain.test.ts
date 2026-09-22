@@ -8,7 +8,7 @@ import {
 import type { DidDocument } from "../src/types.js";
 
 async function makeSignedDid(domain: string) {
-  const { publicKey, privateKey } = await generateKeyPair("RS256");
+  const { publicKey, privateKey } = await generateKeyPair("EdDSA", { crv: "Ed25519" });
   const pem = await exportSPKI(publicKey);
   const didId = `did:web:${domain}`;
 
@@ -33,7 +33,7 @@ async function makeSignedDid(domain: string) {
   };
 
   const jws = await new SignJWT(payloadDoc)
-    .setProtectedHeader({ alg: "RS256" })
+    .setProtectedHeader({ alg: "EdDSA" })
     .sign(privateKey);
 
   const did: DidDocument = {
@@ -122,10 +122,10 @@ describe("verifyDomain", () => {
   it("returns RISK when JWS signature is invalid", async () => {
     const domain = "evil.example";
     const { did } = await makeSignedDid(domain);
-    // Corrupt the JWS
+    const parts = did.proof?.jws?.split(".") ?? [];
     did.proof = {
       type: "JsonWebSignature2020",
-      jws: "eyJhbGciOiJSUzI1NiJ9.eyJpZCI6ImJhZCJ9.invalid-signature",
+      jws: `${parts[0]}.${parts[1]}.invalid-signature`,
     };
 
     const fetchFn = mockFetchRouter({

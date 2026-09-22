@@ -51,7 +51,7 @@ async function signDomain(options, secrets, log) {
     }
     const providedKey = options.privateKeyPem?.trim();
     if (!options.dryRun && !providedKey) {
-        throw new Error("AGENTIC_TRUST_PRIVATE_KEY is not set. Add the RSA private key as a repository secret. It is never printed.");
+        throw new Error("AGENTIC_TRUST_PRIVATE_KEY is not set. Add the Ed25519 or P-256 private key as a repository secret. It is never printed.");
     }
     const identity = await createSignedDidDocument({
         domain,
