@@ -88,6 +88,14 @@ describe("agentic-trust init", () => {
     const calls: Array<{ url: string; body: unknown }> = [];
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "GET" && url.includes("/.well-known/did.json")) {
+        const body = await readFile(path.join(cwd, ".well-known", "did.json"), "utf8");
+        return new Response(body, { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (method === "GET" && url.includes("agentic-trust-challenge.txt")) {
+        return new Response("token-from-api", { status: 200, headers: { "Content-Type": "text/plain" } });
+      }
       const body = JSON.parse(String(init?.body));
       calls.push({ url, body });
       if (url.endsWith("/v1/register/confirm")) {
@@ -140,8 +148,20 @@ describe("agentic-trust init", () => {
 
   it("confirms from the saved registration file", async () => {
     const cwd = await tempProject();
-    const fetchImpl = vi.fn(async () =>
-      jsonResponse({
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "GET" && url.includes("/.well-known/did.json")) {
+        const body = await readFile(path.join(cwd, ".well-known", "did.json"), "utf8");
+        return new Response(body, { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (method === "GET" && url.includes("agentic-trust-challenge.txt")) {
+        return new Response("saved-token", { status: 200, headers: { "Content-Type": "text/plain" } });
+      }
+      if (url.endsWith("/v1/register/confirm")) {
+        return jsonResponse({ status: "VERIFIED", domain: "example.com" });
+      }
+      return jsonResponse({
         domain: "example.com",
         verificationType: "SSL_CHALLENGE",
         challengeToken: "saved-token",
@@ -149,8 +169,8 @@ describe("agentic-trust init", () => {
         instructions: "Serve the challenge token, then POST /v1/register/confirm.",
         expiresAt: "2026-09-23T00:00:00.000Z",
         tier: "free",
-      })
-    );
+      });
+    });
     const first = capture();
     expect(
       await main(

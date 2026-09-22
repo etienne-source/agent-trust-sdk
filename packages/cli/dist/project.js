@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { assertPublicDir } from "./framework.js";
 export const SECRETS_DIR = ".agentic-trust";
 const GITIGNORE_BLOCK = [
     "# AgenticTrust local secrets (did:web private key). Safe to commit .well-known/did.json.",
@@ -92,6 +93,41 @@ export function gitignoreNotice(status) {
 }
 export async function writeDidDocument(cwd, did) {
     return writeProjectFile(cwd, ".well-known/did.json", `${JSON.stringify(did, null, 2)}\n`);
+}
+/**
+ * Paths for one site asset. The framework public directory is first.
+ * The repository-root mirror stays byte-aligned for tools that still read it.
+ */
+export function publishedRelatives(publicDir, leaf) {
+    const dir = assertPublicDir(publicDir);
+    const nested = `${dir}/${leaf}`.replace(/\/{2,}/g, "/");
+    if (nested === leaf)
+        return [leaf];
+    return [nested, leaf];
+}
+export async function writePublishedFile(cwd, publicDir, leaf, contents) {
+    const written = [];
+    for (const relative of publishedRelatives(publicDir, leaf)) {
+        written.push(await writeProjectFile(cwd, relative, contents));
+    }
+    return written;
+}
+/** Write `contents` only where that relative path is not already a file. */
+export async function ensurePublishedFile(cwd, publicDir, leaf, contents) {
+    const written = [];
+    for (const relative of publishedRelatives(publicDir, leaf)) {
+        const full = path.resolve(cwd, relative);
+        try {
+            const stat = await fs.stat(full);
+            if (stat.isFile())
+                continue;
+        }
+        catch {
+            // missing, write it
+        }
+        written.push(await writeProjectFile(cwd, relative, contents));
+    }
+    return written;
 }
 export async function writeProjectFile(cwd, relative, contents) {
     const full = path.resolve(cwd, relative);

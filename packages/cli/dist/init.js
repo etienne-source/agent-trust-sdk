@@ -1,9 +1,12 @@
+import { promises as fs } from "node:fs";
 import { createSignedDidDocument, normalizeDomain } from "@agentic-trust/sdk";
 import { resolveTrustflowApiBase } from "./api.js";
-import { renderBadge } from "./badge.js";
+import { renderBadge, verifyPageUrl } from "./badge.js";
+import { detectProjectLayout } from "./framework.js";
 import { writeIdeRules } from "./ideRules.js";
 import { parseServiceList, readLlms, renderLlms, } from "./llms.js";
-import { ensureGitignore, gitignoreNotice, readKeyPair, writeDidDocument, writePrivateKey, writeProjectFile, writePublicKey, } from "./project.js";
+import { ensureGitignore, ensurePublishedFile, gitignoreNotice, readKeyPair, writePrivateKey, writePublishedFile, writePublicKey, } from "./project.js";
+import { DEFAULT_PROOF_BUDGET_MS, DEFAULT_PROOF_INTERVAL_MS, autoConfirm } from "./proofs.js";
 import { registerAndStore } from "./registerFlow.js";
 import { parseVerificationType } from "./verificationType.js";
 export async function runInit(options) {
@@ -20,6 +23,8 @@ export async function runInit(options) {
     let name = options.name ?? existing?.name;
     let description = options.description ?? existing?.description;
     let services = options.services !== undefined ? parseServiceList(options.services) : existing?.services ?? [];
+    const layout = await detectProjectLayout(options.cwd);
+    options.log(`Project: ${frameworkLabel(layout.framework)}. Publishing to ${layout.publicDir}/ (${layout.reason}).`);
     if (!existing) {
         name = await requireValue({
             preset: name,
@@ -47,10 +52,11 @@ export async function runInit(options) {
             domain: normalizedDomain,
             services,
         });
-        const rootFile = await writeProjectFile(options.cwd, "llms.txt", llms);
-        const wellKnown = await writeProjectFile(options.cwd, ".well-known/llms.txt", llms);
-        options.log(`Wrote ${rootFile}`);
-        options.log(`Wrote ${wellKnown}`);
+        for (const leaf of ["llms.txt", ".well-known/llms.txt"]) {
+            for (const file of await writePublishedFile(options.cwd, layout.publicDir, leaf, llms)) {
+                options.log(`Wrote ${file}`);
+            }
+        }
     }
     else {
         options.log(`Found llms.txt at ${existing.path}`);
@@ -70,6 +76,14 @@ export async function runInit(options) {
                 missing: "llms.txt has no description. Pass --description.",
             });
         }
+        if (!existing.path)
+            throw new Error("Found llms.txt has no path.");
+        const existingText = await fs.readFile(existing.path, "utf8");
+        for (const leaf of ["llms.txt", ".well-known/llms.txt"]) {
+            for (const file of await ensurePublishedFile(options.cwd, layout.publicDir, leaf, existingText)) {
+                options.log(`Wrote ${file}`);
+            }
+        }
     }
     const verificationType = parseVerificationType(options.verificationType);
     const gitignore = await ensureGitignore(options.cwd);
@@ -88,14 +102,17 @@ export async function runInit(options) {
         await writePublicKey(options.cwd, identity.publicKeyPem);
         options.log("Generated did:web keypair in .agentic-trust/ (gitignored). Do not commit private-key.pem.");
     }
-    const didPath = await writeDidDocument(options.cwd, identity.did);
-    options.log(`Wrote ${didPath}`);
-    options.log(`DID: ${identity.did.id}`);
+    const didId = identity.did.id ?? `did:web:${normalizedDomain}`;
+    const didBody = `${JSON.stringify(identity.did, null, 2)}\n`;
+    for (const didPath of await writePublishedFile(options.cwd, layout.publicDir, ".well-known/did.json", didBody)) {
+        options.log(`Wrote ${didPath}`);
+    }
+    options.log(`DID: ${didId}`);
     options.log(`publicKeyHash: ${identity.publicKeyHash}`);
     if (!name || !description) {
         throw new Error("Site name and description are required.");
     }
-    await writeIdeRulesIfEnabled(options);
+    await writeIdeRulesIfEnabled(options, layout.publicDir);
     if (!options.skipRegister) {
         const apiBase = resolveTrustflowApiBase(options.apiUrl ?? options.envApiUrl);
         options.log(`Trustflow API: POST ${apiBase}/v1/register`);
@@ -106,57 +123,74 @@ export async function runInit(options) {
             domain: normalizedDomain,
             businessName: name,
             verificationType,
-            did: identity.did.id,
+            did: didId,
             publicKeyPem: identity.publicKeyPem,
             publicKeyHash: identity.publicKeyHash,
             services,
+            publicDir: layout.publicDir,
         });
         options.log(`Saved challenge state to ${registrationPath} (gitignored).`);
-        options.log("");
-        options.log(challenge.instructions);
+        if (challengeFile)
+            options.log(`Wrote ${challengeFile}`);
         if (challenge.expiresAt)
-            options.log(`Expires: ${challenge.expiresAt}`);
-        if (challengeFile) {
-            options.log(`Wrote the challenge token (no trailing newline) to ${challengeFile}`);
-            options.log("Deploy that file so the URL in the instructions returns the token as the exact response body, then confirm.");
-        }
-        if (challenge.dnsRecord) {
+            options.log(`Challenge expires: ${challenge.expiresAt}`);
+        if (stored.verificationType === "DNS_TXT" && challenge.dnsRecord) {
             options.log(`DNS TXT name: ${challenge.dnsRecord.name}`);
             options.log(`DNS TXT value: ${challenge.dnsRecord.value}`);
         }
-        options.log("Confirm with: agentic-trust confirm");
-        options.log("Next steps:");
-        options.log(stored.verificationType === "DNS_TXT"
-            ? "- Publish .well-known/did.json and llms.txt, and create the DNS TXT record above."
-            : "- Publish .well-known/did.json, llms.txt, and .well-known/agentic-trust-challenge.txt on the domain (HTTPS).");
-        options.log("- Keep .agentic-trust/ out of git. It holds the private key and challenge token.");
-        printBadge(options.log, normalizedDomain);
-        if (options.confirm) {
-            const { runConfirm } = await import("./confirm.js");
-            return runConfirm({
-                cwd: options.cwd,
-                fetch: options.fetch,
-                log: options.log,
-                apiUrl: apiBase,
-                printBadge: false,
-            });
+        options.log("Keep .agentic-trust/ out of git. It holds the private key and challenge token.");
+        if (!options.autoConfirm) {
+            options.log("Skipped auto-confirm (--no-auto-confirm).");
+            options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
+            printBadge(options.log, normalizedDomain);
+            return 0;
         }
-        return 0;
+        options.log(`Trustflow API: POST ${apiBase}/v1/register/confirm`);
+        const confirmed = await autoConfirm({
+            apiBase,
+            fetchFn: options.fetch,
+            domain: stored.domain,
+            didId,
+            publicKeyPem: identity.publicKeyPem,
+            publicKeyHash: identity.publicKeyHash,
+            businessName: name,
+            services,
+            verificationType: stored.verificationType,
+            challengeToken: stored.challengeToken,
+            challengeUrl: stored.challengePath,
+            dnsRecord: stored.dnsRecord,
+            budgetMs: options.proofBudgetMs ?? DEFAULT_PROOF_BUDGET_MS,
+            intervalMs: options.proofIntervalMs ?? DEFAULT_PROOF_INTERVAL_MS,
+            sleep: options.sleep,
+            now: options.now,
+            log: options.log,
+        });
+        options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
+        printBadge(options.log, normalizedDomain);
+        return confirmed.code;
     }
     options.log("Skipped Trustflow registration (--skip-register).");
-    options.log("Next steps:");
-    options.log("- Publish .well-known/did.json and llms.txt on the domain (HTTPS).");
-    options.log("- Keep .agentic-trust/ out of git. It holds the private key.");
-    options.log("- Register later with: agentic-trust init");
+    options.log(`Publish ${layout.publicDir}/.well-known/did.json and ${layout.publicDir}/llms.txt on the domain (HTTPS).`);
+    options.log("Keep .agentic-trust/ out of git. It holds the private key.");
+    options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
     printBadge(options.log, normalizedDomain);
     return 0;
 }
-async function writeIdeRulesIfEnabled(options) {
+function frameworkLabel(framework) {
+    if (framework === "next")
+        return "Next.js";
+    if (framework === "vite")
+        return "Vite";
+    if (framework === "nuxt")
+        return "Nuxt";
+    return "unknown framework";
+}
+async function writeIdeRulesIfEnabled(options, publicDir) {
     if (!options.ideRules) {
         options.log("Skipped IDE rules (--no-ide-rules).");
         return;
     }
-    const written = await writeIdeRules(options.cwd);
+    const written = await writeIdeRules(options.cwd, publicDir);
     options.log(`Wrote ${written.cursorrules}`);
     options.log(`Wrote ${written.mdc}`);
 }

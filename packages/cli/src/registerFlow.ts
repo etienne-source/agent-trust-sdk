@@ -3,7 +3,7 @@ import {
   type RegisterChallenge,
   type VerificationType,
 } from "./api.js";
-import { writeProjectFile, writeRegistration, type StoredRegistration } from "./project.js";
+import { writeProjectFile, writePublishedFile, writeRegistration, type StoredRegistration } from "./project.js";
 
 export interface RegisterAndStoreInput {
   cwd: string;
@@ -16,6 +16,8 @@ export interface RegisterAndStoreInput {
   publicKeyPem: string;
   publicKeyHash: string;
   services: string[];
+  /** When set, the challenge file is written here and mirrored at the repository root. */
+  publicDir?: string;
 }
 
 export interface RegisterAndStoreResult {
@@ -64,11 +66,13 @@ export async function registerAndStore(input: RegisterAndStoreInput): Promise<Re
   const registrationPath = await writeRegistration(input.cwd, stored);
   let challengeFile: string | undefined;
   if (challenge.verificationType === "SSL_CHALLENGE" || challenge.challengePath) {
-    challengeFile = await writeProjectFile(
-      input.cwd,
-      ".well-known/agentic-trust-challenge.txt",
-      challenge.challengeToken
-    );
+    const leaf = ".well-known/agentic-trust-challenge.txt";
+    if (input.publicDir) {
+      const written = await writePublishedFile(input.cwd, input.publicDir, leaf, challenge.challengeToken);
+      challengeFile = written[0];
+    } else {
+      challengeFile = await writeProjectFile(input.cwd, leaf, challenge.challengeToken);
+    }
   }
   return { challenge, stored, registrationPath, challengeFile };
 }

@@ -72,12 +72,15 @@ pnpm --filter @agentic-trust/cli exec agentic-trust sign \
 
 ### `agentic-trust init`
 
-1. Looks for `llms.txt` (project root, `.well-known/`, `public/`, `static/`, `docs/`, `src/`). If it is missing, prompts for site name, description, and optional services, then writes `llms.txt` and `.well-known/llms.txt`.
-2. Generates an Ed25519 `did:web` key, signs `.well-known/did.json`, and stores the private key in `.agentic-trust/` (added to `.gitignore`, mode `0600`).
-3. Registers the domain with Trustflow: `POST https://api.trustflow.systems/v1/register` (`verificationType` `SSL_CHALLENGE` or `DNS_TXT`). `https://trustflow.systems/api/register` is an alias of that API origin.
-4. Prints the challenge instructions. `agentic-trust confirm` calls `POST /v1/register/confirm`.
-5. Prints an embeddable badge: **Verified by AgenticTrust | trustflow.systems**, linking to `https://trustflow.systems/verify/[domain]`.
-6. Writes `.cursorrules` and `.cursor/rules/agentic-trust.mdc` so coding agents keep a W3C `did:web` document at `public/.well-known/did.json` and a signed `public/llms.txt` (`@agentic-trust/sdk`). `--no-ide-rules` skips those files.
+1. Detects Next.js (`public/`), Vite (`public/`, or `publicDir` in `vite.config`), or Nuxt (`public/`, Nuxt 2 `static/`, or `dir.public`). Unknown projects reuse an existing `public/` or `static/` folder. No path flag.
+2. Looks for `llms.txt` (project root, `.well-known/`, `public/`, `static/`, `docs/`, `src/`). If it is missing, prompts for site name, description, and optional services, then writes `llms.txt` and `.well-known/llms.txt` into that public directory (root copies stay byte-aligned).
+3. Generates an Ed25519 `did:web` key, signs `<public>/.well-known/did.json`, and stores the private key in `.agentic-trust/` (added to `.gitignore`, mode `0600`). The public key in that file is what registration binds.
+4. Registers the domain with Trustflow: `POST https://api.trustflow.systems/v1/register` (`verificationType` `SSL_CHALLENGE` or `DNS_TXT`, plus `publicKeyPem`). `https://trustflow.systems/api/register` is an alias of that API origin. The SSL challenge file is written automatically (no token paste).
+5. Polls the live HTTPS proofs (DID public key and challenge file, or the DNS TXT record) on a 200ms interval for up to 8 seconds, then `POST`s `/v1/register/confirm` once they match. `--no-auto-confirm` skips that POST. `--skip-register` only writes local files.
+6. Prints the verify URL and an embeddable badge: **Verified by AgenticTrust | trustflow.systems**, linking to `https://trustflow.systems/verify/[domain]`.
+7. Writes `.cursorrules` and `.cursor/rules/agentic-trust.mdc` for the detected public directory (`@agentic-trust/sdk`). `--no-ide-rules` skips those files.
+
+The live API still requires the SSL challenge file. The CLI does not confirm from `did.json` alone.
 
 ### `agentic-trust confirm`
 
@@ -193,6 +196,8 @@ Live contract (not a guessed path):
 | `GET` | `https://api.trustflow.systems/v1/verify?domain=` |
 
 `POST /v1/register` requires `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`). Send the SPKI `publicKeyPem` as well: the live API stores that PEM and sets `publicKeyHash` from it (a hash sent on its own is not stored). The response includes `challengeToken`, `instructions`, and either `challengePath` (HTTPS file `/.well-known/agentic-trust-challenge.txt`, token body, no extra newline required) or `dnsRecord` (`_agentic-trust.<domain>` TXT `agentic-trust-verification=<token>`). Confirm with `domain` and `challengeToken` at `POST /v1/register/confirm`. No API token is required.
+
+`agentic-trust init` still uses that contract. It writes the challenge file, waits until `did.json` (matching public key) and the challenge URL or DNS TXT are live, then confirms. It does not assume the registry accepts `did.json` without the challenge.
 
 ## GitHub Action
 

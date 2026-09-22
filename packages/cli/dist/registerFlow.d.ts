@@ -11,6 +11,8 @@ export interface RegisterAndStoreInput {
     publicKeyPem: string;
     publicKeyHash: string;
     services: string[];
+    /** When set, the challenge file is written here and mirrored at the repository root. */
+    publicDir?: string;
 }
 export interface RegisterAndStoreResult {
     challenge: RegisterChallenge;

@@ -9,11 +9,16 @@ export interface InitOptions {
     envApiUrl?: string;
     nonInteractive: boolean;
     stdinIsTTY: boolean;
-    confirm: boolean;
+    /** When false, register but do not POST /v1/register/confirm. Default true. */
+    autoConfirm: boolean;
     skipRegister: boolean;
     forceKeys: boolean;
     /** When false, skip `.cursorrules` and `.cursor/rules/agentic-trust.mdc`. Default true. */
     ideRules: boolean;
+    proofBudgetMs?: number;
+    proofIntervalMs?: number;
+    sleep?: (ms: number) => Promise<void>;
+    now?: () => number;
     fetch: typeof fetch;
     prompt: (question: string) => Promise<string>;
     log: (line?: string) => void;
