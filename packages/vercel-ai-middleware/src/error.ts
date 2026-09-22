@@ -1,0 +1,26 @@
+import type { AgenticTrustMetadata } from "@agentic-trust/sdk";
+
+/** Thrown when domain context is unsigned, unverified, or marked RISK. */
+export class UnverifiedDomainContextError extends Error {
+  readonly code = "AGENTIC_TRUST_UNVERIFIED_CONTEXT" as const;
+  readonly domain: string;
+  readonly status: string;
+  readonly verified = false as const;
+  readonly reason: string;
+
+  constructor(meta: Pick<AgenticTrustMetadata, "domain" | "status" | "warning">) {
+    const reason = meta.warning?.trim() || defaultReason(meta.status);
+    super(
+      `Blocked unverified domain context for ${meta.domain}: ${reason} (${meta.status}). Refusing to parse llms.txt.`
+    );
+    this.name = "UnverifiedDomainContextError";
+    this.domain = meta.domain;
+    this.status = meta.status;
+    this.reason = reason;
+  }
+}
+
+function defaultReason(status: string): string {
+  if (status === "RISK") return "Domain signature failed or the domain is marked RISK";
+  return "Domain is not verified or has no AgenticTrust signature";
+}

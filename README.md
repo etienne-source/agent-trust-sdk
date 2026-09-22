@@ -1,10 +1,11 @@
 # AgenticTrust
 
-Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, the CLI, the MCP server, and the Next.js plugin. **Trustflow Systems** is the hosted registry.
+Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, the CLI, the MCP server, the Next.js plugin, and the framework middleware. **Trustflow Systems** is the hosted registry.
 
 | Piece | Name | What it is |
 |-------|------|------------|
 | Protocol, SDK, CLI, MCP, Next | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`), `@agentic-trust/mcp-server`, `@agentic-trust/next-plugin` |
+| Framework middleware | **AgenticTrust** | `@agentic-trust/langchain-middleware`, `@agentic-trust/vercel-ai-middleware` — reject unsigned `llms.txt` context before it is parsed |
 | Hosted platform | **Trustflow Systems** | [trustflow.systems](https://trustflow.systems) · API `https://api.trustflow.systems` |
 
 `@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems. `@agentic-trust/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio. `@agentic-trust/next-plugin` warns during `next dev` when `public/llms.txt` or `public/.well-known/did.json` is missing or invalid.
@@ -150,6 +151,8 @@ const openai = createOpenAI({ fetch: agenticTrustMiddleware().fetch });
 
 `clearVerifyCache()` drops both `verifyDomain` entries and middleware entries.
 
+Strict framework packages call that same SDK check and throw instead of annotating. `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` refuse to read or parse `llms.txt` when the domain is unverified or unsigned. Install both from GitHub until the npm scope exists: `github:etienne-source/agent-trust-sdk#path:/packages/langchain-middleware` and `#path:/packages/vercel-ai-middleware`, plus `#path:/packages/sdk`. Their dependencies use `workspace:*` inside this repository. Do not install `trustflow-sdk`.
+
 ### Migration
 
 Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
@@ -166,8 +169,8 @@ Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
 
 | Framework / pattern | Integration tip |
 |---------------------|-----------------|
-| **LangChain / LangGraph** | `agenticTrustMiddleware().wrapTool` on URL-fetching tools, or `annotateDocuments` after a loader. |
-| **Vercel AI SDK** | Pass `agenticTrustMiddleware().fetch` as the provider `fetch`, or `wrapTool` on a tool `execute`. |
+| **LangChain / LangGraph** | `@agentic-trust/langchain-middleware` — `agenticTrustLangChainMiddleware()` passed to `createMiddleware`. It throws before parsing unsigned `llms.txt`. The SDK `wrapTool` / `annotateDocuments` helpers still only annotate. |
+| **Vercel AI SDK** | `@agentic-trust/vercel-ai-middleware` — `fetch` on the provider and the same object as `wrapLanguageModel` middleware. Context fetches and `doStream` / `doGenerate` throw before an unsigned body is read. |
 | **OpenAI Agents / function calling** | Before `fetch`/`tools` invocation, `verifyDomain` on the host of any remote tool schema URL. |
 | **MCP clients** | On `tools/list` or connect, inspect each `serviceEndpoint`; refuse non-HTTPS or RISK. |
 | **Custom agent loops** | Cache-first `verifyDomain` on first contact with a domain; reuse until TTL expires. |
@@ -288,7 +291,7 @@ pnpm smoke
 
 Pull requests and pushes to `main` run those three checks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
 
-`packages/*/dist` is committed so a clone can run `agentic-trust` and `agentic-trust-mcp` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, MCP server, or Next plugin sources change.
+`packages/*/dist` is committed so a clone can run `agentic-trust` and `agentic-trust-mcp` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, MCP server, Next plugin, or framework middleware sources change.
 
 `TRUSTFLOW_LIVE=1 pnpm --filter @agentic-trust/cli test` also calls the production register endpoint.
 
