@@ -59,7 +59,11 @@ const response = await trust.fetch("https://example.com/data.json");
 const tool = trust.wrapTool(existingTool);
 ```
 
-`@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` wrap this middleware and throw `UnverifiedDomainContextError` before parsing unsigned `llms.txt`. The SDK helper above still annotates and does not throw.
+`@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` are fail-closed by default. They throw `UnverifiedDomainContextError` before parsing unsigned or tampered `llms.txt`. The message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` The SDK helper above still annotates and does not throw.
+
+## Verify cache
+
+`verifyDomain` and `agenticTrustMiddleware` share an in-memory result cache. After the first lookup, a repeat check for the same domain is a cache hit and stays under 5ms. `clearVerifyCache()` drops those entries and the imported public-key cache. Set `AGENTIC_TRUST_CACHE_DIR` to also keep a JSON copy of public verify results on disk for the next process. That directory must not contain a private key; the cache refuses results that include one. Pass `cache: new MemoryCache({ diskDirectory })` to use a separate store.
 
 Point the fallback registry at Trustflow Systems:
 

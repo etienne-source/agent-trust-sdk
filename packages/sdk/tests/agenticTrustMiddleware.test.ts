@@ -257,6 +257,28 @@ describe("agenticTrustMiddleware", () => {
     expect(untouched).not.toHaveBeenCalled();
   });
 
+  it("keeps a warm middleware verify under 5ms", async () => {
+    const fetchFn = mockFetch({
+      "/v1/verify": { body: verifiedBody("fast.example", 90) },
+    });
+    const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
+    await trust.verify("fast.example");
+    const callsAfterWarm = fetchFn.mock.calls.length;
+    expect(callsAfterWarm).toBeGreaterThan(0);
+    const samples: number[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      const start = performance.now();
+      const hit = await trust.verify("https://fast.example/llms.txt");
+      samples.push(performance.now() - start);
+      expect(hit.verified).toBe(true);
+      expect(hit.domain).toBe("fast.example");
+    }
+    samples.sort((left, right) => left - right);
+    const median = samples[Math.floor(samples.length / 2)] ?? Number.POSITIVE_INFINITY;
+    expect(median).toBeLessThan(5);
+    expect(fetchFn).toHaveBeenCalledTimes(callsAfterWarm);
+  });
+
   it("wraps LangChain and AI SDK tools and annotates documents", async () => {
     const fetchFn = mockFetch({
       "/v1/verify": { body: verifiedBody("docs.example", 80) },

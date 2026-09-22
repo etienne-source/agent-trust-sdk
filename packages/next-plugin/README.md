@@ -33,11 +33,19 @@ pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin
 
 From a clone of this repository it is the workspace package `@agentic-trust/next-plugin`. Next.js 13 or newer is the host app. This package does not bundle Next.js.
 
-Scaffold the identity files with the AgenticTrust CLI (`@agentic-trust/cli`):
+## Sign on Vercel without a terminal
 
-```bash
-npx agentic-trust init
+A Next.js app on Vercel can publish the identity files during the build. Install `@agentic-trust/vercel-plugin` (`github:etienne-source/agent-trust-sdk#path:/packages/vercel-plugin`, plus the SDK path). In the Vercel project environment set `AGENTIC_TRUST_PRIVATE_KEY` (Sensitive) and `AGENTIC_TRUST_DOMAIN`. Set `vercel.json`:
+
+```json
+{
+  "buildCommand": "agentic-trust-vercel && next build"
+}
 ```
+
+Deploy from the Vercel dashboard or a git push. The hook writes `public/llms.txt` and `public/.well-known/did.json`. It does not prompt, and it does not commit the private key. That is the path that does not need a terminal.
+
+The AgenticTrust CLI (`npx agentic-trust init`, from a clone until the npm scope exists) is the local alternative. This plugin only warns in development; it does not sign.
 
 Publish `public/llms.txt` and `public/.well-known/did.json` with the Next.js app. `public/` is served from the site root, which is where clients fetch `/.well-known/did.json`.
 

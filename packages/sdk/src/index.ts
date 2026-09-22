@@ -36,6 +36,7 @@ export type {
   LangChainLikeDocument,
 } from "./agenticTrustMiddleware.js";
 export { MemoryCache, defaultCache } from "./cache.js";
+export type { MemoryCacheOptions } from "./cache.js";
 export {
   normalizeDomain,
   didWebId,
@@ -48,6 +49,7 @@ export {
   verifyDidJws,
   fingerprintPem,
   allowedAlgForKey,
+  clearPublicKeyCache,
   ALLOWED_JWS_ALGS,
 } from "./jws.js";
 export type { AllowedJwsAlg } from "./jws.js";

@@ -7,6 +7,7 @@ function sdkOptions(options) {
     const rest = { ...options };
     delete rest.verify;
     delete rest.contextFetch;
+    delete rest.failClosed;
     return rest;
 }
 export function createVerifier(options = {}) {
@@ -15,6 +16,9 @@ export function createVerifier(options = {}) {
     const trust = agenticTrustMiddleware(sdkOptions(options));
     return (target) => trust.verify(target);
 }
+export function isFailClosed(options = {}) {
+    return options.failClosed !== false;
+}
 export async function requireVerifiedDomain(target, verify) {
     const meta = await verify(target);
     if (!meta.verified || meta.securityWarning) {
@@ -22,7 +26,15 @@ export async function requireVerifiedDomain(target, verify) {
     }
     return meta;
 }
-async function rewriteVerified(value, verify) {
+async function checkDomain(target, verify, failClosed) {
+    if (failClosed)
+        return requireVerifiedDomain(target, verify);
+    return verify(target);
+}
+function trusted(meta) {
+    return Boolean(meta && meta.verified && !meta.securityWarning);
+}
+async function rewriteVerified(value, verify, failClosed) {
     const sites = collectLlmsPayloads(value);
     const targets = new Set(collectContextTargets(value));
     for (const site of sites)
@@ -31,18 +43,20 @@ async function rewriteVerified(value, verify) {
         return value;
     const metas = new Map();
     for (const target of targets) {
-        metas.set(target, await requireVerifiedDomain(target, verify));
+        metas.set(target, await checkDomain(target, verify, failClosed));
     }
     if (sites.length === 0)
         return value;
     const draft = cloneValue(value);
+    let wrote = false;
     for (const site of sites) {
         const meta = metas.get(site.target);
-        if (!meta)
+        if (!trusted(meta))
             continue;
         writeVerifiedText(draft, site.path, formatVerifiedLlms(parseLlmsTxt(site.readContent()), meta));
+        wrote = true;
     }
-    return draft;
+    return wrote ? draft : value;
 }
 function requestUrl(input) {
     if (typeof input === "string")
@@ -79,17 +93,22 @@ function trustHeader(meta) {
  * Vercel AI SDK fetch and language-model middleware.
  *
  * Pass `fetch` to a provider factory and the object itself to `wrapLanguageModel`.
- * Unverified or unsigned domain context throws `UnverifiedDomainContextError`
+ * Unverified or tampered domain context throws `UnverifiedDomainContextError`
  * before the response stream starts and before `llms.txt` is parsed.
+ * That block is the default (`failClosed: true`).
  */
 export function agenticTrustVercelAiMiddleware(options = {}) {
     const verify = createVerifier(options);
+    const failClosed = isFailClosed(options);
     const contextFetch = options.contextFetch ?? globalThis.fetch.bind(globalThis);
     const fetchWithTrust = async (input, init) => {
         if (!isContextFetch(input, init)) {
             return contextFetch(input, init);
         }
-        const meta = await requireVerifiedDomain(requestUrl(input), verify);
+        const meta = await checkDomain(requestUrl(input), verify, failClosed);
+        if (!trusted(meta)) {
+            return contextFetch(input, init);
+        }
         const response = await contextFetch(input, init);
         const headers = new Headers(response.headers);
         headers.set("x-agentic-trust", trustHeader(meta));
@@ -119,14 +138,14 @@ export function agenticTrustVercelAiMiddleware(options = {}) {
     return {
         fetch: fetchWithTrust,
         async transformParams({ params }) {
-            return rewriteVerified(params, verify);
+            return rewriteVerified(params, verify, failClosed);
         },
         async wrapGenerate({ doGenerate, params }) {
-            await rewriteVerified(params, verify);
+            await rewriteVerified(params, verify, failClosed);
             return doGenerate();
         },
         async wrapStream({ doStream, params }) {
-            await rewriteVerified(params, verify);
+            await rewriteVerified(params, verify, failClosed);
             return doStream();
         },
         loadLlmsFromUrl,

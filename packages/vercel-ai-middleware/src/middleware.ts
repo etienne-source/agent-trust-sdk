@@ -26,6 +26,12 @@ export interface AgenticTrustVercelAiOptions extends AgenticTrustMiddlewareOptio
    */
   verify?: (target: string) => Promise<AgenticTrustMetadata>;
   /**
+   * Fail closed by default. Unverified or tampered `llms.txt` throws
+   * `UnverifiedDomainContextError` before the response stream or the model runs.
+   * Set `false` to continue without parsing that payload.
+   */
+  failClosed?: boolean;
+  /**
    * Fetch used to load context after verification succeeds.
    * Registry calls use `fetch` on the SDK options, not this function.
    */
@@ -68,9 +74,11 @@ function sdkOptions(options: AgenticTrustVercelAiOptions): AgenticTrustMiddlewar
   const rest: AgenticTrustMiddlewareOptions & {
     verify?: VerifyFn;
     contextFetch?: typeof globalThis.fetch;
+    failClosed?: boolean;
   } = { ...options };
   delete rest.verify;
   delete rest.contextFetch;
+  delete rest.failClosed;
   return rest;
 }
 
@@ -78,6 +86,10 @@ export function createVerifier(options: AgenticTrustVercelAiOptions = {}): Verif
   if (options.verify) return options.verify;
   const trust = agenticTrustMiddleware(sdkOptions(options));
   return (target) => trust.verify(target);
+}
+
+export function isFailClosed(options: { failClosed?: boolean } = {}): boolean {
+  return options.failClosed !== false;
 }
 
 export async function requireVerifiedDomain(
@@ -91,7 +103,20 @@ export async function requireVerifiedDomain(
   return meta;
 }
 
-async function rewriteVerified<T>(value: T, verify: VerifyFn): Promise<T> {
+async function checkDomain(
+  target: string,
+  verify: VerifyFn,
+  failClosed: boolean
+): Promise<AgenticTrustMetadata> {
+  if (failClosed) return requireVerifiedDomain(target, verify);
+  return verify(target);
+}
+
+function trusted(meta: AgenticTrustMetadata | undefined): meta is AgenticTrustMetadata {
+  return Boolean(meta && meta.verified && !meta.securityWarning);
+}
+
+async function rewriteVerified<T>(value: T, verify: VerifyFn, failClosed: boolean): Promise<T> {
   const sites = collectLlmsPayloads(value);
   const targets = new Set<string>(collectContextTargets(value));
   for (const site of sites) targets.add(site.target);
@@ -99,17 +124,19 @@ async function rewriteVerified<T>(value: T, verify: VerifyFn): Promise<T> {
 
   const metas = new Map<string, AgenticTrustMetadata>();
   for (const target of targets) {
-    metas.set(target, await requireVerifiedDomain(target, verify));
+    metas.set(target, await checkDomain(target, verify, failClosed));
   }
   if (sites.length === 0) return value;
 
   const draft = cloneValue(value);
+  let wrote = false;
   for (const site of sites) {
     const meta = metas.get(site.target);
-    if (!meta) continue;
+    if (!trusted(meta)) continue;
     writeVerifiedText(draft, site.path, formatVerifiedLlms(parseLlmsTxt(site.readContent()), meta));
+    wrote = true;
   }
-  return draft;
+  return wrote ? draft : value;
 }
 
 function requestUrl(input: RequestInfo | URL): string {
@@ -147,20 +174,25 @@ function trustHeader(meta: AgenticTrustMetadata): string {
  * Vercel AI SDK fetch and language-model middleware.
  *
  * Pass `fetch` to a provider factory and the object itself to `wrapLanguageModel`.
- * Unverified or unsigned domain context throws `UnverifiedDomainContextError`
+ * Unverified or tampered domain context throws `UnverifiedDomainContextError`
  * before the response stream starts and before `llms.txt` is parsed.
+ * That block is the default (`failClosed: true`).
  */
 export function agenticTrustVercelAiMiddleware(
   options: AgenticTrustVercelAiOptions = {}
 ): AgenticTrustVercelAiMiddleware {
   const verify = createVerifier(options);
+  const failClosed = isFailClosed(options);
   const contextFetch = options.contextFetch ?? globalThis.fetch.bind(globalThis);
 
   const fetchWithTrust: AgenticTrustVercelAiMiddleware["fetch"] = async (input, init) => {
     if (!isContextFetch(input, init)) {
       return contextFetch(input, init);
     }
-    const meta = await requireVerifiedDomain(requestUrl(input), verify);
+    const meta = await checkDomain(requestUrl(input), verify, failClosed);
+    if (!trusted(meta)) {
+      return contextFetch(input, init);
+    }
     const response = await contextFetch(input, init);
     const headers = new Headers(response.headers);
     headers.set("x-agentic-trust", trustHeader(meta));
@@ -192,14 +224,14 @@ export function agenticTrustVercelAiMiddleware(
   return {
     fetch: fetchWithTrust,
     async transformParams({ params }) {
-      return rewriteVerified(params, verify);
+      return rewriteVerified(params, verify, failClosed);
     },
     async wrapGenerate({ doGenerate, params }) {
-      await rewriteVerified(params, verify);
+      await rewriteVerified(params, verify, failClosed);
       return doGenerate();
     },
     async wrapStream({ doStream, params }) {
-      await rewriteVerified(params, verify);
+      await rewriteVerified(params, verify, failClosed);
       return doStream();
     },
     loadLlmsFromUrl,

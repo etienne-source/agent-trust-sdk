@@ -1,6 +1,6 @@
 # @agentic-trust/langchain-middleware
 
-LangChain.js middleware that checks an **AgenticTrust** domain signature before it reads or parses `llms.txt` context. Unsigned, unverified, and RISK domains throw `UnverifiedDomainContextError`.
+LangChain.js middleware that checks an **AgenticTrust** domain signature before it reads or parses `llms.txt` context. It is fail-closed by default. Unsigned, unverified, tampered, and RISK domains throw `UnverifiedDomainContextError` and the model or tool does not run.
 
 Verification and signing stay in `@agentic-trust/sdk` (`agenticTrustMiddleware`). This package only decides whether context is allowed to be parsed. The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
 
@@ -54,7 +54,7 @@ try {
 } catch (err) {
   if (err instanceof UnverifiedDomainContextError) {
     // err.domain, err.status ("UNVERIFIED" | "RISK"), err.reason
-    // "Blocked unverified domain context for unsigned.example: ... Refusing to parse llms.txt."
+    // "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
   }
 }
 ```
@@ -64,3 +64,9 @@ try {
 Other tool arguments are left alone. `fetch` to a model provider is not a domain-context payload.
 
 `assertVerifiedDomain("example.com")` is the same check without parsing.
+
+`failClosed` defaults to `true`. Set `failClosed: false` only when a hook should continue without parsing the unverified body. `loadLlmsContext` and `assertVerifiedDomain` still throw, because those calls ask for verified context. `beforeModel`, `wrapModelCall`, and `wrapToolCall` are the hooks that honor the flag. The thrown message is always:
+
+```text
+[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.
+```

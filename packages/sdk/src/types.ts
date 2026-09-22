@@ -61,4 +61,10 @@ export interface VerifyDomainOptions {
   bypassCache?: boolean;
   fetch?: typeof globalThis.fetch;
   cacheTtlMs?: number;
+  /**
+   * Result cache. Defaults to the process `defaultCache`
+   * (in-memory, optional `AGENTIC_TRUST_CACHE_DIR` disk copy).
+   * A warm hit is the sub-5ms path.
+   */
+  cache?: import("./cache.js").MemoryCache;
 }

@@ -154,6 +154,17 @@ describe("verifyDomain", () => {
     const second = await verifyDomain(domain, { fetch: fetchFn });
     expect(second.cached).toBe(true);
     expect(second.status).toBe("VERIFIED");
+    const samples: number[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      const start = performance.now();
+      const hit = await verifyDomain(domain, { fetch: fetchFn });
+      samples.push(performance.now() - start);
+      expect(hit.cached).toBe(true);
+      expect(hit.status).toBe("VERIFIED");
+    }
+    samples.sort((left, right) => left - right);
+    const median = samples[Math.floor(samples.length / 2)] ?? Number.POSITIVE_INFINITY;
+    expect(median).toBeLessThan(5);
     // did.json only fetched once (+ optional llms)
     const calls = (fetchFn as unknown as { mock: { calls: unknown[] } }).mock
       .calls;
