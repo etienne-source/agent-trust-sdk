@@ -159,15 +159,151 @@ describe("verifyDomain", () => {
       .calls;
     expect(calls.length).toBeLessThanOrEqual(2);
   });
+
+  it("returns UNVERIFIED for an invalid domain instead of throwing", async () => {
+    await expect(verifyDomain("not a host")).resolves.toMatchObject({
+      status: "UNVERIFIED",
+      reason: "Invalid domain",
+    });
+    await expect(verifyDomain("")).resolves.toMatchObject({
+      status: "UNVERIFIED",
+      domain: "(empty)",
+    });
+    await expect(verifyDomain("   ")).resolves.toMatchObject({ status: "UNVERIFIED" });
+  });
+
+  it("returns RISK for invalid JSON, a non-document, and a non-did:web id", async () => {
+    const domain = "junk.example";
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { text: "<html>nope</html>" },
+    });
+    const invalid = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "http://api.test" });
+    expect(invalid.status).toBe("RISK");
+    expect(invalid.reason).toMatch(/not valid JSON/);
+
+    clearVerifyCache();
+    const arrayBody = mockFetchRouter({
+      "/.well-known/did.json": { body: [] },
+    });
+    const malformed = await verifyDomain(domain, {
+      fetch: arrayBody,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(malformed.status).toBe("RISK");
+    expect(malformed.reason).toMatch(/not a DID document/);
+
+    clearVerifyCache();
+    const foreign = mockFetchRouter({
+      "/.well-known/did.json": { body: { id: "did:key:z6Mkexample" } },
+    });
+    const risk = await verifyDomain(domain, {
+      fetch: foreign,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(risk.status).toBe("RISK");
+    expect(risk.reason).toMatch(/not did:web/);
+  });
+
+  it("does not upgrade alg:none or HS256 proofs through the registry", async () => {
+    const domain = "downgrade.example";
+    const { did } = await makeSignedDid(domain);
+    const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({ id: did.id })).toString("base64url");
+    did.proof = { type: "JsonWebSignature2020", jws: `${header}.${payload}.` };
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", domain, claims: {} } },
+    });
+    const none = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "http://api.test" });
+    expect(none.status).toBe("RISK");
+    expect(none.reason).toMatch(/Disallowed JWS algorithm: none/);
+    const urls = (fetchFn as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((call) =>
+      String(call[0])
+    );
+    expect(urls.some((url) => url.includes("/v1/verify"))).toBe(false);
+
+    clearVerifyCache();
+    did.proof = {
+      type: "JsonWebSignature2020",
+      jws: `${Buffer.from(JSON.stringify({ alg: "HS256" })).toString("base64url")}.${payload}.sig`,
+    };
+    const hmacFetch = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", domain, claims: {} } },
+    });
+    const hmac = await verifyDomain(domain, {
+      fetch: hmacFetch,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(hmac.status).toBe("RISK");
+    expect(hmac.reason).toMatch(/Disallowed symmetric JWS algorithm: HS256/);
+  });
+
+  it("falls through on network failure and stays UNVERIFIED when the API also fails", async () => {
+    const domain = "offline.example";
+    let calls = 0;
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      calls += 1;
+      const url = String(input);
+      if (url.includes("/.well-known/did.json")) {
+        throw new TypeError("getaddrinfo ENOTFOUND");
+      }
+      throw new DOMException("The operation was aborted", "TimeoutError");
+    }) as unknown as typeof fetch;
+
+    const result = await verifyDomain(domain, {
+      fetch: fetchFn,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.reason).toMatch(/API fallback failed/);
+    expect(calls).toBe(2);
+  });
+
+  it("rejects a registry body that is HTML or the wrong JSON shape", async () => {
+    const domain = "api.example";
+    const html = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("did.json")) throw new TypeError("offline");
+      return new Response("<html>gateway</html>", { status: 200 });
+    }) as unknown as typeof fetch;
+    const badJson = await verifyDomain(domain, { fetch: html, verificationApiUrl: "http://api.test" });
+    expect(badJson.status).toBe("UNVERIFIED");
+    expect(badJson.reason).toMatch(/invalid JSON/);
+
+    clearVerifyCache();
+    const weird = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("did.json")) throw new TypeError("offline");
+      return new Response(JSON.stringify(["nope"]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    const unexpected = await verifyDomain(domain, {
+      fetch: weird,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(unexpected.status).toBe("UNVERIFIED");
+    expect(unexpected.reason).toMatch(/unexpected payload/);
+  });
 });
 
 describe("inspectEndpointBeforeExecution", () => {
   beforeEach(() => clearVerifyCache());
 
-  it("blocks non-HTTPS endpoints", async () => {
+  it("blocks non-HTTPS and unparseable endpoints without throwing", async () => {
     const r = await inspectEndpointBeforeExecution("http://example.com/mcp");
     expect(r.allowed).toBe(false);
     expect(r.status).toBe("RISK");
+    await expect(inspectEndpointBeforeExecution("not a url")).resolves.toMatchObject({
+      allowed: false,
+      status: "RISK",
+    });
+    await expect(inspectEndpointBeforeExecution("")).resolves.toMatchObject({ allowed: false });
   });
 
   it("allows listed MCP endpoint on verified domain", async () => {

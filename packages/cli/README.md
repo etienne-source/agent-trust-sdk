@@ -6,11 +6,11 @@ Binary: `agentic-trust`
 
 **License:** MIT · **Install:** GitHub only, until the npm scope exists
 
-> **Warning:** Do not run `npm install trustflow-sdk`. That npm name is an unrelated logging package. Do not run `npx trustflow init`.
+> **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` and `npx trustflow init` point at an unrelated logging package. Install from GitHub: `github:etienne-source/agent-trust-sdk`.
 
 ## Install
 
-`@agentic-trust/cli` depends on `@agentic-trust/sdk` with `workspace:*`. Clone the repository so that link resolves. npm does not install a workspace package from a git URL, and `pnpm add github:...#path:/packages/cli` cannot resolve `workspace:*` on its own.
+`@agentic-trust/cli` depends on `@agentic-trust/sdk` with `workspace:*`. Clone `github:etienne-source/agent-trust-sdk` so that link resolves. npm does not install a workspace package from a git URL, and `pnpm add github:etienne-source/agent-trust-sdk#path:/packages/cli` cannot resolve `workspace:*` on its own.
 
 ```bash
 git clone https://github.com/etienne-source/agent-trust-sdk.git
@@ -20,6 +20,18 @@ pnpm --filter @agentic-trust/cli exec agentic-trust init
 ```
 
 `dist/` is committed, so the binary runs after `pnpm install` links the SDK. Use `pnpm --filter @agentic-trust/cli exec agentic-trust --help` from the clone.
+
+## Configure
+
+`TRUSTFLOW_API_URL` overrides the API base (default `https://api.trustflow.systems`). `agentic-trust sign` reads `AGENTIC_TRUST_PRIVATE_KEY`, `AGENTIC_TRUST_DOMAIN`, and `AGENTIC_TRUST_BUSINESS_NAME` from the environment when flags are omitted. See the repository `.env.example`.
+
+## Run
+
+```bash
+agentic-trust init
+agentic-trust confirm
+agentic-trust sign --dry-run --domain example.invalid --name "Example Co"
+```
 
 ## init
 

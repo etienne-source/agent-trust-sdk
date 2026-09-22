@@ -62,6 +62,22 @@ export async function confirmRegistration(apiBase, body, fetchFn = globalThis.fe
     const payload = await postJson(`${apiBase}/v1/register/confirm`, body, fetchFn);
     return payload;
 }
+/** Default deadline for POST /v1/register and POST /v1/register/confirm. */
+export const DEFAULT_API_TIMEOUT_MS = 20_000;
+function apiTimeoutMs() {
+    const raw = process.env.TRUSTFLOW_API_TIMEOUT_MS;
+    if (!raw)
+        return DEFAULT_API_TIMEOUT_MS;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_API_TIMEOUT_MS;
+}
+function requestFailure(err) {
+    if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
+        return new TrustflowApiError("Trustflow API request timed out");
+    }
+    const message = err instanceof Error ? err.message : "request failed";
+    return new TrustflowApiError(`Trustflow API request failed: ${message}`);
+}
 async function postJson(url, body, fetchFn) {
     let response;
     try {
@@ -69,11 +85,11 @@ async function postJson(url, body, fetchFn) {
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(apiTimeoutMs()),
         });
     }
     catch (err) {
-        const message = err instanceof Error ? err.message : "request failed";
-        throw new TrustflowApiError(`Trustflow API request failed: ${message}`);
+        throw requestFailure(err);
     }
     const text = await response.text();
     let parsed = undefined;

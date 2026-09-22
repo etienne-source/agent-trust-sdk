@@ -1,7 +1,7 @@
 import { defaultCache, type MemoryCache } from "./cache.js";
-import { importPublicKey, verifyDidJws } from "./jws.js";
-import { didWebId, normalizeDomain, wellKnownDidUrl } from "./tls.js";
-import type { DidDocument, VerificationStatus, VerifyResult } from "./types.js";
+import { assessDidDocument, fetchDidDocument } from "./localDid.js";
+import { didWebId, normalizeDomain } from "./tls.js";
+import type { VerificationStatus, VerifyResult } from "./types.js";
 
 /** Registry used when no base URL is configured. */
 export const DEFAULT_TRUST_API_URL = "https://api.trustflow.systems";
@@ -296,72 +296,42 @@ async function lookupLocalDid(
   options: ResolvedOptions,
   signal: AbortSignal
 ): Promise<Lookup | null> {
-  let response: Response;
-  try {
-    response = await options.fetchImpl(wellKnownDidUrl(domain), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      redirect: "follow",
-      signal,
-    });
-  } catch (err) {
-    if (signal.aborted || isAbortError(err)) throw err;
+  const loaded = await fetchDidDocument(domain, options.fetchImpl, signal);
+  if (loaded.kind === "network") {
+    if (signal.aborted || isAbortError(loaded.error)) throw loaded.error;
     return null;
   }
-
-  if (!response.ok) return null;
-
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
+  if (loaded.kind === "http") return null;
+  if (loaded.kind === "invalid-json") {
     return {
       meta: unverified(domain, "did.json is not valid JSON", "RISK"),
       cacheTtlMs: options.cacheTtlMs,
     };
   }
 
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
+  const assessment = await assessDidDocument(domain, loaded.body);
+  if (assessment.outcome === "malformed") {
     return {
-      meta: unverified(domain, "did.json is not a DID document", "RISK"),
+      meta: unverified(domain, assessment.reason, "RISK"),
+      cacheTtlMs: options.cacheTtlMs,
+    };
+  }
+  if (assessment.outcome === "incomplete") return null;
+  if (assessment.outcome === "risk") {
+    return {
+      meta: unverified(domain, assessment.reason, "RISK", assessment.didId),
       cacheTtlMs: options.cacheTtlMs,
     };
   }
 
-  const record = body as Record<string, unknown>;
-  const did = body as DidDocument;
-  const expected = didWebId(domain);
-  if (did.id && did.id !== expected && !String(did.id).startsWith("did:web:")) {
-    return {
-      meta: unverified(domain, "DID id is not did:web", "RISK", did.id),
-      cacheTtlMs: options.cacheTtlMs,
-    };
-  }
-
-  const key = await importPublicKey(did);
-  if (!key || !did.proof?.jws) return null;
-
-  const jwsResult = await verifyDidJws(did, key);
-  if (!jwsResult.ok) {
-    return {
-      meta: unverified(
-        domain,
-        jwsResult.reason ?? "Signature verification failed",
-        "RISK",
-        did.id || expected
-      ),
-      cacheTtlMs: options.cacheTtlMs,
-    };
-  }
-
-  const trustScore = readTrustScore(record);
+  const trustScore = readTrustScore(assessment.record);
   return {
     meta: {
       verified: true,
       ...(trustScore !== undefined ? { trustScore } : {}),
       domain,
       status: "VERIFIED",
-      did: did.id || expected,
+      did: assessment.didId,
     },
     cacheTtlMs: options.cacheTtlMs,
   };

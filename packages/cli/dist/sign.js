@@ -1,11 +1,13 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createSignedDidDocument, normalizeDomain } from "@agentic-trust/sdk";
-import { confirmRegistration, registerDomain, resolveTrustflowApiBase, TrustflowApiError, } from "./api.js";
+import { confirmRegistration, resolveTrustflowApiBase, TrustflowApiError } from "./api.js";
 import { renderBadge } from "./badge.js";
 import { parseLlms, parseServiceList, renderLlms } from "./llms.js";
-import { ensureGitignore, writePrivateKey, writeProjectFile, writePublicKey, writeRegistration, } from "./project.js";
+import { ensureGitignore, gitignoreNotice, writeDidDocument, writePrivateKey, writeProjectFile, writePublicKey, } from "./project.js";
 import { maskForGitHubActions, redactSecrets } from "./redact.js";
+import { registerAndStore } from "./registerFlow.js";
+import { parseVerificationType } from "./verificationType.js";
 const DEFAULT_DESCRIPTION = "AI-discoverable business services";
 export async function runGithubSign(options) {
     const secrets = [];
@@ -66,12 +68,10 @@ async function signDomain(options, secrets, log) {
         log("Signed did:web payload with the supplied private key.");
     }
     const gitignore = await ensureGitignore(options.cwd);
-    log(gitignore === "updated"
-        ? "Updated .gitignore to exclude .agentic-trust/ (private did:web key)."
-        : ".gitignore already excludes .agentic-trust/.");
+    log(gitignoreNotice(gitignore));
     await writePrivateKey(options.cwd, identity.privateKeyPem);
     await writePublicKey(options.cwd, identity.publicKeyPem);
-    const didPath = await writeProjectFile(options.cwd, ".well-known/did.json", `${JSON.stringify(identity.did, null, 2)}\n`);
+    const didPath = await writeDidDocument(options.cwd, identity.did);
     log(`Wrote ${didPath}`);
     log(`DID: ${identity.did.id}`);
     log(`publicKeyHash: ${identity.publicKeyHash}`);
@@ -90,44 +90,29 @@ async function signDomain(options, secrets, log) {
         return 0;
     }
     log(`Trustflow API: POST ${apiBase}/v1/register`);
-    const challenge = await registerDomain(apiBase, {
+    const { challenge, stored, registrationPath, challengeFile } = await registerAndStore({
+        cwd: options.cwd,
+        apiBase,
+        fetchFn: options.fetch,
         domain,
         businessName,
         verificationType,
-        did: identity.did.id,
+        did: identity.did.id ?? `did:web:${domain}`,
         publicKeyPem: identity.publicKeyPem,
         publicKeyHash: identity.publicKeyHash,
-        manifestUrl: `https://${domain}/.well-known/did.json`,
         services,
-    }, options.fetch);
+    });
     secrets.push(challenge.challengeToken);
     if (challenge.dnsRecord?.value)
         secrets.push(challenge.dnsRecord.value);
     maskForGitHubActions(challenge.challengeToken);
     maskForGitHubActions(challenge.dnsRecord?.value);
-    const stored = {
-        domain: challenge.domain || domain,
-        businessName,
-        verificationType: challenge.verificationType || verificationType,
-        challengeToken: challenge.challengeToken,
-        challengePath: challenge.challengePath,
-        dnsRecord: challenge.dnsRecord,
-        instructions: challenge.instructions,
-        expiresAt: challenge.expiresAt,
-        tier: challenge.tier,
-        did: identity.did.id ?? `did:web:${domain}`,
-        publicKeyHash: identity.publicKeyHash,
-        services,
-        apiBase,
-    };
-    const registrationPath = await writeRegistration(options.cwd, stored);
     log(`Saved challenge state to ${registrationPath} (gitignored). The challenge token is not printed.`);
     if (challenge.instructions)
         log(challenge.instructions);
     if (challenge.expiresAt)
         log(`Expires: ${challenge.expiresAt}`);
-    if (challenge.verificationType === "SSL_CHALLENGE" || challenge.challengePath) {
-        const challengeFile = await writeProjectFile(options.cwd, ".well-known/agentic-trust-challenge.txt", challenge.challengeToken);
+    if (challengeFile) {
         log(`Wrote the challenge token (no trailing newline) to ${challengeFile}`);
     }
     if (challenge.dnsRecord) {
@@ -207,12 +192,5 @@ async function readOptional(file) {
     catch {
         return undefined;
     }
-}
-function parseVerificationType(value) {
-    if (!value || value === "SSL_CHALLENGE")
-        return "SSL_CHALLENGE";
-    if (value === "DNS_TXT")
-        return "DNS_TXT";
-    throw new Error("verification type must be SSL_CHALLENGE or DNS_TXT");
 }
 //# sourceMappingURL=sign.js.map

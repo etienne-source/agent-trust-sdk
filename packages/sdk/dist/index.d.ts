@@ -1,8 +1,8 @@
 /**
  * **AgenticTrust** open-standard SDK (`@agentic-trust/sdk`).
  *
- * Cryptographic protocol for domain identity: DID signatures (`did:web` + compact JWS)
- * and SDK integrations for AI agents. The CLI package is `@agentic-trust/cli`
+ * Cryptographic protocol for domain identity: DID signatures (`did:web` + compact JWS).
+ * The CLI package is `@agentic-trust/cli`
  * (`npx agentic-trust init`), which registers domains with Trustflow Systems.
  *
  * Git-only install until the npm scope exists. Clone this repository so the
