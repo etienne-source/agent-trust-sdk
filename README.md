@@ -403,10 +403,12 @@ node scripts/create-starter-prs.mjs --targets scripts/starter-pr-targets.json --
 
 ## Ecosystem middleware pull requests
 
-`scripts/submit-ecosystem-prs.mjs` plans a pull request that adds fail-closed AgenticTrust middleware or an SDK `verifyDomain` check to an agent-framework starter you already maintain. It does not search GitHub and it does not open a pull request against a repository that is not in the targets file you pass.
+`scripts/submit-ecosystem-prs.mjs` plans a pull request that adds fail-closed AgenticTrust middleware, a placeholder `.well-known/did.json`, and `llms.txt` to an agent-framework starter you already maintain. It does not search GitHub and it does not open a pull request against a repository that is not in the targets file you pass.
 
-| Target `framework` | File | Packages |
-|--------------------|------|----------|
+The kinds of repository a maintainer might later list are a LangChain starter (`langchain`), a LlamaIndex starter (`llamaindex`), or a Next.js AI boilerplate that uses the Vercel AI SDK (`vercel-ai`). Those are documentation examples only. [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) does not name them, and `targets` stays empty.
+
+| Target `framework` | Wiring file | Packages |
+|--------------------|-------------|----------|
 | `langchain` | `src/agentic-trust-langchain.ts` | `@agentic-trust/sdk`, `@agentic-trust/langchain-middleware` |
 | `langgraph` | `src/agentic-trust-langgraph.ts` | `@agentic-trust/sdk`, `@agentic-trust/langchain-middleware` |
 | `vercel-ai` | `src/agentic-trust-vercel-ai.ts` | `@agentic-trust/sdk`, `@agentic-trust/vercel-ai-middleware` |
@@ -414,20 +416,24 @@ node scripts/create-starter-prs.mjs --targets scripts/starter-pr-targets.json --
 | `openai-agents` | `src/agentic-trust-openai.ts` | `@agentic-trust/sdk` |
 | `llamaindex` | `src/agentic-trust-llamaindex.ts` | `@agentic-trust/sdk` |
 
-Install lines use `github:etienne-source/agent-trust-sdk`. Do not install the unrelated `trustflow-sdk` package. The planned files do not contain a private key.
+Every plan also adds `llms.txt`, `.well-known/llms.txt`, and `.well-known/did.json`. The DID file is the unsigned `REPLACE_ME` placeholder from `starters/nextjs`. `proof.jws` is not a signature. Install lines use `github:etienne-source/agent-trust-sdk`. Do not install the unrelated `trustflow-sdk` package. The planned files do not contain a private key.
 
-The default run is a dry run:
+The default run is a dry run. It prints the title, the executive summary used as the pull request body, and the file contents. It does not call GitHub:
 
 ```bash
 node scripts/submit-ecosystem-prs.mjs
 # or: pnpm ecosystem-prs
 ```
 
-A real pull request needs both `--apply` and `--targets`, a `GITHUB_TOKEN` or `GH_TOKEN`, and an allowlist of at most five repositories. Copy [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) to `scripts/ecosystem-targets.json` (gitignored), set `"example"` to false, and list `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. `--apply` is refused for that example file and for an empty list.
+A real pull request needs both `--apply` and `--targets`, and `GITHUB_TOKEN` or `GH_TOKEN`. The token must be able to create a fork and open a pull request. `--apply` uses Octokit. It forks the allowlisted repository, or pushes the branch to a fork you already have of that same upstream. If the authenticated user owns the repository, it pushes the branch there instead of forking. The pull request is opened against the upstream base branch. At most five repositories are accepted. Copy [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) to `scripts/ecosystem-targets.json` (gitignored), set `"example"` to false, and list `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. `--apply` is refused for that example file, for an empty list, and when the token is missing. The command does not post to X.
 
 ```bash
-node scripts/submit-ecosystem-prs.mjs --targets scripts/ecosystem-targets.json --apply
+GITHUB_TOKEN=... node scripts/submit-ecosystem-prs.mjs --targets scripts/ecosystem-targets.json --apply
 ```
+
+## Growth notes
+
+Drafts for builders, a launch thread, and an enterprise brief live in [`docs/growth/`](docs/growth/). They are documents only. Nothing in this repository posts them to X.
 
 ## Verified-domain webhook
 
