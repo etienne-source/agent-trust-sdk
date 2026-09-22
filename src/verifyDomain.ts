@@ -221,8 +221,10 @@ async function verifyViaApi(
 }
 
 /**
- * Verify a domain's Trustflow identity via did:web + JWS, with central API fallback.
- * Cache-first path targets <50ms on repeat lookups.
+ * Verify a domain against the **AgenticTrust** protocol (`did:web` DID signature + JWS),
+ * with central API fallback. Cache-first path targets <50ms on repeat lookups.
+ *
+ * Import from `@agentic-trust/sdk`.
  */
 export async function verifyDomain(
   domainUrl: string,
@@ -267,8 +269,8 @@ export async function verifyDomain(
 }
 
 /**
- * Inspect MCP / tool endpoints before agent execution.
- * Verifies the owning domain with Trustflow and requires HTTPS.
+ * AgenticTrust SDK gate for MCP / tool endpoints before agent execution.
+ * Verifies the owning domain's DID signature and requires HTTPS.
  */
 export async function inspectEndpointBeforeExecution(
   endpoint: string,

@@ -1,7 +1,7 @@
 {
-  "name": "@trustflow/sdk",
+  "name": "@agentic-trust/sdk",
   "version": "0.1.0",
-  "description": "Trustflow domain identity verification SDK (@trustflow/sdk). Install from github:etienne-source/agent-trust-sdk. The public npm package trustflow-sdk is an unrelated logging package.",
+  "description": "AgenticTrust open-standard SDK (@agentic-trust/sdk) for domain identity, DID signatures, and agent integrations. Install from Git (github:etienne-source/agent-trust-sdk) until the npm scope exists. Scaffold with npx agentic-trust init (@agentic-trust/cli).",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -40,6 +40,8 @@
     "node": ">=20"
   },
   "keywords": [
+    "agentictrust",
+    "agentic-trust",
     "ai",
     "agents",
     "did",
@@ -47,7 +49,6 @@
     "verification",
     "mcp",
     "trust",
-    "trustflow",
     "llms.txt"
   ]
 }
