@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+dist/
+.agentic-trust/
+.env
+.env.local
+.env*.local
+*.pem
+*.key
+*.crt
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
