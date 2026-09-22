@@ -1,0 +1,51 @@
+{
+  "name": "@agentic-trust/next-plugin",
+  "version": "0.1.0",
+  "description": "AgenticTrust Next.js config wrapper. Warns in development when public/llms.txt or public/.well-known/did.json is missing or invalid. Not on npm yet — install from github:etienne-source/agent-trust-sdk.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/etienne-source/agent-trust-sdk.git",
+    "directory": "packages/next-plugin"
+  },
+  "homepage": "https://github.com/etienne-source/agent-trust-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/etienne-source/agent-trust-sdk/issues"
+  },
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node ./scripts/mark-cjs.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "agentictrust",
+    "agentic-trust",
+    "next",
+    "nextjs",
+    "did",
+    "did:web",
+    "llms.txt"
+  ]
+}
