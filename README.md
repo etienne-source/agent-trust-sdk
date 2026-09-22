@@ -76,6 +76,7 @@ pnpm --filter @agentic-trust/cli exec agentic-trust sign \
 3. Registers the domain with Trustflow: `POST https://api.trustflow.systems/v1/register` (`verificationType` `SSL_CHALLENGE` or `DNS_TXT`). `https://trustflow.systems/api/register` is an alias of that API origin.
 4. Prints the challenge instructions. `agentic-trust confirm` calls `POST /v1/register/confirm`.
 5. Prints an embeddable badge: **Verified by AgenticTrust | trustflow.systems**, linking to `https://trustflow.systems/verify/[domain]`.
+6. Writes `.cursorrules` and `.cursor/rules/agentic-trust.mdc` so coding agents keep a W3C `did:web` document at `public/.well-known/did.json` and a signed `public/llms.txt` (`@agentic-trust/sdk`). `--no-ide-rules` skips those files.
 
 ### `agentic-trust confirm`
 

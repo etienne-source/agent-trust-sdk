@@ -45,6 +45,7 @@ npx agentic-trust init
 4. Registers the domain: `POST https://api.trustflow.systems/v1/register` with `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` by default, or `DNS_TXT`). Passing `--api-url https://trustflow.systems/api/register` uses the same API. The site path is not a separate server.
 5. Writes `.well-known/agentic-trust-challenge.txt` for an SSL challenge (exact token, no trailing newline) and prints the API instructions.
 6. Prints embeddable HTML/SVG: `Verified by AgenticTrust | trustflow.systems`, linking to `https://trustflow.systems/verify/[domain]`.
+7. Writes IDE rules at `.cursorrules` and `.cursor/rules/agentic-trust.mdc`. They tell coding agents to publish a W3C `did:web` document at `public/.well-known/did.json` (or `static/` when that folder already exists) and to keep a signed `public/llms.txt` via `@agentic-trust/sdk` (`createSignedDidDocument`). Pass `--no-ide-rules` to skip both files.
 
 After the challenge file or DNS TXT is live:
 
@@ -65,7 +66,7 @@ npx agentic-trust init \
   --services "Search, Docs"
 ```
 
-`--confirm` attempts confirmation in the same run. `--skip-register` only writes local files.
+`--confirm` attempts confirmation in the same run. `--skip-register` only writes local files. `--no-ide-rules` skips `.cursorrules` and `.cursor/rules/agentic-trust.mdc` (written by default).
 
 ## sign
 
