@@ -1,0 +1,31 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1"
+  ],
+  "id": "did:web:REPLACE_ME.example",
+  "placeholder": "REPLACE_ME — unsigned example for scaffolding. proof.jws is not a signature. Run `npx agentic-trust init`, then copy .well-known/did.json to public/.well-known/did.json. Do not commit a private key.",
+  "verificationMethod": [
+    {
+      "id": "did:web:REPLACE_ME.example#key-1",
+      "type": "JsonWebKey2020",
+      "controller": "did:web:REPLACE_ME.example",
+      "publicKeyPem": "REPLACE_ME"
+    }
+  ],
+  "assertionMethod": [
+    "did:web:REPLACE_ME.example#key-1"
+  ],
+  "service": [
+    {
+      "id": "did:web:REPLACE_ME.example#llms",
+      "type": "LinkedDomains",
+      "serviceEndpoint": "https://REPLACE_ME.example/.well-known/llms.txt"
+    }
+  ],
+  "proof": {
+    "type": "JsonWebSignature2020",
+    "created": "1970-01-01T00:00:00.000Z",
+    "verificationMethod": "did:web:REPLACE_ME.example#key-1",
+    "jws": "REPLACE_ME"
+  }
+}

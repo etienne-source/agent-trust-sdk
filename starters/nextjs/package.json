@@ -1,0 +1,26 @@
+{
+  "name": "agentic-trust-starter-nextjs",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Next.js App Router starter with AgenticTrust did:web, llms.txt, and @agentic-trust/next-plugin. Not on npm.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^16.3.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@agentic-trust/next-plugin": "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

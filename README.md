@@ -279,6 +279,8 @@ module.exports = withAgenticTrust({
 
 Details are in [packages/next-plugin/README.md](packages/next-plugin/README.md).
 
+Drop-in App Router boilerplates for Next.js, v0, and Bolt.new community templates live in [`starters/`](starters/README.md) (`nextjs`, `v0`, `bolt`). Each one wraps `next.config` with `withAgenticTrust` and commits placeholder `public/llms.txt` and `public/.well-known/did.json` files (`REPLACE_ME`, no private key). How to open upstream pull requests is in [starters/UPSTREAM.md](starters/UPSTREAM.md). Those pull requests are not opened from this repository.
+
 ## Development
 
 ```bash
