@@ -1,7 +1,12 @@
 import {
   agenticTrustMiddleware,
+  emitSecurityAlert,
+  resolveEnforcementMode,
+  securityAlertEvent,
+  type AgenticTrustEnforcementMode,
   type AgenticTrustMetadata,
   type AgenticTrustMiddlewareOptions,
+  type AgenticTrustSecurityEvent,
 } from "@agentic-trust/sdk";
 import { UnverifiedDomainContextError } from "./error.js";
 import {
@@ -22,11 +27,19 @@ export interface AgenticTrustLangChainOptions extends AgenticTrustMiddlewareOpti
    */
   verify?: (target: string) => Promise<AgenticTrustMetadata>;
   /**
-   * Fail closed by default. Unverified or tampered `llms.txt` throws
-   * `UnverifiedDomainContextError` and the model or tool does not run.
-   * Set `false` to continue without parsing that payload.
+   * Enforcement. The default is `"audit"`: unsigned context does not throw.
+   * `"strict"` throws `UnverifiedDomainContextError` before the body is read.
+   */
+  mode?: AgenticTrustEnforcementMode;
+  /** `true` selects strict mode. */
+  strict?: boolean;
+  /**
+   * `true` selects strict mode. Omitted and `false` stay in audit mode.
+   * Fail-closed is no longer the default.
    */
   failClosed?: boolean;
+  /** Receives the audit telemetry event. The default sink is an in-process listener plus `console.warn`. */
+  onAudit?: (event: AgenticTrustSecurityEvent) => void;
 }
 
 export interface LlmsContextSource {
@@ -79,11 +92,12 @@ export interface AgenticTrustLangChainMiddleware {
 }
 
 function sdkOptions(options: AgenticTrustLangChainOptions): AgenticTrustMiddlewareOptions {
-  const rest: AgenticTrustMiddlewareOptions & { verify?: VerifyFn; failClosed?: boolean } = {
-    ...options,
-  };
+  const rest: AgenticTrustLangChainOptions = { ...options };
   delete rest.verify;
   delete rest.failClosed;
+  delete rest.mode;
+  delete rest.strict;
+  delete rest.onAudit;
   return rest;
 }
 
@@ -93,35 +107,33 @@ export function createVerifier(options: AgenticTrustLangChainOptions = {}): Veri
   return (target) => trust.verify(target);
 }
 
-export function isFailClosed(options: { failClosed?: boolean } = {}): boolean {
-  return options.failClosed !== false;
-}
-
-export async function requireVerifiedDomain(
-  target: string,
-  verify: VerifyFn
-): Promise<AgenticTrustMetadata> {
-  const meta = await verify(target);
-  if (!meta.verified || meta.securityWarning) {
-    throw new UnverifiedDomainContextError(meta);
-  }
-  return meta;
+export function isStrictMode(options: AgenticTrustLangChainOptions = {}): boolean {
+  return resolveEnforcementMode(options) === "strict";
 }
 
 async function checkDomain(
   target: string,
   verify: VerifyFn,
-  failClosed: boolean
+  strict: boolean,
+  onAudit?: (event: AgenticTrustSecurityEvent) => void
 ): Promise<AgenticTrustMetadata> {
-  if (failClosed) return requireVerifiedDomain(target, verify);
-  return verify(target);
+  const meta = await verify(target);
+  if (trusted(meta)) return meta;
+  if (strict) throw new UnverifiedDomainContextError(meta);
+  emitSecurityAlert(securityAlertEvent(meta.domain, meta.status), onAudit);
+  return meta;
 }
 
-function trusted(meta: AgenticTrustMetadata | undefined): meta is AgenticTrustMetadata {
+function trusted(meta: AgenticTrustMetadata | undefined): meta is AgenticTrustMetadata & { verified: true } {
   return Boolean(meta && meta.verified && !meta.securityWarning);
 }
 
-async function rewriteVerified<T>(value: T, verify: VerifyFn, failClosed: boolean): Promise<T> {
+async function rewriteVerified<T>(
+  value: T,
+  verify: VerifyFn,
+  strict: boolean,
+  onAudit?: (event: AgenticTrustSecurityEvent) => void
+): Promise<T> {
   const sites = collectLlmsPayloads(value);
   const targets = new Set<string>(collectContextTargets(value));
   for (const site of sites) targets.add(site.target);
@@ -129,7 +141,7 @@ async function rewriteVerified<T>(value: T, verify: VerifyFn, failClosed: boolea
 
   const metas = new Map<string, AgenticTrustMetadata>();
   for (const target of targets) {
-    metas.set(target, await checkDomain(target, verify, failClosed));
+    metas.set(target, await checkDomain(target, verify, strict, onAudit));
   }
   if (sites.length === 0) return value;
 
@@ -144,8 +156,25 @@ async function rewriteVerified<T>(value: T, verify: VerifyFn, failClosed: boolea
   return wrote ? draft : value;
 }
 
-async function readVerified(source: LlmsContextSource, verify: VerifyFn): Promise<VerifiedLlmsContext> {
-  const meta = await requireVerifiedDomain(source.target, verify);
+function emptyContext(target: string, meta: AgenticTrustMetadata): VerifiedLlmsContext {
+  return {
+    target,
+    domain: meta.domain,
+    sections: [],
+    text: "",
+    sourceText: "",
+    agenticTrust: meta,
+  };
+}
+
+async function readVerified(
+  source: LlmsContextSource,
+  verify: VerifyFn,
+  strict: boolean,
+  onAudit?: (event: AgenticTrustSecurityEvent) => void
+): Promise<VerifiedLlmsContext> {
+  const meta = await checkDomain(source.target, verify, strict, onAudit);
+  if (!trusted(meta)) return emptyContext(source.target, meta);
   const sourceText = readBody(source.content);
   const parsed = parseLlmsTxt(sourceText);
   return {
@@ -161,34 +190,35 @@ async function readVerified(source: LlmsContextSource, verify: VerifyFn): Promis
 /**
  * LangChain.js agent middleware.
  *
- * Pass the result to `createMiddleware` from `langchain`. `beforeModel`,
- * `wrapModelCall`, and `wrapToolCall` call `@agentic-trust/sdk` and throw
+ * Pass the result to `createMiddleware` from `langchain`. The default mode is
+ * `"audit"`: unsigned context logs
+ * `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
+ * and does not throw. `{ strict: true }` or `{ mode: "strict" }` throws
  * `UnverifiedDomainContextError` before any `llms.txt` body is read or parsed.
- * That block is the default (`failClosed: true`). The error message is the
- * AgenticTrust context-poisoning security error.
  */
 export function agenticTrustLangChainMiddleware(
   options: AgenticTrustLangChainOptions = {}
 ): AgenticTrustLangChainMiddleware {
   const verify = createVerifier(options);
-  const failClosed = isFailClosed(options);
+  const strict = isStrictMode(options);
+  const onAudit = options.onAudit;
 
   return {
     name: "agenticTrust",
     async beforeModel(state) {
       if (!state || !Array.isArray(state.messages)) return undefined;
-      const messages = await rewriteVerified(state.messages, verify, failClosed);
+      const messages = await rewriteVerified(state.messages, verify, strict, onAudit);
       if (messages === state.messages) return undefined;
       return { messages };
     },
     async wrapModelCall(request, handler) {
-      return handler(await rewriteVerified(request, verify, failClosed));
+      return handler(await rewriteVerified(request, verify, strict, onAudit));
     },
     async wrapToolCall(request, handler) {
-      return handler(await rewriteVerified(request, verify, failClosed));
+      return handler(await rewriteVerified(request, verify, strict, onAudit));
     },
     loadLlmsContext(source) {
-      return readVerified(source, verify);
+      return readVerified(source, verify, strict, onAudit);
     },
   };
 }
@@ -198,13 +228,16 @@ export async function loadVerifiedLlmsContext(
   source: LlmsContextSource,
   options: AgenticTrustLangChainOptions = {}
 ): Promise<VerifiedLlmsContext> {
-  return readVerified(source, createVerifier(options));
+  return readVerified(source, createVerifier(options), isStrictMode(options), options.onAudit);
 }
 
-/** Verify a domain and throw `UnverifiedDomainContextError` when it is not signed. */
+/**
+ * Verify a domain. Strict mode throws `UnverifiedDomainContextError`.
+ * Audit mode (the default) returns the metadata and emits the security alert.
+ */
 export async function assertVerifiedDomain(
   target: string,
   options: AgenticTrustLangChainOptions = {}
 ): Promise<AgenticTrustMetadata> {
-  return requireVerifiedDomain(target, createVerifier(options));
+  return checkDomain(target, createVerifier(options), isStrictMode(options), options.onAudit);
 }

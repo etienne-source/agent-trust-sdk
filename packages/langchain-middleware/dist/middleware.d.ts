@@ -1,4 +1,4 @@
-import { type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions } from "@agentic-trust/sdk";
+import { type AgenticTrustEnforcementMode, type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions, type AgenticTrustSecurityEvent } from "@agentic-trust/sdk";
 import { type ParsedLlmsTxt } from "./llms.js";
 export interface AgenticTrustLangChainOptions extends AgenticTrustMiddlewareOptions {
     /**
@@ -7,11 +7,19 @@ export interface AgenticTrustLangChainOptions extends AgenticTrustMiddlewareOpti
      */
     verify?: (target: string) => Promise<AgenticTrustMetadata>;
     /**
-     * Fail closed by default. Unverified or tampered `llms.txt` throws
-     * `UnverifiedDomainContextError` and the model or tool does not run.
-     * Set `false` to continue without parsing that payload.
+     * Enforcement. The default is `"audit"`: unsigned context does not throw.
+     * `"strict"` throws `UnverifiedDomainContextError` before the body is read.
+     */
+    mode?: AgenticTrustEnforcementMode;
+    /** `true` selects strict mode. */
+    strict?: boolean;
+    /**
+     * `true` selects strict mode. Omitted and `false` stay in audit mode.
+     * Fail-closed is no longer the default.
      */
     failClosed?: boolean;
+    /** Receives the audit telemetry event. The default sink is an in-process listener plus `console.warn`. */
+    onAudit?: (event: AgenticTrustSecurityEvent) => void;
 }
 export interface LlmsContextSource {
     /** Domain, https URL, or `did:web` id. Read before the body. */
@@ -60,23 +68,23 @@ export interface AgenticTrustLangChainMiddleware {
     loadLlmsContext(source: LlmsContextSource): Promise<VerifiedLlmsContext>;
 }
 export declare function createVerifier(options?: AgenticTrustLangChainOptions): VerifyFn;
-export declare function isFailClosed(options?: {
-    failClosed?: boolean;
-}): boolean;
-export declare function requireVerifiedDomain(target: string, verify: VerifyFn): Promise<AgenticTrustMetadata>;
+export declare function isStrictMode(options?: AgenticTrustLangChainOptions): boolean;
 /**
  * LangChain.js agent middleware.
  *
- * Pass the result to `createMiddleware` from `langchain`. `beforeModel`,
- * `wrapModelCall`, and `wrapToolCall` call `@agentic-trust/sdk` and throw
+ * Pass the result to `createMiddleware` from `langchain`. The default mode is
+ * `"audit"`: unsigned context logs
+ * `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
+ * and does not throw. `{ strict: true }` or `{ mode: "strict" }` throws
  * `UnverifiedDomainContextError` before any `llms.txt` body is read or parsed.
- * That block is the default (`failClosed: true`). The error message is the
- * AgenticTrust context-poisoning security error.
  */
 export declare function agenticTrustLangChainMiddleware(options?: AgenticTrustLangChainOptions): AgenticTrustLangChainMiddleware;
 /** Verify with the SDK, then parse `llms.txt`. The body is untouched when verification fails. */
 export declare function loadVerifiedLlmsContext(source: LlmsContextSource, options?: AgenticTrustLangChainOptions): Promise<VerifiedLlmsContext>;
-/** Verify a domain and throw `UnverifiedDomainContextError` when it is not signed. */
+/**
+ * Verify a domain. Strict mode throws `UnverifiedDomainContextError`.
+ * Audit mode (the default) returns the metadata and emits the security alert.
+ */
 export declare function assertVerifiedDomain(target: string, options?: AgenticTrustLangChainOptions): Promise<AgenticTrustMetadata>;
 export {};
 //# sourceMappingURL=middleware.d.ts.map

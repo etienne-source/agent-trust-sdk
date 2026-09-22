@@ -60,10 +60,34 @@ function jwkSignatureAlg(jwk) {
         return null;
     return inferred;
 }
-const publicKeyCache = new Map();
-/** Drop imported verification keys. `clearVerifyCache` calls this. */
+const resolvedPublicKeys = new Map();
+const pendingPublicKeys = new Map();
+const signatureResults = new Map();
+const keyIdentity = new WeakMap();
+let keyIdentitySeq = 0;
+/** Drop imported verification keys and cached signature results. `clearVerifyCache` calls this. */
 export function clearPublicKeyCache() {
-    publicKeyCache.clear();
+    resolvedPublicKeys.clear();
+    pendingPublicKeys.clear();
+    signatureResults.clear();
+}
+function identityOfKey(key) {
+    if (key instanceof Uint8Array) {
+        let hex = "";
+        for (const byte of key)
+            hex += byte.toString(16).padStart(2, "0");
+        return `raw:${hex}`;
+    }
+    let id = keyIdentity.get(key);
+    if (!id) {
+        keyIdentitySeq += 1;
+        id = `key:${keyIdentitySeq}`;
+        keyIdentity.set(key, id);
+    }
+    return id;
+}
+function signatureCacheKey(did, key, jws) {
+    return `${identityOfKey(key)}\n${did.id ?? ""}\n${jws}`;
 }
 async function loadPublicKey(did) {
     const vm = did.verificationMethod?.[0];
@@ -118,16 +142,20 @@ export async function importPublicKey(did) {
     const cacheKey = publicKeyCacheId(did);
     if (!cacheKey)
         return loadPublicKey(did);
-    const cached = publicKeyCache.get(cacheKey);
-    if (cached)
-        return cached;
-    const pending = loadPublicKey(did).then((key) => {
-        if (!key)
-            publicKeyCache.delete(cacheKey);
+    const resolved = resolvedPublicKeys.get(cacheKey);
+    if (resolved)
+        return resolved;
+    const pending = pendingPublicKeys.get(cacheKey);
+    if (pending)
+        return pending;
+    const loading = loadPublicKey(did).then((key) => {
+        pendingPublicKeys.delete(cacheKey);
+        if (key)
+            resolvedPublicKeys.set(cacheKey, key);
         return key;
     });
-    publicKeyCache.set(cacheKey, pending);
-    return pending;
+    pendingPublicKeys.set(cacheKey, loading);
+    return loading;
 }
 function readProtectedAlg(jws) {
     let header;
@@ -161,12 +189,19 @@ export async function verifyDidJws(did, key) {
     if (!jws) {
         return { ok: false, reason: "No JWS proof on DID document" };
     }
+    const cached = signatureResults.get(signatureCacheKey(did, key, jws));
+    if (cached)
+        return cached.ok ? { ok: true } : { ok: false, reason: cached.reason };
     const headerAlg = readProtectedAlg(jws);
-    if (!headerAlg.ok)
+    if (!headerAlg.ok) {
+        signatureResults.set(signatureCacheKey(did, key, jws), headerAlg);
         return headerAlg;
+    }
     const keyAlg = allowedAlgForKey(key);
     if (!keyAlg || keyAlg !== headerAlg.alg) {
-        return { ok: false, reason: "JWS alg does not match verification key" };
+        const mismatch = { ok: false, reason: "JWS alg does not match verification key" };
+        signatureResults.set(signatureCacheKey(did, key, jws), mismatch);
+        return mismatch;
     }
     try {
         const { payload, protectedHeader } = await compactVerify(jws, key, {
@@ -174,28 +209,36 @@ export async function verifyDidJws(did, key) {
         });
         const verifiedAlg = protectedHeader.alg;
         if (verifiedAlg !== headerAlg.alg || !ALLOWED_JWS_ALG_SET.has(verifiedAlg)) {
-            return {
+            const rejected = {
                 ok: false,
                 reason: `Disallowed JWS algorithm: ${String(verifiedAlg)}`,
             };
+            signatureResults.set(signatureCacheKey(did, key, jws), rejected);
+            return rejected;
         }
         const decoded = new TextDecoder().decode(payload);
         try {
             const parsed = JSON.parse(decoded);
             if (parsed.id && parsed.id !== did.id) {
-                return { ok: false, reason: "JWS payload DID id mismatch" };
+                const mismatch = { ok: false, reason: "JWS payload DID id mismatch" };
+                signatureResults.set(signatureCacheKey(did, key, jws), mismatch);
+                return mismatch;
             }
         }
         catch {
             // non-JSON payload still accepted if signature verifies
         }
-        return { ok: true };
+        const ok = { ok: true };
+        signatureResults.set(signatureCacheKey(did, key, jws), ok);
+        return ok;
     }
     catch (err) {
-        return {
+        const failed = {
             ok: false,
             reason: err instanceof Error ? err.message : "JWS verification failed",
         };
+        signatureResults.set(signatureCacheKey(did, key, jws), failed);
+        return failed;
     }
 }
 export function fingerprintPem(pem) {

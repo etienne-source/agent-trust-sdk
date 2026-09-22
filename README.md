@@ -238,7 +238,7 @@ const openai = createOpenAI({ fetch: agenticTrustMiddleware().fetch });
 
 `clearVerifyCache()` drops both `verifyDomain` entries and middleware entries, and the imported public-key cache. A warm hit stays under 5ms. `AGENTIC_TRUST_CACHE_DIR` optionally stores those public results on disk for the next process. The cache refuses a payload that contains a private key.
 
-Strict framework packages call that same SDK check and fail closed by default. `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` throw `UnverifiedDomainContextError` before they read or parse `llms.txt` when the domain is unverified or tampered. The message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` `failClosed` defaults to `true`. Install both from GitHub until the npm scope exists: `github:etienne-source/agent-trust-sdk#path:/packages/langchain-middleware` and `#path:/packages/vercel-ai-middleware`, plus `#path:/packages/sdk`. Their dependencies use `workspace:*` inside this repository. Do not install `trustflow-sdk`.
+`@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` default to audit mode. Unsigned or tampered `llms.txt` does not throw. They log `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and emit that string as a lightweight in-process telemetry event, without parsing the body. `{ strict: true }` or `{ mode: "strict" }` (and `failClosed: true`) throws `UnverifiedDomainContextError` before the body is read. That message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` Install both from GitHub until the npm scope exists: `github:etienne-source/agent-trust-sdk#path:/packages/langchain-middleware` and `#path:/packages/vercel-ai-middleware`, plus `#path:/packages/sdk`. Their dependencies use `workspace:*` inside this repository. Do not install `trustflow-sdk`.
 
 ### Migration
 
@@ -256,8 +256,8 @@ Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
 
 | Framework / pattern | Integration tip |
 |---------------------|-----------------|
-| **LangChain / LangGraph** | `@agentic-trust/langchain-middleware` — `agenticTrustLangChainMiddleware()` passed to `createMiddleware`. Fail-closed by default: it throws the context-poisoning security error before parsing unsigned or tampered `llms.txt`. The SDK `wrapTool` / `annotateDocuments` helpers still only annotate. |
-| **Vercel AI SDK** | `@agentic-trust/vercel-ai-middleware` — `fetch` on the provider and the same object as `wrapLanguageModel` middleware. Fail-closed by default. Context fetches and `doStream` / `doGenerate` throw before an unsigned or tampered body is read. |
+| **LangChain / LangGraph** | `@agentic-trust/langchain-middleware` — `agenticTrustLangChainMiddleware()` passed to `createMiddleware`. Audit mode is the default: unsigned `llms.txt` warns and is not parsed. `{ strict: true }` throws the context-poisoning security error before parsing. The SDK `wrapTool` / `annotateDocuments` helpers still only annotate. |
+| **Vercel AI SDK** | `@agentic-trust/vercel-ai-middleware` — `fetch` on the provider and the same object as `wrapLanguageModel` middleware. Audit mode is the default. `{ strict: true }` makes context fetches and `doStream` / `doGenerate` throw before an unsigned or tampered body is read. |
 | **OpenAI Agents / function calling** | Before `fetch`/`tools` invocation, `verifyDomain` on the host of any remote tool schema URL. |
 | **MCP clients** | On `tools/list` or connect, inspect each `serviceEndpoint`; refuse non-HTTPS or RISK. |
 | **Custom agent loops** | Cache-first `verifyDomain` on first contact with a domain; reuse until TTL expires. |
@@ -403,7 +403,7 @@ node scripts/create-starter-prs.mjs --targets scripts/starter-pr-targets.json --
 
 ## Ecosystem middleware pull requests
 
-`scripts/submit-ecosystem-prs.mjs` plans a pull request that adds fail-closed AgenticTrust middleware, a placeholder `.well-known/did.json`, and `llms.txt` to an agent-framework starter you already maintain. It does not search GitHub and it does not open a pull request against a repository that is not in the targets file you pass.
+`scripts/submit-ecosystem-prs.mjs` plans a pull request that adds AgenticTrust middleware (audit mode by default, strict mode available), a placeholder `.well-known/did.json`, and `llms.txt` to an agent-framework starter you already maintain. It does not search GitHub and it does not open a pull request against a repository that is not in the targets file you pass.
 
 The kinds of repository a maintainer might later list are a LangChain starter (`langchain`), a LlamaIndex starter (`llamaindex`), or a Next.js AI boilerplate that uses the Vercel AI SDK (`vercel-ai`). Those are documentation examples only. [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) does not name them, and `targets` stays empty.
 

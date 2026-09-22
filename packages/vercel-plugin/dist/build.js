@@ -1,7 +1,7 @@
 import { createPrivateKey } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain, wellKnownLlmsUrl } from "@agentic-trust/sdk";
+import { normalizeDomain, signBuildArtifacts, wellKnownLlmsUrl } from "@agentic-trust/sdk";
 import { alignLlmsTxt, findLlmsFile, headingName, parseServiceList, renderLlms } from "./llms.js";
 export const AGENTIC_TRUST_VERCEL_BIN = "agentic-trust-vercel";
 const NEXT_CONFIGS = [
@@ -140,7 +140,7 @@ export async function runAgenticTrustVercelBuild(options = {}) {
     const llmsTxt = existing
         ? alignLlmsTxt(existing, domain)
         : renderLlms({ name: businessName, description, domain, services });
-    const identity = await createSignedDidDocument({
+    const identity = await signBuildArtifacts({
         domain,
         privateKeyPem,
         services: [
@@ -151,7 +151,7 @@ export async function runAgenticTrustVercelBuild(options = {}) {
             },
         ],
     });
-    const didJson = `${JSON.stringify(identity.did, null, 2)}\n`;
+    const didJson = identity.didJson;
     const outDir = options.outDir?.trim() || (await defaultOutDir(cwd));
     const relativeOut = outDir === "." ? "" : outDir.replace(/\\/g, "/").replace(/\/$/, "");
     const join = (name) => (relativeOut ? `${relativeOut}/${name}` : name);

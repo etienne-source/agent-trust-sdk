@@ -1,4 +1,4 @@
-import { type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions } from "@agentic-trust/sdk";
+import { type AgenticTrustEnforcementMode, type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions, type AgenticTrustSecurityEvent } from "@agentic-trust/sdk";
 import { type ParsedLlmsTxt } from "./llms.js";
 /** Request header that marks a fetch as domain context even when the path is not `llms.txt`. */
 export declare const AGENTIC_TRUST_CONTEXT_HEADER = "x-agentic-trust-context";
@@ -9,11 +9,19 @@ export interface AgenticTrustVercelAiOptions extends AgenticTrustMiddlewareOptio
      */
     verify?: (target: string) => Promise<AgenticTrustMetadata>;
     /**
-     * Fail closed by default. Unverified or tampered `llms.txt` throws
-     * `UnverifiedDomainContextError` before the response stream or the model runs.
-     * Set `false` to continue without parsing that payload.
+     * Enforcement. The default is `"audit"`: unsigned context does not throw.
+     * `"strict"` throws `UnverifiedDomainContextError` before the body is read.
+     */
+    mode?: AgenticTrustEnforcementMode;
+    /** `true` selects strict mode. */
+    strict?: boolean;
+    /**
+     * `true` selects strict mode. Omitted and `false` stay in audit mode.
+     * Fail-closed is no longer the default.
      */
     failClosed?: boolean;
+    /** Receives the audit telemetry event. The default sink is an in-process listener plus `console.warn`. */
+    onAudit?: (event: AgenticTrustSecurityEvent) => void;
     /**
      * Fetch used to load context after verification succeeds.
      * Registry calls use `fetch` on the SDK options, not this function.
@@ -52,22 +60,23 @@ export interface AgenticTrustVercelAiMiddleware {
     loadLlmsFromUrl(url: string): Promise<VerifiedLlmsContext>;
 }
 export declare function createVerifier(options?: AgenticTrustVercelAiOptions): VerifyFn;
-export declare function isFailClosed(options?: {
-    failClosed?: boolean;
-}): boolean;
-export declare function requireVerifiedDomain(target: string, verify: VerifyFn): Promise<AgenticTrustMetadata>;
+export declare function isStrictMode(options?: AgenticTrustVercelAiOptions): boolean;
 /**
  * Vercel AI SDK fetch and language-model middleware.
  *
  * Pass `fetch` to a provider factory and the object itself to `wrapLanguageModel`.
- * Unverified or tampered domain context throws `UnverifiedDomainContextError`
- * before the response stream starts and before `llms.txt` is parsed.
- * That block is the default (`failClosed: true`).
+ * The default mode is `"audit"`: unsigned context logs
+ * `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
+ * and does not throw. `{ strict: true }` or `{ mode: "strict" }` throws
+ * `UnverifiedDomainContextError` before the response stream starts and before `llms.txt` is parsed.
  */
 export declare function agenticTrustVercelAiMiddleware(options?: AgenticTrustVercelAiOptions): AgenticTrustVercelAiMiddleware;
 /** Verify with the SDK, fetch the URL, then parse `llms.txt`. */
 export declare function loadVerifiedLlmsFromUrl(url: string, options?: AgenticTrustVercelAiOptions): Promise<VerifiedLlmsContext>;
-/** Verify a domain and throw `UnverifiedDomainContextError` when it is not signed. */
+/**
+ * Verify a domain. Strict mode throws `UnverifiedDomainContextError`.
+ * Audit mode (the default) returns the metadata and emits the security alert.
+ */
 export declare function assertVerifiedDomain(target: string, options?: AgenticTrustVercelAiOptions): Promise<AgenticTrustMetadata>;
 export declare function readVerifiedLlms(source: LlmsContextSource, options?: AgenticTrustVercelAiOptions): Promise<VerifiedLlmsContext>;
 export {};

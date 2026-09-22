@@ -31,7 +31,7 @@ Rejected before the signature is trusted:
 
 The protected header is `{ "alg": "EdDSA" }` or `{ "alg": "ES256" }` with no other header parameter. Verification decodes that header, applies the allowlist, requires the key algorithm to match, and calls `compactVerify` with that single algorithm. If the payload is JSON and contains `id`, that `id` must equal the document `id`.
 
-`verifyDomain` treats a local `VERIFIED` and a local `RISK` as final. A local `RISK` is not replaced by a registry `VERIFIED`. `agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. The LangChain and Vercel AI middleware packages do: `failClosed` defaults to `true`, and they throw `UnverifiedDomainContextError` before unsigned or tampered `llms.txt` is parsed. The message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
+`verifyDomain` treats a local `VERIFIED` and a local `RISK` as final. A local `RISK` is not replaced by a registry `VERIFIED`. `agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. The LangChain and Vercel AI middleware packages default to audit mode. Unsigned or tampered `llms.txt` logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and is not parsed. `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` before that parse. The message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
 
 ## Domain-proof fetch and `safeFetch` (SSRF)
 
@@ -61,7 +61,7 @@ Clients in this repository call `POST /v1/register`, `POST /v1/register/confirm`
 Review a deployment or a pull request against the following. Each item maps to behavior already described in SPEC.md or the README.
 
 1. **Algorithm allowlist.** Confirm verifiers still reject `none` and `HS*` before `compactVerify`, and that `ALLOWED_JWS_ALGS` remains `EdDSA` and `ES256` only.
-2. **Fail closed.** Confirm framework middleware keeps `failClosed` defaulting to `true`, and that unsigned or `RISK` context throws `UnverifiedDomainContextError` before `llms.txt` is parsed.
+2. **Audit by default, strict when required.** Confirm framework middleware defaults to audit mode and that `{ strict: true }` throws `UnverifiedDomainContextError` before unsigned or `RISK` `llms.txt` is parsed. The audit alert is `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
 3. **Key handling.** Confirm private keys stay in `.agentic-trust/` or a host secret such as `AGENTIC_TRUST_PRIVATE_KEY`. Diffs must not contain `BEGIN PRIVATE KEY` or `.agentic-trust/private-key.pem`. Placeholder `did.json` files must keep `proof.jws` as `REPLACE_ME` until a maintainer runs `npx agentic-trust init`.
 4. **Package name.** Confirm install instructions use `github:etienne-source/agent-trust-sdk`. Reject documentation that says `npm install trustflow-sdk`.
 5. **Registry SSRF.** For the hosted API, review the private `safeFetch` implementation against the four limits above (HTTPS, public DNS answers, 4 second timeout, one apex ↔ www redirect with the same path). Do not assume the SDK client applies those limits.

@@ -4,6 +4,8 @@
 # runs when repository variable AGENTIC_TRUST_DOMAIN is set and secret
 # AGENTIC_TRUST_PRIVATE_KEY is present. Pull requests, manual dry runs, and an
 # unconfigured repository sign locally and do not call the API.
+# Public did.json and llms.txt are rotated only when both the domain and the
+# key secret are set. commit stays false here so this workflow does not push.
 name: AgenticTrust sign
 
 on:

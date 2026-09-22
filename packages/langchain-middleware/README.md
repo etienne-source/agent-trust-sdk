@@ -1,6 +1,6 @@
 # @agentic-trust/langchain-middleware
 
-LangChain.js middleware that checks an **AgenticTrust** domain signature before it reads or parses `llms.txt` context. It is fail-closed by default. Unsigned, unverified, tampered, and RISK domains throw `UnverifiedDomainContextError` and the model or tool does not run.
+LangChain.js middleware that checks an **AgenticTrust** domain signature before it reads or parses `llms.txt` context. The default mode is audit. Unsigned, unverified, tampered, and RISK domains do not throw. They log a security alert and a telemetry event, and the body is not parsed. `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` and the model or tool does not run.
 
 Verification and signing stay in `@agentic-trust/sdk` (`agenticTrustMiddleware`). This package only decides whether context is allowed to be parsed. The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
 
@@ -26,6 +26,7 @@ import { agenticTrustLangChainMiddleware } from "@agentic-trust/langchain-middle
 
 const trust = agenticTrustLangChainMiddleware({
   verificationApiUrl: "https://api.trustflow.systems",
+  // strict: true,
 });
 
 const agent = createAgent({
@@ -41,7 +42,7 @@ const context = await trust.loadLlmsContext({
 // context.text starts with "Verified by AgenticTrust | trustflow.systems"
 ```
 
-`content` may be a string or a function. The function runs only after `verified === true`. A failed check throws before that call:
+`content` may be a string or a function. The function runs only after `verified === true`. In audit mode a failed check does not throw and does not call `content`. Strict mode throws before that call:
 
 ```ts
 import { UnverifiedDomainContextError } from "@agentic-trust/langchain-middleware";
@@ -59,13 +60,19 @@ try {
 }
 ```
 
-`beforeModel` and `wrapModelCall` scan agent messages for `llms.txt` payloads (`llmsTxt` plus a URL or domain, a LangChain document whose `metadata.source` is an `llms.txt` URL, or a JSON envelope in message text). Every domain is verified before any body is read. `wrapToolCall` does the same for tool arguments, and also for a bare `llms.txt` URL or `did:web` id, so the tool does not run when the domain is unsigned.
+`beforeModel` and `wrapModelCall` scan agent messages for `llms.txt` payloads (`llmsTxt` plus a URL or domain, a LangChain document whose `metadata.source` is an `llms.txt` URL, or a JSON envelope in message text). Every domain is verified before any body is read. `wrapToolCall` does the same for tool arguments, and also for a bare `llms.txt` URL or `did:web` id. Strict mode does not run the tool when the domain is unsigned. Audit mode runs it and does not parse the body.
 
 Other tool arguments are left alone. `fetch` to a model provider is not a domain-context payload.
 
 `assertVerifiedDomain("example.com")` is the same check without parsing.
 
-`failClosed` defaults to `true`. Set `failClosed: false` only when a hook should continue without parsing the unverified body. `loadLlmsContext` and `assertVerifiedDomain` still throw, because those calls ask for verified context. `beforeModel`, `wrapModelCall`, and `wrapToolCall` are the hooks that honor the flag. The thrown message is always:
+The default is audit mode (`mode: "audit"`). `beforeModel`, `wrapModelCall`, `wrapToolCall`, `loadLlmsContext`, and `assertVerifiedDomain` warn and continue without parsing. The console warning and the telemetry `message` are:
+
+```text
+[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.
+```
+
+Pass `onAudit` to receive that event. There is no network call. `{ strict: true }`, `{ mode: "strict" }`, or `{ failClosed: true }` throws before the body is read. The thrown message is:
 
 ```text
 [AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.

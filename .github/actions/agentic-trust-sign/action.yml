@@ -1,7 +1,8 @@
 name: AgenticTrust sign
 description: >
-  Ensure root llms.txt exists, sign a did:web document with @agentic-trust/sdk,
-  and POST https://api.trustflow.systems/v1/register. The private key is never printed.
+  On build, rotate did.json and sign public llms.txt with @agentic-trust/sdk,
+  then POST https://api.trustflow.systems/v1/register. Updated public signatures
+  can be committed. The private key is never printed.
 
 inputs:
   domain:
@@ -34,6 +35,35 @@ inputs:
       Passed only through the environment. Never logged.
     required: false
     default: ""
+  key-secret:
+    description: >
+      Same PEM as private-key. Use either input. Passed only through the environment. Never logged.
+    required: false
+    default: ""
+  did-path:
+    description: Repo-relative path for the rotated did.json.
+    required: false
+    default: "public/.well-known/did.json"
+  llms-path:
+    description: Repo-relative path for the signed llms.txt.
+    required: false
+    default: "public/llms.txt"
+  well-known-llms-path:
+    description: Second public copy of llms.txt.
+    required: false
+    default: "public/.well-known/llms.txt"
+  rotate:
+    description: Re-sign did.json on this build. An existing file is kept when this is false.
+    required: false
+    default: "true"
+  commit:
+    description: Commit and push the public signature paths. Private keys are refused.
+    required: false
+    default: "false"
+  commit-message:
+    description: Commit message used when commit is true.
+    required: false
+    default: "Refresh AgenticTrust did:web signatures"
   dry-run:
     description: Sign locally and skip POST /v1/register.
     required: false
@@ -69,12 +99,41 @@ runs:
       with:
         node-version: 22
 
+    - name: Rotate did.json and sign llms.txt
+      id: renew
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        AGENTIC_TRUST_PRIVATE_KEY: ${{ inputs.key-secret || inputs.private-key }}
+        AGENTIC_TRUST_DOMAIN: ${{ inputs.domain }}
+        AGENTIC_TRUST_BUSINESS_NAME: ${{ inputs.business-name }}
+        AGENTIC_TRUST_DESCRIPTION: ${{ inputs.description }}
+        AGENTIC_TRUST_SERVICES: ${{ inputs.services }}
+        AGENTIC_TRUST_DID_PATH: ${{ inputs.did-path }}
+        AGENTIC_TRUST_LLMS_PATH: ${{ inputs.llms-path }}
+        AGENTIC_TRUST_WELL_KNOWN_LLMS_PATH: ${{ inputs.well-known-llms-path }}
+        AGENTIC_TRUST_ROTATE: ${{ inputs.rotate }}
+      run: |
+        set -euo pipefail
+        if [[ -z "${AGENTIC_TRUST_PRIVATE_KEY}" || -z "${AGENTIC_TRUST_DOMAIN}" ]]; then
+          echo "Signature renewal skipped. Set the domain and key secret to rotate did.json. Secrets are not printed."
+          exit 0
+        fi
+        ACTION_REPO="$(cd "${GITHUB_ACTION_PATH}/../../.." && pwd)"
+        cd "${ACTION_REPO}"
+        corepack enable
+        corepack prepare pnpm@10.33.3 --activate
+        pnpm install --frozen-lockfile
+        pnpm --filter @agentic-trust/sdk build
+        cd "${GITHUB_WORKSPACE}"
+        node "${ACTION_REPO}/packages/sdk/dist/renewCli.js"
+
     - name: Sign llms.txt and register the domain
       id: sign
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
-        AGENTIC_TRUST_PRIVATE_KEY: ${{ inputs.private-key }}
+        AGENTIC_TRUST_PRIVATE_KEY: ${{ inputs.key-secret || inputs.private-key }}
         AGENTIC_TRUST_DOMAIN: ${{ inputs.domain }}
         AGENTIC_TRUST_BUSINESS_NAME: ${{ inputs.business-name }}
         AGENTIC_TRUST_DESCRIPTION: ${{ inputs.description }}
@@ -95,3 +154,43 @@ runs:
         pnpm --filter @agentic-trust/cli build
         cd "${GITHUB_WORKSPACE}"
         node "${ACTION_REPO}/packages/cli/dist/cli.js" sign
+
+    - name: Commit updated signatures
+      if: inputs.commit == 'true'
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        AGENTIC_TRUST_DID_PATH: ${{ inputs.did-path }}
+        AGENTIC_TRUST_LLMS_PATH: ${{ inputs.llms-path }}
+        AGENTIC_TRUST_WELL_KNOWN_LLMS_PATH: ${{ inputs.well-known-llms-path }}
+        AGENTIC_TRUST_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+      run: |
+        set -euo pipefail
+        paths=()
+        for file in "${AGENTIC_TRUST_DID_PATH}" "${AGENTIC_TRUST_LLMS_PATH}" "${AGENTIC_TRUST_WELL_KNOWN_LLMS_PATH}"; do
+          if [[ -n "${file}" && -f "${file}" ]]; then
+            paths+=("${file}")
+          fi
+        done
+        if [[ ${#paths[@]} -eq 0 ]]; then
+          echo "No signature files to commit."
+          exit 0
+        fi
+        git add -- "${paths[@]}"
+        if git diff --cached --quiet; then
+          echo "Signatures already match HEAD."
+          exit 0
+        fi
+        if git diff --cached --name-only | grep -E '(^|/)\.agentic-trust/|\.pem$'; then
+          echo "Refusing to commit a private key path"
+          exit 1
+        fi
+        # Refuse a staged diff that contains BEGIN PRIVATE KEY.
+        if git diff --cached | grep -E 'BEGIN (OPENSSH |RSA |EC |DSA )?PRIVATE KEY'; then
+          echo "Refusing to commit a private key"
+          exit 1
+        fi
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git commit -m "${AGENTIC_TRUST_COMMIT_MESSAGE}"
+        git push

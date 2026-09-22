@@ -1,2 +1,6 @@
 packages:
   - "packages/*"
+
+# esbuild's postinstall fetches the platform binary used to measure the edge bundle.
+onlyBuiltDependencies:
+  - esbuild

@@ -1,12 +1,13 @@
-import { agenticTrustMiddleware, } from "@agentic-trust/sdk";
+import { agenticTrustMiddleware, emitSecurityAlert, resolveEnforcementMode, securityAlertEvent, } from "@agentic-trust/sdk";
 import { UnverifiedDomainContextError } from "./error.js";
 import { cloneValue, collectContextTargets, collectLlmsPayloads, formatVerifiedLlms, parseLlmsTxt, readBody, writeVerifiedText, } from "./llms.js";
 function sdkOptions(options) {
-    const rest = {
-        ...options,
-    };
+    const rest = { ...options };
     delete rest.verify;
     delete rest.failClosed;
+    delete rest.mode;
+    delete rest.strict;
+    delete rest.onAudit;
     return rest;
 }
 export function createVerifier(options = {}) {
@@ -15,25 +16,22 @@ export function createVerifier(options = {}) {
     const trust = agenticTrustMiddleware(sdkOptions(options));
     return (target) => trust.verify(target);
 }
-export function isFailClosed(options = {}) {
-    return options.failClosed !== false;
+export function isStrictMode(options = {}) {
+    return resolveEnforcementMode(options) === "strict";
 }
-export async function requireVerifiedDomain(target, verify) {
+async function checkDomain(target, verify, strict, onAudit) {
     const meta = await verify(target);
-    if (!meta.verified || meta.securityWarning) {
+    if (trusted(meta))
+        return meta;
+    if (strict)
         throw new UnverifiedDomainContextError(meta);
-    }
+    emitSecurityAlert(securityAlertEvent(meta.domain, meta.status), onAudit);
     return meta;
-}
-async function checkDomain(target, verify, failClosed) {
-    if (failClosed)
-        return requireVerifiedDomain(target, verify);
-    return verify(target);
 }
 function trusted(meta) {
     return Boolean(meta && meta.verified && !meta.securityWarning);
 }
-async function rewriteVerified(value, verify, failClosed) {
+async function rewriteVerified(value, verify, strict, onAudit) {
     const sites = collectLlmsPayloads(value);
     const targets = new Set(collectContextTargets(value));
     for (const site of sites)
@@ -42,7 +40,7 @@ async function rewriteVerified(value, verify, failClosed) {
         return value;
     const metas = new Map();
     for (const target of targets) {
-        metas.set(target, await checkDomain(target, verify, failClosed));
+        metas.set(target, await checkDomain(target, verify, strict, onAudit));
     }
     if (sites.length === 0)
         return value;
@@ -57,8 +55,20 @@ async function rewriteVerified(value, verify, failClosed) {
     }
     return wrote ? draft : value;
 }
-async function readVerified(source, verify) {
-    const meta = await requireVerifiedDomain(source.target, verify);
+function emptyContext(target, meta) {
+    return {
+        target,
+        domain: meta.domain,
+        sections: [],
+        text: "",
+        sourceText: "",
+        agenticTrust: meta,
+    };
+}
+async function readVerified(source, verify, strict, onAudit) {
+    const meta = await checkDomain(source.target, verify, strict, onAudit);
+    if (!trusted(meta))
+        return emptyContext(source.target, meta);
     const sourceText = readBody(source.content);
     const parsed = parseLlmsTxt(sourceText);
     return {
@@ -73,42 +83,46 @@ async function readVerified(source, verify) {
 /**
  * LangChain.js agent middleware.
  *
- * Pass the result to `createMiddleware` from `langchain`. `beforeModel`,
- * `wrapModelCall`, and `wrapToolCall` call `@agentic-trust/sdk` and throw
+ * Pass the result to `createMiddleware` from `langchain`. The default mode is
+ * `"audit"`: unsigned context logs
+ * `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
+ * and does not throw. `{ strict: true }` or `{ mode: "strict" }` throws
  * `UnverifiedDomainContextError` before any `llms.txt` body is read or parsed.
- * That block is the default (`failClosed: true`). The error message is the
- * AgenticTrust context-poisoning security error.
  */
 export function agenticTrustLangChainMiddleware(options = {}) {
     const verify = createVerifier(options);
-    const failClosed = isFailClosed(options);
+    const strict = isStrictMode(options);
+    const onAudit = options.onAudit;
     return {
         name: "agenticTrust",
         async beforeModel(state) {
             if (!state || !Array.isArray(state.messages))
                 return undefined;
-            const messages = await rewriteVerified(state.messages, verify, failClosed);
+            const messages = await rewriteVerified(state.messages, verify, strict, onAudit);
             if (messages === state.messages)
                 return undefined;
             return { messages };
         },
         async wrapModelCall(request, handler) {
-            return handler(await rewriteVerified(request, verify, failClosed));
+            return handler(await rewriteVerified(request, verify, strict, onAudit));
         },
         async wrapToolCall(request, handler) {
-            return handler(await rewriteVerified(request, verify, failClosed));
+            return handler(await rewriteVerified(request, verify, strict, onAudit));
         },
         loadLlmsContext(source) {
-            return readVerified(source, verify);
+            return readVerified(source, verify, strict, onAudit);
         },
     };
 }
 /** Verify with the SDK, then parse `llms.txt`. The body is untouched when verification fails. */
 export async function loadVerifiedLlmsContext(source, options = {}) {
-    return readVerified(source, createVerifier(options));
+    return readVerified(source, createVerifier(options), isStrictMode(options), options.onAudit);
 }
-/** Verify a domain and throw `UnverifiedDomainContextError` when it is not signed. */
+/**
+ * Verify a domain. Strict mode throws `UnverifiedDomainContextError`.
+ * Audit mode (the default) returns the metadata and emits the security alert.
+ */
 export async function assertVerifiedDomain(target, options = {}) {
-    return requireVerifiedDomain(target, createVerifier(options));
+    return checkDomain(target, createVerifier(options), isStrictMode(options), options.onAudit);
 }
 //# sourceMappingURL=middleware.js.map

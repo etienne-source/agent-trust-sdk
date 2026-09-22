@@ -59,11 +59,35 @@ const response = await trust.fetch("https://example.com/data.json");
 const tool = trust.wrapTool(existingTool);
 ```
 
-`@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` are fail-closed by default. They throw `UnverifiedDomainContextError` before parsing unsigned or tampered `llms.txt`. The message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` The SDK helper above still annotates and does not throw.
+`@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` default to audit mode. Unsigned or tampered `llms.txt` does not throw. They warn with `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` with `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` The SDK helper above still annotates and does not throw.
 
 ## Verify cache
 
-`verifyDomain` and `agenticTrustMiddleware` share an in-memory result cache. After the first lookup, a repeat check for the same domain is a cache hit and stays under 5ms. `clearVerifyCache()` drops those entries and the imported public-key cache. Set `AGENTIC_TRUST_CACHE_DIR` to also keep a JSON copy of public verify results on disk for the next process. That directory must not contain a private key; the cache refuses results that include one. Pass `cache: new MemoryCache({ diskDirectory })` to use a separate store.
+`verifyDomain` and `agenticTrustMiddleware` share an in-memory result cache. After the first lookup, a repeat check for the same domain is a cache hit and stays under 5ms. Imported public keys and successful local JWS checks are cached too. A warm `importPublicKey` or `verifyDidJws` stays under 2ms. `clearVerifyCache()` drops those entries and the imported public-key cache. Set `AGENTIC_TRUST_CACHE_DIR` to also keep a JSON copy of public verify results on disk for the next process. That directory must not contain a private key; the cache refuses results that include one. Pass `cache: new MemoryCache({ diskDirectory })` to use a separate store.
+
+## Edge bundle
+
+`@agentic-trust/sdk/edge` exports domain helpers only (`normalizeDomain`, `didWebId`, `wellKnownDidUrl`, `wellKnownLlmsUrl`, `assertHttpsEndpoint`). It does not import `jose` or Node crypto. The package sets `"sideEffects": false` so bundlers can drop unused main-entry modules.
+
+Measure the minified browser bundle with esbuild (10KB means 10240 bytes of minified ESM, not gzip):
+
+```bash
+pnpm --filter @agentic-trust/sdk bundle:edge
+```
+
+`packages/sdk/scripts/measure-edge.mjs` bundles `src/edge.ts` and a client file that imports those helpers. Both results must be under 10KB.
+
+## Build-time signature renewal
+
+`signBuildArtifacts` and `renewBuildSignatures` re-sign `did.json` from `AGENTIC_TRUST_PRIVATE_KEY` during a Vercel or Netlify build. They call `createSignedDidDocument`. The private key is not written, not returned, and not printed.
+
+```ts
+import { renewBuildSignatures } from "@agentic-trust/sdk";
+
+await renewBuildSignatures();
+```
+
+Vercel can keep using `@agentic-trust/vercel-plugin` (`agentic-trust-vercel`), which calls `signBuildArtifacts`. Netlify can call `renewBuildSignatures({ outDir: "dist" })` from the build command. The GitHub composite action `.github/actions/agentic-trust-sign` rotates `public/.well-known/did.json` and `public/llms.txt` and can commit those public files when `commit` is true. It refuses a diff that contains a private key.
 
 Point the fallback registry at Trustflow Systems:
 

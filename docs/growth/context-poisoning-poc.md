@@ -19,7 +19,7 @@ This document stops there. It does not show how to write a misleading `llms.txt`
 
 ## What the middleware blocks
 
-`@agentic-trust/vercel-ai-middleware` is fail-closed by default. `loadLlmsFromUrl`, `fetch` of an `llms.txt` URL, and `wrapGenerate` / `wrapStream` call the verifier first. Unverified or tampered context throws `UnverifiedDomainContextError` before the response body is downloaded and before `llms.txt` is parsed. The model call does not start.
+`@agentic-trust/vercel-ai-middleware` defaults to audit mode. `loadLlmsFromUrl`, `fetch` of an `llms.txt` URL, and `wrapGenerate` / `wrapStream` call the verifier first. Unverified or tampered context does not throw. It logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and does not parse `llms.txt`. `{ strict: true }` throws `UnverifiedDomainContextError` before the response body is downloaded and before `llms.txt` is parsed. The model call does not start.
 
 The error message is the AgenticTrust Security Error:
 
@@ -27,7 +27,7 @@ The error message is the AgenticTrust Security Error:
 [AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked.
 ```
 
-`status` is `UNVERIFIED` or `RISK`. `failClosed` defaults to `true`. Leave it there.
+`status` is `UNVERIFIED` or `RISK`. The default mode is `audit`. Set `strict: true` when the agent must stop.
 
 ## Example: the block
 
@@ -37,6 +37,7 @@ The `verify` function below is a test double. It stands in for `@agentic-trust/s
 import { agenticTrustVercelAiMiddleware } from "@agentic-trust/vercel-ai-middleware";
 
 const trust = agenticTrustVercelAiMiddleware({
+  strict: true,
   verify: async () => ({
     verified: false,
     securityWarning: true,
@@ -70,5 +71,5 @@ Do not install the unrelated `trustflow-sdk` package.
 
 - Publish a real `did:web` document with `npx agentic-trust init` from `@agentic-trust/cli`. A file whose `proof.jws` is `REPLACE_ME` is a placeholder, not a signature, and it does not make a domain `VERIFIED`.
 - Keep the private key in `.agentic-trust/` (mode `0600`, gitignored). Do not put it in the pull request or in `did.json`.
-- Leave middleware `failClosed` at the default `true`.
+- Use `{ strict: true }` when unsigned context must throw. The package default is audit mode.
 - Treat `RISK` as a block, including a disallowed JWS `alg` (`none`, any `HS*`). See [SPEC.md](../../SPEC.md).

@@ -292,12 +292,12 @@ describe("JWS algorithm allowlist", () => {
     expect(await importPublicKey(did)).toBeNull();
   });
 
-  it("reuses an imported verification key in under 5ms", async () => {
+  it("reuses an imported verification key in under 2ms", async () => {
     const { did } = await didWithPem("cached-key.example", "EdDSA");
     const first = await importPublicKey(did);
     expect(first).toBeTruthy();
     const samples: number[] = [];
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       const start = performance.now();
       const key = await importPublicKey(did);
       samples.push(performance.now() - start);
@@ -305,6 +305,21 @@ describe("JWS algorithm allowlist", () => {
     }
     samples.sort((left, right) => left - right);
     const median = samples[Math.floor(samples.length / 2)] ?? Number.POSITIVE_INFINITY;
-    expect(median).toBeLessThan(5);
+    expect(median).toBeLessThan(2);
+  });
+
+  it("reuses a local signature verification in under 2ms", async () => {
+    const { did, publicKey } = await didWithPem("cached-sig.example", "EdDSA");
+    expect((await verifyDidJws(did, publicKey)).ok).toBe(true);
+    const samples: number[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      const start = performance.now();
+      const result = await verifyDidJws(did, publicKey);
+      samples.push(performance.now() - start);
+      expect(result.ok).toBe(true);
+    }
+    samples.sort((left, right) => left - right);
+    const median = samples[Math.floor(samples.length / 2)] ?? Number.POSITIVE_INFINITY;
+    expect(median).toBeLessThan(2);
   });
 });

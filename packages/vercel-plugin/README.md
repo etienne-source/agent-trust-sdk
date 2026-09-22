@@ -52,6 +52,8 @@ pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne
 
 Register the domain with Trustflow Systems separately (`POST https://api.trustflow.systems/v1/register`) when you want the hosted registry record. This hook only publishes the signed files.
 
+The signer is `signBuildArtifacts` from `@agentic-trust/sdk`, the same function `renewBuildSignatures` uses for a Netlify build (`outDir` set to the publish directory). Neither function writes or prints the private key. The GitHub action `.github/actions/agentic-trust-sign` can commit the public `did.json` and `llms.txt` when its `commit` input is `true`.
+
 ## Programmatic
 
 ```ts
