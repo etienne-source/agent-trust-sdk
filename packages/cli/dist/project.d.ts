@@ -30,5 +30,13 @@ export declare function writeRegistration(cwd: string, registration: StoredRegis
 export declare function readRegistration(cwd: string): Promise<StoredRegistration | undefined>;
 export declare function gitignoreNotice(status: "updated" | "present"): string;
 export declare function writeDidDocument(cwd: string, did: object): Promise<string>;
+/**
+ * Paths for one site asset. The framework public directory is first.
+ * The repository-root mirror stays byte-aligned for tools that still read it.
+ */
+export declare function publishedRelatives(publicDir: string, leaf: string): string[];
+export declare function writePublishedFile(cwd: string, publicDir: string, leaf: string, contents: string): Promise<string[]>;
+/** Write `contents` only where that relative path is not already a file. */
+export declare function ensurePublishedFile(cwd: string, publicDir: string, leaf: string, contents: string): Promise<string[]>;
 export declare function writeProjectFile(cwd: string, relative: string, contents: string): Promise<string>;
 //# sourceMappingURL=project.d.ts.map

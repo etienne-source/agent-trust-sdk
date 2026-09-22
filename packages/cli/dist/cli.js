@@ -17,17 +17,20 @@ Usage:
   agentic-trust --help
 
 init
-  Look for llms.txt in the project. If it is missing, write one (prompting for
-  site name, description, and optional services). Generate a did:web keypair,
-  sign .well-known/did.json, and register the domain.
-  By default, also write IDE rules so coding agents keep a W3C did:web document
-  at public/.well-known/did.json and a signed public/llms.txt:
-  .cursorrules and .cursor/rules/agentic-trust.mdc. Pass --no-ide-rules to skip.
+  Detect Next.js, Vite, or Nuxt (or an existing public/ or static/ folder) and
+  write llms.txt, .well-known/llms.txt, and a signed did:web document into that
+  directory. No public-path flag. The default is public/.well-known/did.json
+  and public/llms.txt. Generate a did:web keypair and register the domain.
+  IDE rules land in .cursorrules and .cursor/rules/agentic-trust.mdc.
+  Pass --no-ide-rules to skip those two files.
 
   POST https://api.trustflow.systems/v1/register
   Body: domain, businessName, verificationType (SSL_CHALLENGE | DNS_TXT),
   and the SPKI publicKeyPem from the did:web key.
-  Then publish the challenge and POST /v1/register/confirm.
+  The CLI writes the SSL challenge file itself. When that file and did.json are
+  already on HTTPS (or appear within a short poll), it POSTs /v1/register/confirm.
+  Pass --no-auto-confirm to register without that confirm call. The did.json
+  public key must still match the key sent at registration.
 
   https://trustflow.systems/api/register is an alias of the API origin above.
 
@@ -49,7 +52,8 @@ Options:
   --verification-type <type>      SSL_CHALLENGE (default) or DNS_TXT
   --api-url <url>                 API base (or set TRUSTFLOW_API_URL)
   --token <token>                 Challenge token for confirm
-  --confirm                       During init or sign, confirm in the same run
+  --confirm                       Force POST /v1/register/confirm (init does this by default)
+  --no-auto-confirm               Register during init, but do not POST /v1/register/confirm
   --dry-run                       Sign locally and skip POST /v1/register
   --skip-register                 Write local files only
   --force-keys                    Rotate the did:web keypair
@@ -87,6 +91,7 @@ function parse(argv) {
             "api-url": { type: "string" },
             token: { type: "string" },
             confirm: { type: "boolean", default: false },
+            "no-auto-confirm": { type: "boolean", default: false },
             "dry-run": { type: "boolean", default: false },
             "skip-register": { type: "boolean", default: false },
             "force-keys": { type: "boolean", default: false },
@@ -115,6 +120,7 @@ function parse(argv) {
         apiUrl: values["api-url"],
         token: values.token,
         confirm: values.confirm,
+        noAutoConfirm: values["no-auto-confirm"],
         dryRun: values["dry-run"],
         skipRegister: values["skip-register"],
         forceKeys: values["force-keys"],
@@ -175,8 +181,10 @@ export async function main(argv, io) {
                 envApiUrl: env.TRUSTFLOW_API_URL,
                 nonInteractive: parsed.nonInteractive,
                 stdinIsTTY: io?.stdinIsTTY ?? Boolean(process.stdin.isTTY),
-                confirm: parsed.confirm,
+                autoConfirm: resolveAutoConfirm(parsed, env),
                 skipRegister: parsed.skipRegister,
+                proofBudgetMs: positiveMilliseconds(env.AGENTIC_TRUST_PROOF_BUDGET_MS),
+                proofIntervalMs: positiveMilliseconds(env.AGENTIC_TRUST_PROOF_INTERVAL_MS),
                 forceKeys: parsed.forceKeys,
                 ideRules: !parsed.noIdeRules,
                 fetch: fetchFn,
@@ -198,6 +206,21 @@ export async function main(argv, io) {
         console.error(err instanceof Error ? err.message : String(err));
         return 1;
     }
+}
+function resolveAutoConfirm(parsed, env) {
+    if (parsed.noAutoConfirm)
+        return false;
+    if (parsed.confirm)
+        return true;
+    return envFlag(env.AGENTIC_TRUST_AUTO_CONFIRM, true);
+}
+function positiveMilliseconds(value) {
+    if (!value || value.trim() === "")
+        return undefined;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0)
+        return undefined;
+    return parsed;
 }
 function envFlag(value, fallback) {
     if (value == null || value.trim() === "")

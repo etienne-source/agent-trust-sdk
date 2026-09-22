@@ -1,13 +1,13 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { assertPublicDir, detectProjectLayout } from "./framework.js";
 import { writeProjectFile } from "./project.js";
+export { detectPublicDir } from "./framework.js";
 /** Project-root files `agentic-trust init` writes for coding agents. */
 export const CURSORRULES_RELATIVE = ".cursorrules";
 export const CURSOR_MDC_RELATIVE = ".cursor/rules/agentic-trust.mdc";
 const RULE_START = "<!-- agentic-trust:ide-rules -->";
 const RULE_END = "<!-- /agentic-trust:ide-rules -->";
-/** Checked in order. `public` wins when both exist. */
-const PUBLIC_DIR_CANDIDATES = ["public", "static"];
 export function ideRulePaths(publicDir) {
     const dir = assertPublicDir(publicDir);
     return {
@@ -16,23 +16,6 @@ export function ideRulePaths(publicDir) {
         llms: `${dir}/llms.txt`,
         llmsWellKnown: `${dir}/.well-known/llms.txt`,
     };
-}
-/**
- * Static folder this repo already uses for public files.
- * Prefers `public/`, then `static/`. Otherwise the AgenticTrust default `public`.
- */
-export async function detectPublicDir(cwd) {
-    for (const name of PUBLIC_DIR_CANDIDATES) {
-        try {
-            const stat = await fs.stat(path.join(cwd, name));
-            if (stat.isDirectory())
-                return name;
-        }
-        catch {
-            // candidate not present
-        }
-    }
-    return "public";
 }
 export function renderIdeRuleBody(publicDir) {
     const paths = ideRulePaths(publicDir);
@@ -133,7 +116,7 @@ export function renderCursorMdc(publicDir) {
     return [
         "---",
         `description: ${JSON.stringify(description)}`,
-        "globs: public/**,static/**,**/*.{md,mdx,yml,yaml},**/llms.txt,**/.well-known/**",
+        `globs: ${mdcGlobs(paths.publicDir)}`,
         "alwaysApply: true",
         "---",
         "",
@@ -157,7 +140,7 @@ export function mergeCursorRules(existing, generated) {
     return `${prefix}\n${block}`;
 }
 export async function writeIdeRules(cwd, publicDir) {
-    const dir = publicDir ?? (await detectPublicDir(cwd));
+    const dir = publicDir ?? (await detectProjectLayout(cwd)).publicDir;
     const generated = renderCursorRulesFile(dir);
     let existing;
     try {
@@ -170,10 +153,11 @@ export async function writeIdeRules(cwd, publicDir) {
     const mdc = await writeProjectFile(cwd, CURSOR_MDC_RELATIVE, renderCursorMdc(dir));
     return { cursorrules, mdc, publicDir: dir };
 }
-function assertPublicDir(publicDir) {
-    if (!/^[A-Za-z0-9._-]+$/.test(publicDir)) {
-        throw new Error(`Unsupported public directory: ${publicDir}`);
-    }
-    return publicDir;
+function mdcGlobs(publicDir) {
+    const globs = ["public/**", "static/**"];
+    if (publicDir !== "public" && publicDir !== "static")
+        globs.push(`${publicDir}/**`);
+    globs.push("**/*.{md,mdx,yml,yaml}", "**/llms.txt", "**/.well-known/**");
+    return globs.join(",");
 }
 //# sourceMappingURL=ideRules.js.map

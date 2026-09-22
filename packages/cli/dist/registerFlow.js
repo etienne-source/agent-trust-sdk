@@ -1,5 +1,5 @@
 import { registerDomain, } from "./api.js";
-import { writeProjectFile, writeRegistration } from "./project.js";
+import { writeProjectFile, writePublishedFile, writeRegistration } from "./project.js";
 /**
  * POST /v1/register, persist the challenge under `.agentic-trust/`, and write
  * the SSL challenge file when the registry asks for one.
@@ -34,7 +34,14 @@ export async function registerAndStore(input) {
     const registrationPath = await writeRegistration(input.cwd, stored);
     let challengeFile;
     if (challenge.verificationType === "SSL_CHALLENGE" || challenge.challengePath) {
-        challengeFile = await writeProjectFile(input.cwd, ".well-known/agentic-trust-challenge.txt", challenge.challengeToken);
+        const leaf = ".well-known/agentic-trust-challenge.txt";
+        if (input.publicDir) {
+            const written = await writePublishedFile(input.cwd, input.publicDir, leaf, challenge.challengeToken);
+            challengeFile = written[0];
+        }
+        else {
+            challengeFile = await writeProjectFile(input.cwd, leaf, challenge.challengeToken);
+        }
     }
     return { challenge, stored, registrationPath, challengeFile };
 }
