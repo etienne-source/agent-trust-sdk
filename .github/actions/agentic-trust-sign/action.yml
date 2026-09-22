@@ -1,0 +1,97 @@
+name: AgenticTrust sign
+description: >
+  Ensure root llms.txt exists, sign a did:web document with @agentic-trust/sdk,
+  and POST https://api.trustflow.systems/v1/register. The private key is never printed.
+
+inputs:
+  domain:
+    description: Hostname to register. Repository variable AGENTIC_TRUST_DOMAIN.
+    required: false
+    default: ""
+  business-name:
+    description: Business name stored by POST /v1/register. Falls back to the llms.txt heading.
+    required: false
+    default: ""
+  description:
+    description: Used only when generating a missing root llms.txt.
+    required: false
+    default: ""
+  services:
+    description: Comma-separated services used when generating a missing llms.txt.
+    required: false
+    default: ""
+  verification-type:
+    description: SSL_CHALLENGE (default) or DNS_TXT.
+    required: false
+    default: SSL_CHALLENGE
+  api-url:
+    description: Trustflow API base. Defaults to https://api.trustflow.systems.
+    required: false
+    default: ""
+  private-key:
+    description: >
+      RSA private key PEM (repository secret AGENTIC_TRUST_PRIVATE_KEY).
+      Passed only through the environment. Never logged.
+    required: false
+    default: ""
+  dry-run:
+    description: Sign locally and skip POST /v1/register.
+    required: false
+    default: "false"
+  confirm:
+    description: After register, POST /v1/register/confirm. Proof failures do not fail the job unless require-live is true.
+    required: false
+    default: "true"
+  require-live:
+    description: Fail the step when confirm does not verify the domain.
+    required: false
+    default: "false"
+
+outputs:
+  public-key-hash:
+    description: SHA-256 hex of the SPKI public key PEM embedded in did.json.
+    value: ${{ steps.sign.outputs.public-key-hash }}
+  live:
+    description: "'true', 'false', or 'dry-run'."
+    value: ${{ steps.sign.outputs.live }}
+  llms-generated:
+    description: Whether root llms.txt was created from the standard template.
+    value: ${{ steps.sign.outputs.llms-generated }}
+  did:
+    description: did:web identifier that was signed.
+    value: ${{ steps.sign.outputs.did }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Sign llms.txt and register the domain
+      id: sign
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        AGENTIC_TRUST_PRIVATE_KEY: ${{ inputs.private-key }}
+        AGENTIC_TRUST_DOMAIN: ${{ inputs.domain }}
+        AGENTIC_TRUST_BUSINESS_NAME: ${{ inputs.business-name }}
+        AGENTIC_TRUST_DESCRIPTION: ${{ inputs.description }}
+        AGENTIC_TRUST_SERVICES: ${{ inputs.services }}
+        AGENTIC_TRUST_VERIFICATION_TYPE: ${{ inputs.verification-type }}
+        TRUSTFLOW_API_URL: ${{ inputs.api-url }}
+        AGENTIC_TRUST_DRY_RUN: ${{ inputs.dry-run }}
+        AGENTIC_TRUST_CONFIRM: ${{ inputs.confirm }}
+        AGENTIC_TRUST_REQUIRE_LIVE: ${{ inputs.require-live }}
+      run: |
+        set -euo pipefail
+        ACTION_REPO="$(cd "${GITHUB_ACTION_PATH}/../../.." && pwd)"
+        cd "${ACTION_REPO}"
+        corepack enable
+        corepack prepare pnpm@10.33.3 --activate
+        pnpm install --frozen-lockfile
+        pnpm --filter @agentic-trust/sdk build
+        pnpm --filter @agentic-trust/cli build
+        cd "${GITHUB_WORKSPACE}"
+        node "${ACTION_REPO}/packages/cli/dist/cli.js" sign

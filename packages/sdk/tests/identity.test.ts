@@ -23,6 +23,16 @@ describe("createSignedDidDocument", () => {
       publicKeyPem: identity.publicKeyPem,
     });
     expect(again.publicKeyHash).toBe(identity.publicKeyHash);
+
+    const fromPrivateOnly = await createSignedDidDocument({
+      domain: "example.com",
+      privateKeyPem: identity.privateKeyPem,
+    });
+    expect(fromPrivateOnly.publicKeyPem).toContain("BEGIN PUBLIC KEY");
+    expect(fromPrivateOnly.did.verificationMethod?.[0]?.publicKeyPem).toBe(fromPrivateOnly.publicKeyPem);
+    const derivedKey = await importPublicKey(fromPrivateOnly.did);
+    expect((await verifyDidJws(fromPrivateOnly.did, derivedKey!)).ok).toBe(true);
+    expect(JSON.stringify(fromPrivateOnly.did)).not.toContain("PRIVATE KEY");
     const key2 = await importPublicKey(again.did);
     expect((await verifyDidJws(again.did, key2!)).ok).toBe(true);
   });

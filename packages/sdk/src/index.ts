@@ -41,7 +41,7 @@ export {
   assertHttpsEndpoint,
 } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem } from "./jws.js";
-export { createSignedDidDocument, hashPublicKeyPem } from "./identity.js";
+export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
 export type { CreateSignedDidInput, DidServiceEndpoint, SignedDidIdentity } from "./identity.js";
 export type {
   VerificationStatus,

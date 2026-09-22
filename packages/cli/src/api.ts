@@ -8,7 +8,11 @@ export interface RegisterRequest {
   businessName: string;
   verificationType: VerificationType;
   did?: string;
+  /** SPKI PEM. The live API stores this and sets `publicKeyHash` from it. */
+  publicKeyPem?: string;
   publicKeyHash?: string;
+  /** Public did.json URL. Stored on the challenge; not a secret. */
+  manifestUrl?: string;
   services?: string[];
 }
 
