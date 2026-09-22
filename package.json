@@ -3,13 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
-  "description": "AgenticTrust workspace: @agentic-trust/sdk and @agentic-trust/cli. Hosted registry: Trustflow Systems.",
+  "description": "AgenticTrust workspace: @agentic-trust/sdk, @agentic-trust/cli, and @agentic-trust/mcp-server. Hosted registry: Trustflow Systems.",
   "scripts": {
-    "build": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build",
-    "typecheck": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli typecheck",
-    "test": "pnpm --filter @agentic-trust/sdk test && pnpm --filter @agentic-trust/cli test",
+    "build": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build && pnpm --filter @agentic-trust/mcp-server build",
+    "typecheck": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli typecheck && pnpm --filter @agentic-trust/mcp-server typecheck",
+    "test": "pnpm --filter @agentic-trust/sdk test && pnpm --filter @agentic-trust/cli test && pnpm --filter @agentic-trust/mcp-server test",
     "smoke": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build && pnpm --filter @agentic-trust/cli smoke",
-    "clean": "pnpm --filter @agentic-trust/sdk --filter @agentic-trust/cli clean"
+    "clean": "pnpm --filter @agentic-trust/sdk --filter @agentic-trust/cli --filter @agentic-trust/mcp-server clean"
   },
   "engines": {
     "node": ">=20"

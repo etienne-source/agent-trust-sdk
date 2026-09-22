@@ -1,13 +1,13 @@
 # AgenticTrust
 
-Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, and the CLI. **Trustflow Systems** is the hosted registry.
+Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, the CLI, and the MCP server. **Trustflow Systems** is the hosted registry.
 
 | Piece | Name | What it is |
 |-------|------|------------|
-| Protocol, SDK, CLI | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`) |
+| Protocol, SDK, CLI, MCP | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`), `@agentic-trust/mcp-server` |
 | Hosted platform | **Trustflow Systems** | [trustflow.systems](https://trustflow.systems) · API `https://api.trustflow.systems` |
 
-`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems.
+`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems. `@agentic-trust/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio.
 
 **License:** MIT
 
@@ -241,6 +241,23 @@ node packages/cli/dist/cli.js sign --dry-run --domain example.invalid --name "Ex
 
 Publish `llms.txt`, `.well-known/llms.txt`, `.well-known/did.json`, and (for SSL) `.well-known/agentic-trust-challenge.txt` on the domain. The challenge token is written to disk and is not echoed.
 
+## MCP server
+
+`@agentic-trust/mcp-server` is a stdio MCP server for Cursor, Windsurf, and Claude Desktop. It is not on npm. Install from GitHub `github:etienne-source/agent-trust-sdk` (clone this repo; the package depends on `@agentic-trust/sdk` with `workspace:*`). Do not install the unrelated `trustflow-sdk` package.
+
+```json
+{
+  "mcpServers": {
+    "agentic-trust": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-trust-sdk/packages/mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+That snippet is the `mcpServers` entry for Cursor (`cursor.json` or `.cursor/mcp.json`) and Claude Desktop (`claude_desktop_config.json`). Tool details and the future `npx -y @agentic-trust/mcp-server` form are in [packages/mcp-server/README.md](packages/mcp-server/README.md).
+
 ## Development
 
 ```bash
@@ -253,7 +270,7 @@ pnpm smoke
 
 Pull requests and pushes to `main` run those three checks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
 
-`packages/*/dist` is committed so a clone can run `agentic-trust` before the npm scope exists. Rebuild and commit `dist/` when CLI or SDK sources change.
+`packages/*/dist` is committed so a clone can run `agentic-trust` and `agentic-trust-mcp` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, or MCP server sources change.
 
 `TRUSTFLOW_LIVE=1 pnpm --filter @agentic-trust/cli test` also calls the production register endpoint.
 
