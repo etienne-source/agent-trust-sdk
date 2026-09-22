@@ -16,6 +16,13 @@ export type AllowedJwsAlg = (typeof ALLOWED_JWS_ALGS)[number];
  * RSA, Ed448, and non-P-256 curves fail closed.
  */
 export declare function allowedAlgForKey(key: PublicKeyMaterial): AllowedJwsAlg | null;
+/** Drop imported verification keys. `clearVerifyCache` calls this. */
+export declare function clearPublicKeyCache(): void;
+/**
+ * Import the first verification method.
+ * Successful imports are cached in memory so a repeated domain does not
+ * parse the same SPKI or JWK again. Private keys are not accepted here.
+ */
 export declare function importPublicKey(did: DidDocument): Promise<PublicKeyMaterial | null>;
 /**
  * Verify compact JWS attached as `did.proof.jws`.

@@ -21,6 +21,12 @@ export interface AgenticTrustLangChainOptions extends AgenticTrustMiddlewareOpti
    * from `@agentic-trust/sdk` (the verify/sign implementation).
    */
   verify?: (target: string) => Promise<AgenticTrustMetadata>;
+  /**
+   * Fail closed by default. Unverified or tampered `llms.txt` throws
+   * `UnverifiedDomainContextError` and the model or tool does not run.
+   * Set `false` to continue without parsing that payload.
+   */
+  failClosed?: boolean;
 }
 
 export interface LlmsContextSource {
@@ -73,8 +79,11 @@ export interface AgenticTrustLangChainMiddleware {
 }
 
 function sdkOptions(options: AgenticTrustLangChainOptions): AgenticTrustMiddlewareOptions {
-  const rest: AgenticTrustMiddlewareOptions & { verify?: VerifyFn } = { ...options };
+  const rest: AgenticTrustMiddlewareOptions & { verify?: VerifyFn; failClosed?: boolean } = {
+    ...options,
+  };
   delete rest.verify;
+  delete rest.failClosed;
   return rest;
 }
 
@@ -82,6 +91,10 @@ export function createVerifier(options: AgenticTrustLangChainOptions = {}): Veri
   if (options.verify) return options.verify;
   const trust = agenticTrustMiddleware(sdkOptions(options));
   return (target) => trust.verify(target);
+}
+
+export function isFailClosed(options: { failClosed?: boolean } = {}): boolean {
+  return options.failClosed !== false;
 }
 
 export async function requireVerifiedDomain(
@@ -95,7 +108,20 @@ export async function requireVerifiedDomain(
   return meta;
 }
 
-async function rewriteVerified<T>(value: T, verify: VerifyFn): Promise<T> {
+async function checkDomain(
+  target: string,
+  verify: VerifyFn,
+  failClosed: boolean
+): Promise<AgenticTrustMetadata> {
+  if (failClosed) return requireVerifiedDomain(target, verify);
+  return verify(target);
+}
+
+function trusted(meta: AgenticTrustMetadata | undefined): meta is AgenticTrustMetadata {
+  return Boolean(meta && meta.verified && !meta.securityWarning);
+}
+
+async function rewriteVerified<T>(value: T, verify: VerifyFn, failClosed: boolean): Promise<T> {
   const sites = collectLlmsPayloads(value);
   const targets = new Set<string>(collectContextTargets(value));
   for (const site of sites) targets.add(site.target);
@@ -103,17 +129,19 @@ async function rewriteVerified<T>(value: T, verify: VerifyFn): Promise<T> {
 
   const metas = new Map<string, AgenticTrustMetadata>();
   for (const target of targets) {
-    metas.set(target, await requireVerifiedDomain(target, verify));
+    metas.set(target, await checkDomain(target, verify, failClosed));
   }
   if (sites.length === 0) return value;
 
   const draft = cloneValue(value);
+  let wrote = false;
   for (const site of sites) {
     const meta = metas.get(site.target);
-    if (!meta) continue;
+    if (!trusted(meta)) continue;
     writeVerifiedText(draft, site.path, formatVerifiedLlms(parseLlmsTxt(site.readContent()), meta));
+    wrote = true;
   }
-  return draft;
+  return wrote ? draft : value;
 }
 
 async function readVerified(source: LlmsContextSource, verify: VerifyFn): Promise<VerifiedLlmsContext> {
@@ -136,25 +164,28 @@ async function readVerified(source: LlmsContextSource, verify: VerifyFn): Promis
  * Pass the result to `createMiddleware` from `langchain`. `beforeModel`,
  * `wrapModelCall`, and `wrapToolCall` call `@agentic-trust/sdk` and throw
  * `UnverifiedDomainContextError` before any `llms.txt` body is read or parsed.
+ * That block is the default (`failClosed: true`). The error message is the
+ * AgenticTrust context-poisoning security error.
  */
 export function agenticTrustLangChainMiddleware(
   options: AgenticTrustLangChainOptions = {}
 ): AgenticTrustLangChainMiddleware {
   const verify = createVerifier(options);
+  const failClosed = isFailClosed(options);
 
   return {
     name: "agenticTrust",
     async beforeModel(state) {
       if (!state || !Array.isArray(state.messages)) return undefined;
-      const messages = await rewriteVerified(state.messages, verify);
+      const messages = await rewriteVerified(state.messages, verify, failClosed);
       if (messages === state.messages) return undefined;
       return { messages };
     },
     async wrapModelCall(request, handler) {
-      return handler(await rewriteVerified(request, verify));
+      return handler(await rewriteVerified(request, verify, failClosed));
     },
     async wrapToolCall(request, handler) {
-      return handler(await rewriteVerified(request, verify));
+      return handler(await rewriteVerified(request, verify, failClosed));
     },
     loadLlmsContext(source) {
       return readVerified(source, verify);

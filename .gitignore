@@ -11,3 +11,4 @@ coverage
 .DS_Store
 .agentic-trust/
 scripts/starter-pr-targets.json
+scripts/ecosystem-targets.json

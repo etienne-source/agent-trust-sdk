@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearVerifyCache, type AgenticTrustMetadata } from "@agentic-trust/sdk";
 import {
   agenticTrustLangChainMiddleware,
+  contextPoisoningErrorMessage,
   loadVerifiedLlmsContext,
   UnverifiedDomainContextError,
 } from "../src/index.js";
@@ -94,7 +95,7 @@ describe("agenticTrustLangChainMiddleware", () => {
         target: "https://unsigned.example/llms.txt",
         content: read,
       })
-    ).rejects.toThrow(/unsigned\.example: No AgenticTrust signature \(UNVERIFIED\)/);
+    ).rejects.toThrow(contextPoisoningErrorMessage("unsigned.example"));
 
     expect(read).not.toHaveBeenCalled();
   });
@@ -184,7 +185,7 @@ describe("agenticTrustLangChainMiddleware", () => {
         { toolCall: { name: "fetch_llms", args: { url: "https://evil.example/llms.txt" } } },
         handler
       )
-    ).rejects.toThrow(/Refusing to parse llms\.txt/);
+    ).rejects.toThrow(contextPoisoningErrorMessage("evil.example"));
 
     expect(handler).not.toHaveBeenCalled();
   });
@@ -279,5 +280,35 @@ describe("agenticTrustLangChainMiddleware", () => {
     const urls = fetchImpl.mock.calls.map((call) => String(call[0]));
     expect(urls.some((url) => url.includes("/v1/verify"))).toBe(true);
     expect(urls.every((url) => url.startsWith("https://"))).toBe(true);
+  });
+
+  it("is fail-closed by default and can skip parsing when failClosed is false", async () => {
+    const read = vi.fn(body("unsigned.example"));
+    const closed = agenticTrustLangChainMiddleware({
+      verify: async () => blocked("unsigned.example", "RISK", "tampered signature"),
+    });
+    await expect(
+      closed.loadLlmsContext({
+        target: "https://unsigned.example/llms.txt",
+        content: read,
+      })
+    ).rejects.toThrow(
+      "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
+    );
+    expect(read).not.toHaveBeenCalled();
+
+    const handler = vi.fn(async () => "ran");
+    const open = agenticTrustLangChainMiddleware({
+      verify: async () => blocked("unsigned.example"),
+      failClosed: false,
+    });
+    await expect(
+      open.wrapToolCall(
+        { toolCall: { name: "fetch_llms", args: { url: "https://unsigned.example/llms.txt", llmsTxt: read } } },
+        handler
+      )
+    ).resolves.toBe("ran");
+    expect(read).not.toHaveBeenCalled();
+    expect(handler).toHaveBeenCalledOnce();
   });
 });

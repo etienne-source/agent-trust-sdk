@@ -1,6 +1,6 @@
 # @agentic-trust/vercel-ai-middleware
 
-Fetch and language-model middleware for the Vercel AI SDK. It rejects unverified or unsigned **AgenticTrust** domain context before a response stream starts and before `llms.txt` is parsed.
+Fetch and language-model middleware for the Vercel AI SDK. It is fail-closed by default. It rejects unverified, unsigned, or tampered **AgenticTrust** domain context before a response stream starts and before `llms.txt` is parsed.
 
 Verification and signing stay in `@agentic-trust/sdk` (`agenticTrustMiddleware`). The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
 
@@ -60,7 +60,7 @@ try {
 } catch (err) {
   if (err instanceof UnverifiedDomainContextError) {
     // err.domain, err.status ("UNVERIFIED" | "RISK"), err.reason
-    // "Blocked unverified domain context for unsigned.example: ... Refusing to parse llms.txt."
+    // "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
   }
 }
 ```
@@ -70,3 +70,11 @@ try {
 Verified fetches keep the original body stream and set `x-agentic-trust` to `{ "verified": true, "domain", "trustScore" }`.
 
 The SDK lookup uses the `fetch` option (registry and `did:web`). The context download uses `contextFetch`, which defaults to global `fetch`.
+
+`failClosed` defaults to `true`. `fetch`, `transformParams`, `wrapGenerate`, and `wrapStream` throw before execution. Set `failClosed: false` only to let those hooks continue without marking the payload verified and without parsing it. `loadLlmsFromUrl` and `readVerifiedLlms` still throw. The thrown message is:
+
+```text
+[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.
+```
+
+Signing the files those checks read, without a local terminal, is `@agentic-trust/vercel-plugin`: set `AGENTIC_TRUST_PRIVATE_KEY` and `AGENTIC_TRUST_DOMAIN` in the Vercel project environment and use `buildCommand` `agentic-trust-vercel && next build`. The private key is not committed. See [packages/vercel-plugin](../vercel-plugin/README.md).

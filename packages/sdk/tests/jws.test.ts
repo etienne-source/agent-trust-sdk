@@ -291,4 +291,20 @@ describe("JWS algorithm allowlist", () => {
     };
     expect(await importPublicKey(did)).toBeNull();
   });
+
+  it("reuses an imported verification key in under 5ms", async () => {
+    const { did } = await didWithPem("cached-key.example", "EdDSA");
+    const first = await importPublicKey(did);
+    expect(first).toBeTruthy();
+    const samples: number[] = [];
+    for (let i = 0; i < 20; i += 1) {
+      const start = performance.now();
+      const key = await importPublicKey(did);
+      samples.push(performance.now() - start);
+      expect(key).toBe(first);
+    }
+    samples.sort((left, right) => left - right);
+    const median = samples[Math.floor(samples.length / 2)] ?? Number.POSITIVE_INFINITY;
+    expect(median).toBeLessThan(5);
+  });
 });

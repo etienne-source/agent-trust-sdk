@@ -8,11 +8,11 @@ That link is the public verify page the CLI badge uses. `agentic-trust init` pri
 
 | Piece | Name | What it is |
 |-------|------|------------|
-| Protocol, SDK, CLI, MCP, Next | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`), `@agentic-trust/mcp-server`, `@agentic-trust/next-plugin` |
-| Framework middleware | **AgenticTrust** | `@agentic-trust/langchain-middleware`, `@agentic-trust/vercel-ai-middleware` — reject unsigned `llms.txt` context before it is parsed |
+| Protocol, SDK, CLI, MCP, Next, Vercel | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`), `@agentic-trust/mcp-server`, `@agentic-trust/next-plugin`, `@agentic-trust/vercel-plugin` |
+| Framework middleware | **AgenticTrust** | `@agentic-trust/langchain-middleware`, `@agentic-trust/vercel-ai-middleware` — fail closed on unverified or tampered `llms.txt` before it is parsed |
 | Hosted platform | **Trustflow Systems** | [trustflow.systems](https://trustflow.systems) · API `https://api.trustflow.systems` |
 
-`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems. `@agentic-trust/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio. `@agentic-trust/next-plugin` warns during `next dev` when `public/llms.txt` or `public/.well-known/did.json` is missing or invalid.
+`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. Repeated `verifyDomain` checks for the same domain stay under 5ms after the in-memory cache is warm. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems. `@agentic-trust/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio. `@agentic-trust/next-plugin` warns during `next dev` when `public/llms.txt` or `public/.well-known/did.json` is missing or invalid. `@agentic-trust/vercel-plugin` signs those files during a Vercel build from environment secrets, with no interactive CLI.
 
 The signature and fetch rules are in [SPEC.md](SPEC.md).
 
@@ -29,6 +29,7 @@ flowchart LR
     SDK["@agentic-trust/sdk<br/>did:web + JWS"]
     MCP["@agentic-trust/mcp-server"]
     NEXT["@agentic-trust/next-plugin"]
+    VERCEL["@agentic-trust/vercel-plugin"]
     LC["langchain-middleware"]
     VAI["vercel-ai-middleware"]
   end
@@ -44,6 +45,7 @@ flowchart LR
   MCP --> SDK
   LC --> SDK
   VAI --> SDK
+  VERCEL --> SDK
   CLI -->|"POST /v1/register"| API
   SDK -->|"GET did.json"| DOMAIN
   SDK -->|"GET /v1/verify"| API
@@ -63,6 +65,7 @@ AgenticTrust code in this repository signs and checks documents. Trustflow Syste
 | `@agentic-trust/next-plugin` | [packages/next-plugin](packages/next-plugin) | `pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin` |
 | `@agentic-trust/langchain-middleware` | [packages/langchain-middleware](packages/langchain-middleware) | GitHub path install, plus the SDK path above |
 | `@agentic-trust/vercel-ai-middleware` | [packages/vercel-ai-middleware](packages/vercel-ai-middleware) | GitHub path install, plus the SDK path above |
+| `@agentic-trust/vercel-plugin` | [packages/vercel-plugin](packages/vercel-plugin) | GitHub path install, plus the SDK path above. Binary: `agentic-trust-vercel` |
 | Starters | [starters/](starters/README.md) | [nextjs](starters/nextjs), [v0](starters/v0), [bolt](starters/bolt). Not workspace packages. `pnpm install` inside the folder. |
 
 ## Quickstart
@@ -233,9 +236,9 @@ import { agenticTrustMiddleware } from "@agentic-trust/sdk";
 const openai = createOpenAI({ fetch: agenticTrustMiddleware().fetch });
 ```
 
-`clearVerifyCache()` drops both `verifyDomain` entries and middleware entries.
+`clearVerifyCache()` drops both `verifyDomain` entries and middleware entries, and the imported public-key cache. A warm hit stays under 5ms. `AGENTIC_TRUST_CACHE_DIR` optionally stores those public results on disk for the next process. The cache refuses a payload that contains a private key.
 
-Strict framework packages call that same SDK check and throw instead of annotating. `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` refuse to read or parse `llms.txt` when the domain is unverified or unsigned. Install both from GitHub until the npm scope exists: `github:etienne-source/agent-trust-sdk#path:/packages/langchain-middleware` and `#path:/packages/vercel-ai-middleware`, plus `#path:/packages/sdk`. Their dependencies use `workspace:*` inside this repository. Do not install `trustflow-sdk`.
+Strict framework packages call that same SDK check and fail closed by default. `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` throw `UnverifiedDomainContextError` before they read or parse `llms.txt` when the domain is unverified or tampered. The message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` `failClosed` defaults to `true`. Install both from GitHub until the npm scope exists: `github:etienne-source/agent-trust-sdk#path:/packages/langchain-middleware` and `#path:/packages/vercel-ai-middleware`, plus `#path:/packages/sdk`. Their dependencies use `workspace:*` inside this repository. Do not install `trustflow-sdk`.
 
 ### Migration
 
@@ -253,8 +256,8 @@ Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
 
 | Framework / pattern | Integration tip |
 |---------------------|-----------------|
-| **LangChain / LangGraph** | `@agentic-trust/langchain-middleware` — `agenticTrustLangChainMiddleware()` passed to `createMiddleware`. It throws before parsing unsigned `llms.txt`. The SDK `wrapTool` / `annotateDocuments` helpers still only annotate. |
-| **Vercel AI SDK** | `@agentic-trust/vercel-ai-middleware` — `fetch` on the provider and the same object as `wrapLanguageModel` middleware. Context fetches and `doStream` / `doGenerate` throw before an unsigned body is read. |
+| **LangChain / LangGraph** | `@agentic-trust/langchain-middleware` — `agenticTrustLangChainMiddleware()` passed to `createMiddleware`. Fail-closed by default: it throws the context-poisoning security error before parsing unsigned or tampered `llms.txt`. The SDK `wrapTool` / `annotateDocuments` helpers still only annotate. |
+| **Vercel AI SDK** | `@agentic-trust/vercel-ai-middleware` — `fetch` on the provider and the same object as `wrapLanguageModel` middleware. Fail-closed by default. Context fetches and `doStream` / `doGenerate` throw before an unsigned or tampered body is read. |
 | **OpenAI Agents / function calling** | Before `fetch`/`tools` invocation, `verifyDomain` on the host of any remote tool schema URL. |
 | **MCP clients** | On `tools/list` or connect, inspect each `serviceEndpoint`; refuse non-HTTPS or RISK. |
 | **Custom agent loops** | Cache-first `verifyDomain` on first contact with a domain; reuse until TTL expires. |
@@ -347,9 +350,16 @@ Publish `llms.txt`, `.well-known/llms.txt`, `.well-known/did.json`, and (for SSL
 
 That snippet is the `mcpServers` entry for Cursor (`cursor.json` or `.cursor/mcp.json`) and Claude Desktop (`claude_desktop_config.json`). Tool details and the future `npx -y @agentic-trust/mcp-server` form are in [packages/mcp-server/README.md](packages/mcp-server/README.md).
 
-## Next.js
+## Next.js and Vercel without a terminal
 
-`@agentic-trust/next-plugin` wraps a Next.js config. In development it checks `public/llms.txt` and `public/.well-known/did.json`. Missing, empty, unreadable, or non-JSON identity files print a terminal warning and do not fail the build. Production builds stay quiet. Create the files with `npx agentic-trust init` (`@agentic-trust/cli`). The plugin is not on npm. Do not install the unrelated `trustflow-sdk` package.
+A Vercel or Next.js deploy can sign AgenticTrust identity files without a local shell.
+
+1. Install `@agentic-trust/vercel-plugin` and `@agentic-trust/sdk` from GitHub (`github:etienne-source/agent-trust-sdk#path:/packages/vercel-plugin` and `#path:/packages/sdk`).
+2. In the Vercel project environment, set `AGENTIC_TRUST_PRIVATE_KEY` (Sensitive, Ed25519 or P-256 PEM) and `AGENTIC_TRUST_DOMAIN`. Do not commit the key.
+3. Set `vercel.json` `buildCommand` to `agentic-trust-vercel && next build`. `withAgenticTrustVercelConfig` from `@agentic-trust/vercel-plugin` returns that command.
+4. Deploy from the Vercel dashboard or a git push. The build writes `public/llms.txt`, `public/.well-known/llms.txt`, and `public/.well-known/did.json`.
+
+`@agentic-trust/next-plugin` wraps a Next.js config. In development it checks those two public files. Missing, empty, unreadable, or non-JSON identity files print a terminal warning and do not fail the build. Production builds stay quiet. `npx agentic-trust init` (`@agentic-trust/cli`) is the local alternative when a terminal is available. Neither package is on npm. Do not install the unrelated `trustflow-sdk` package.
 
 ```bash
 pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin
@@ -391,6 +401,34 @@ A real pull request needs both `--apply` and `--targets`, a `GITHUB_TOKEN` or `G
 node scripts/create-starter-prs.mjs --targets scripts/starter-pr-targets.json --apply
 ```
 
+## Ecosystem middleware pull requests
+
+`scripts/submit-ecosystem-prs.mjs` plans a pull request that adds fail-closed AgenticTrust middleware or an SDK `verifyDomain` check to an agent-framework starter you already maintain. It does not search GitHub and it does not open a pull request against a repository that is not in the targets file you pass.
+
+| Target `framework` | File | Packages |
+|--------------------|------|----------|
+| `langchain` | `src/agentic-trust-langchain.ts` | `@agentic-trust/sdk`, `@agentic-trust/langchain-middleware` |
+| `langgraph` | `src/agentic-trust-langgraph.ts` | `@agentic-trust/sdk`, `@agentic-trust/langchain-middleware` |
+| `vercel-ai` | `src/agentic-trust-vercel-ai.ts` | `@agentic-trust/sdk`, `@agentic-trust/vercel-ai-middleware` |
+| `mastra` | `src/agentic-trust-mastra.ts` | `@agentic-trust/sdk`, `@agentic-trust/vercel-ai-middleware` |
+| `openai-agents` | `src/agentic-trust-openai.ts` | `@agentic-trust/sdk` |
+| `llamaindex` | `src/agentic-trust-llamaindex.ts` | `@agentic-trust/sdk` |
+
+Install lines use `github:etienne-source/agent-trust-sdk`. Do not install the unrelated `trustflow-sdk` package. The planned files do not contain a private key.
+
+The default run is a dry run:
+
+```bash
+node scripts/submit-ecosystem-prs.mjs
+# or: pnpm ecosystem-prs
+```
+
+A real pull request needs both `--apply` and `--targets`, a `GITHUB_TOKEN` or `GH_TOKEN`, and an allowlist of at most five repositories. Copy [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) to `scripts/ecosystem-targets.json` (gitignored), set `"example"` to false, and list `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. `--apply` is refused for that example file and for an empty list.
+
+```bash
+node scripts/submit-ecosystem-prs.mjs --targets scripts/ecosystem-targets.json --apply
+```
+
 ## Verified-domain webhook
 
 `notifyVerifiedDomain` in `@agentic-trust/sdk` runs when something else reports a domain at **100/100 VERIFIED**. It does not score the domain and it does not call the registry. A complete notice is `status: "VERIFIED"` with `score` and `maxScore` both `100`. Anything else returns `not_complete` and does not send.
@@ -430,7 +468,7 @@ pnpm smoke
 
 Pull requests and pushes to `main` run `starters:check`, test, typecheck, and build in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
 
-`packages/*/dist` is committed so a clone can run `agentic-trust` and `agentic-trust-mcp` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, MCP server, Next plugin, or framework middleware sources change.
+`packages/*/dist` is committed so a clone can run `agentic-trust`, `agentic-trust-mcp`, and `agentic-trust-vercel` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, MCP server, Next plugin, Vercel plugin, or framework middleware sources change.
 
 `TRUSTFLOW_LIVE=1 pnpm --filter @agentic-trust/cli test` also calls the production register endpoint.
 

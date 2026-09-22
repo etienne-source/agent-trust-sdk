@@ -60,7 +60,12 @@ function jwkSignatureAlg(jwk) {
         return null;
     return inferred;
 }
-export async function importPublicKey(did) {
+const publicKeyCache = new Map();
+/** Drop imported verification keys. `clearVerifyCache` calls this. */
+export function clearPublicKeyCache() {
+    publicKeyCache.clear();
+}
+async function loadPublicKey(did) {
     const vm = did.verificationMethod?.[0];
     if (!vm)
         return null;
@@ -92,6 +97,37 @@ export async function importPublicKey(did) {
         }
     }
     return null;
+}
+function publicKeyCacheId(did) {
+    const vm = did.verificationMethod?.[0];
+    if (!vm)
+        return undefined;
+    if (typeof vm.publicKeyPem === "string" && vm.publicKeyPem.trim()) {
+        return `pem:${vm.publicKeyPem}`;
+    }
+    if (vm.publicKeyJwk)
+        return `jwk:${JSON.stringify(vm.publicKeyJwk)}`;
+    return undefined;
+}
+/**
+ * Import the first verification method.
+ * Successful imports are cached in memory so a repeated domain does not
+ * parse the same SPKI or JWK again. Private keys are not accepted here.
+ */
+export async function importPublicKey(did) {
+    const cacheKey = publicKeyCacheId(did);
+    if (!cacheKey)
+        return loadPublicKey(did);
+    const cached = publicKeyCache.get(cacheKey);
+    if (cached)
+        return cached;
+    const pending = loadPublicKey(did).then((key) => {
+        if (!key)
+            publicKeyCache.delete(cacheKey);
+        return key;
+    });
+    publicKeyCache.set(cacheKey, pending);
+    return pending;
 }
 function readProtectedAlg(jws) {
     let header;

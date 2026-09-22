@@ -2,8 +2,11 @@ import { agenticTrustMiddleware, } from "@agentic-trust/sdk";
 import { UnverifiedDomainContextError } from "./error.js";
 import { cloneValue, collectContextTargets, collectLlmsPayloads, formatVerifiedLlms, parseLlmsTxt, readBody, writeVerifiedText, } from "./llms.js";
 function sdkOptions(options) {
-    const rest = { ...options };
+    const rest = {
+        ...options,
+    };
     delete rest.verify;
+    delete rest.failClosed;
     return rest;
 }
 export function createVerifier(options = {}) {
@@ -12,6 +15,9 @@ export function createVerifier(options = {}) {
     const trust = agenticTrustMiddleware(sdkOptions(options));
     return (target) => trust.verify(target);
 }
+export function isFailClosed(options = {}) {
+    return options.failClosed !== false;
+}
 export async function requireVerifiedDomain(target, verify) {
     const meta = await verify(target);
     if (!meta.verified || meta.securityWarning) {
@@ -19,7 +25,15 @@ export async function requireVerifiedDomain(target, verify) {
     }
     return meta;
 }
-async function rewriteVerified(value, verify) {
+async function checkDomain(target, verify, failClosed) {
+    if (failClosed)
+        return requireVerifiedDomain(target, verify);
+    return verify(target);
+}
+function trusted(meta) {
+    return Boolean(meta && meta.verified && !meta.securityWarning);
+}
+async function rewriteVerified(value, verify, failClosed) {
     const sites = collectLlmsPayloads(value);
     const targets = new Set(collectContextTargets(value));
     for (const site of sites)
@@ -28,18 +42,20 @@ async function rewriteVerified(value, verify) {
         return value;
     const metas = new Map();
     for (const target of targets) {
-        metas.set(target, await requireVerifiedDomain(target, verify));
+        metas.set(target, await checkDomain(target, verify, failClosed));
     }
     if (sites.length === 0)
         return value;
     const draft = cloneValue(value);
+    let wrote = false;
     for (const site of sites) {
         const meta = metas.get(site.target);
-        if (!meta)
+        if (!trusted(meta))
             continue;
         writeVerifiedText(draft, site.path, formatVerifiedLlms(parseLlmsTxt(site.readContent()), meta));
+        wrote = true;
     }
-    return draft;
+    return wrote ? draft : value;
 }
 async function readVerified(source, verify) {
     const meta = await requireVerifiedDomain(source.target, verify);
@@ -60,24 +76,27 @@ async function readVerified(source, verify) {
  * Pass the result to `createMiddleware` from `langchain`. `beforeModel`,
  * `wrapModelCall`, and `wrapToolCall` call `@agentic-trust/sdk` and throw
  * `UnverifiedDomainContextError` before any `llms.txt` body is read or parsed.
+ * That block is the default (`failClosed: true`). The error message is the
+ * AgenticTrust context-poisoning security error.
  */
 export function agenticTrustLangChainMiddleware(options = {}) {
     const verify = createVerifier(options);
+    const failClosed = isFailClosed(options);
     return {
         name: "agenticTrust",
         async beforeModel(state) {
             if (!state || !Array.isArray(state.messages))
                 return undefined;
-            const messages = await rewriteVerified(state.messages, verify);
+            const messages = await rewriteVerified(state.messages, verify, failClosed);
             if (messages === state.messages)
                 return undefined;
             return { messages };
         },
         async wrapModelCall(request, handler) {
-            return handler(await rewriteVerified(request, verify));
+            return handler(await rewriteVerified(request, verify, failClosed));
         },
         async wrapToolCall(request, handler) {
-            return handler(await rewriteVerified(request, verify));
+            return handler(await rewriteVerified(request, verify, failClosed));
         },
         loadLlmsContext(source) {
             return readVerified(source, verify);

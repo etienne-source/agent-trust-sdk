@@ -37,6 +37,18 @@ pnpm build
 pnpm start
 ```
 
+## Vercel without a terminal
+
+Signing does not require a local shell. Add `AGENTIC_TRUST_PRIVATE_KEY` (Sensitive) and `AGENTIC_TRUST_DOMAIN` in the Vercel project environment, install `@agentic-trust/vercel-plugin` from `github:etienne-source/agent-trust-sdk#path:/packages/vercel-plugin` (and the SDK path), and set:
+
+```json
+{
+  "buildCommand": "agentic-trust-vercel && next build"
+}
+```
+
+The build writes `public/llms.txt`, `public/.well-known/llms.txt`, and `public/.well-known/did.json`. The private key stays in Vercel and is not committed. Details are in [packages/vercel-plugin/README.md](../../packages/vercel-plugin/README.md). The local `npx agentic-trust init` flow below is the alternative when you do have a terminal.
+
 ## Replace the placeholders
 
 `public/.well-known/did.json` is an unsigned example. `id`, `publicKeyPem`, and `proof.jws` are `REPLACE_ME`. No private key is in this folder. Do not commit `.agentic-trust/` or any PEM file. `.gitignore` already excludes them.

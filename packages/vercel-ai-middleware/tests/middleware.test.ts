@@ -3,6 +3,7 @@ import { clearVerifyCache, type AgenticTrustMetadata } from "@agentic-trust/sdk"
 import {
   AGENTIC_TRUST_CONTEXT_HEADER,
   agenticTrustVercelAiMiddleware,
+  contextPoisoningErrorMessage,
   loadVerifiedLlmsFromUrl,
   UnverifiedDomainContextError,
 } from "../src/index.js";
@@ -109,7 +110,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
       trust.fetch("https://example.com/agent-context", {
         headers: { [AGENTIC_TRUST_CONTEXT_HEADER]: "domain" },
       })
-    ).rejects.toThrow(/bad signature \(RISK\)/);
+    ).rejects.toThrow(contextPoisoningErrorMessage("example.com"));
     expect(contextFetch).not.toHaveBeenCalled();
   });
 
@@ -237,7 +238,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
     });
 
     await expect(trust.loadLlmsFromUrl("https://unsigned.example/llms.txt")).rejects.toThrow(
-      /missing signature/
+      contextPoisoningErrorMessage("unsigned.example")
     );
     expect(contextFetch).not.toHaveBeenCalled();
   });
@@ -265,9 +266,40 @@ describe("agenticTrustVercelAiMiddleware", () => {
         contextFetch,
         verificationApiUrl: "https://api.trustflow.systems",
       })
-    ).rejects.toThrow(/No AgenticTrust signature \(UNVERIFIED\)/);
+    ).rejects.toThrow(contextPoisoningErrorMessage("unsigned.example"));
 
     expect(contextFetch).not.toHaveBeenCalled();
     expect(registry.mock.calls.some((call) => String(call[0]).includes("/v1/verify"))).toBe(true);
+  });
+
+  it("is fail-closed by default and does not parse when failClosed is false", async () => {
+    const contextFetch = vi.fn(async () => new Response(LLMS, { status: 200 }));
+    const closed = agenticTrustVercelAiMiddleware({
+      verify: async () => blocked("evil.example", "RISK", "tampered llms.txt"),
+      contextFetch,
+    });
+    await expect(closed.fetch("https://evil.example/llms.txt")).rejects.toThrow(
+      contextPoisoningErrorMessage("evil.example")
+    );
+    expect(contextFetch).not.toHaveBeenCalled();
+
+    const openFetch = vi.fn(async () => new Response("raw", { status: 200 }));
+    const open = agenticTrustVercelAiMiddleware({
+      verify: async () => blocked("evil.example"),
+      contextFetch: openFetch,
+      failClosed: false,
+    });
+    const response = await open.fetch("https://evil.example/llms.txt");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-agentic-trust")).toBeNull();
+    expect(openFetch).toHaveBeenCalledOnce();
+
+    const read = vi.fn(() => LLMS);
+    const params = {
+      prompt: [{ role: "user", content: { url: "https://evil.example/llms.txt", llmsTxt: read } }],
+    };
+    const rewritten = await open.transformParams({ params, type: "generate" });
+    expect(rewritten).toBe(params);
+    expect(read).not.toHaveBeenCalled();
   });
 });

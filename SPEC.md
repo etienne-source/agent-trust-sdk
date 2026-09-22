@@ -124,7 +124,7 @@ Two different fetches exist. Only the first is code in this repository.
 
 `verifyDomain`’s registry GET uses a 10 second timeout. The default base is `VERIFICATION_API_URL`, or `http://localhost:8787` when that variable is unset.
 
-`agenticTrustMiddleware` uses one `AbortSignal` of 4 seconds (`DEFAULT_MIDDLEWARE_TIMEOUT_MS`) for its local DID read and, if needed, `GET {base}/v1/verify`. Its default base is `AGENTIC_TRUST_API_URL`, then `VERIFICATION_API_URL`, then `https://api.trustflow.systems`. Timeout and transport failure set `securityWarning` and do not throw. Middleware cache TTL is 5 minutes for a successful lookup and 15 seconds for a transport failure.
+`agenticTrustMiddleware` uses one `AbortSignal` of 4 seconds (`DEFAULT_MIDDLEWARE_TIMEOUT_MS`) for its local DID read and, if needed, `GET {base}/v1/verify`. Its default base is `AGENTIC_TRUST_API_URL`, then `VERIFICATION_API_URL`, then `https://api.trustflow.systems`. Timeout and transport failure set `securityWarning` and do not throw. Middleware cache TTL is 5 minutes for a successful lookup and 15 seconds for a transport failure. A warm in-memory hit for `verifyDomain` or the middleware stays under 5ms. `AGENTIC_TRUST_CACHE_DIR` is an optional disk copy of those public results.
 
 `inspectEndpointBeforeExecution` allows the call only when the endpoint URL’s protocol is `https:` and `verifyDomain` on that hostname is `VERIFIED`. If the DID lists MCP service endpoints, the URL must be one of them. This HTTPS check is a string check on the URL. It is not the registry fetcher below.
 
@@ -153,7 +153,7 @@ The SDK timeouts in section 4.1 are client deadlines. They are not this registry
 | `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), or the registry is unreachable or returns a non-status payload. |
 | `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg`), or the endpoint is not HTTPS. |
 
-`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` throw `UnverifiedDomainContextError` before reading or parsing unsigned `llms.txt`.
+`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` are fail-closed by default (`failClosed` defaults to `true`). They throw `UnverifiedDomainContextError` before reading or parsing unsigned or tampered `llms.txt`. The error message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
 
 ## 6. Registry HTTP the clients call
 

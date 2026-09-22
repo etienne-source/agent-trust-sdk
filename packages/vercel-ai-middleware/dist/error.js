@@ -1,4 +1,11 @@
-/** Thrown when domain context is unsigned, unverified, or marked RISK. */
+/**
+ * Fail-closed message thrown when unverified or tampered `llms.txt` context
+ * would otherwise be parsed or executed.
+ */
+export function contextPoisoningErrorMessage(domain) {
+    return `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for ${domain}. Execution blocked.`;
+}
+/** Thrown when domain context is unsigned, unverified, tampered, or marked RISK. */
 export class UnverifiedDomainContextError extends Error {
     code = "AGENTIC_TRUST_UNVERIFIED_CONTEXT";
     domain;
@@ -7,7 +14,7 @@ export class UnverifiedDomainContextError extends Error {
     reason;
     constructor(meta) {
         const reason = meta.warning?.trim() || defaultReason(meta.status);
-        super(`Blocked unverified domain context for ${meta.domain}: ${reason} (${meta.status}). Refusing to parse llms.txt.`);
+        super(contextPoisoningErrorMessage(meta.domain));
         this.name = "UnverifiedDomainContextError";
         this.domain = meta.domain;
         this.status = meta.status;

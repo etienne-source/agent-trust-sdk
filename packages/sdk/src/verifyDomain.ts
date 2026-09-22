@@ -1,4 +1,5 @@
-import { defaultCache } from "./cache.js";
+import { defaultCache, type MemoryCache } from "./cache.js";
+import { clearPublicKeyCache } from "./jws.js";
 import { fingerprintPem } from "./jws.js";
 import { assessDidDocument, fetchDidDocument } from "./localDid.js";
 import {
@@ -21,7 +22,7 @@ const DEFAULT_API =
   (typeof process !== "undefined" && process.env?.VERIFICATION_API_URL) ||
   "http://localhost:8787";
 
-const DEFAULT_CACHE_TTL_MS = 3_600_000; // 1h — hits stay <50ms
+const DEFAULT_CACHE_TTL_MS = 3_600_000; // 1h — warm in-memory hits stay under 5ms
 const LOCAL_DID_TIMEOUT_MS = 8_000;
 
 function getFetch(opts?: VerifyDomainOptions): typeof fetch {
@@ -207,7 +208,7 @@ async function verifyViaApi(
 
 /**
  * Verify a domain against the **AgenticTrust** protocol (`did:web` DID signature + JWS),
- * with central API fallback. Cache-first path targets <50ms on repeat lookups.
+ * with central API fallback. A warm in-memory cache hit stays under 5ms.
  *
  * Import from `@agentic-trust/sdk`. The hosted registry is Trustflow Systems
  * (`https://api.trustflow.systems`).
@@ -226,9 +227,10 @@ export async function verifyDomain(
   }
   const cacheKey = `verify:${domain}`;
   const ttl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+  const cache: MemoryCache = options.cache ?? defaultCache;
 
   if (!options.bypassCache) {
-    const hit = defaultCache.get(cacheKey);
+    const hit = cache.get(cacheKey);
     if (hit) return hit;
   }
 
@@ -257,7 +259,7 @@ export async function verifyDomain(
     }
   }
 
-  defaultCache.set(cacheKey, { ...result, cached: false }, ttl);
+  cache.set(cacheKey, { ...result, cached: false }, ttl);
   return result;
 }
 
@@ -320,4 +322,5 @@ export async function inspectEndpointBeforeExecution(
 
 export function clearVerifyCache(): void {
   defaultCache.clear();
+  clearPublicKeyCache();
 }

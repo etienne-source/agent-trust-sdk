@@ -9,6 +9,12 @@ export interface AgenticTrustVercelAiOptions extends AgenticTrustMiddlewareOptio
      */
     verify?: (target: string) => Promise<AgenticTrustMetadata>;
     /**
+     * Fail closed by default. Unverified or tampered `llms.txt` throws
+     * `UnverifiedDomainContextError` before the response stream or the model runs.
+     * Set `false` to continue without parsing that payload.
+     */
+    failClosed?: boolean;
+    /**
      * Fetch used to load context after verification succeeds.
      * Registry calls use `fetch` on the SDK options, not this function.
      */
@@ -46,13 +52,17 @@ export interface AgenticTrustVercelAiMiddleware {
     loadLlmsFromUrl(url: string): Promise<VerifiedLlmsContext>;
 }
 export declare function createVerifier(options?: AgenticTrustVercelAiOptions): VerifyFn;
+export declare function isFailClosed(options?: {
+    failClosed?: boolean;
+}): boolean;
 export declare function requireVerifiedDomain(target: string, verify: VerifyFn): Promise<AgenticTrustMetadata>;
 /**
  * Vercel AI SDK fetch and language-model middleware.
  *
  * Pass `fetch` to a provider factory and the object itself to `wrapLanguageModel`.
- * Unverified or unsigned domain context throws `UnverifiedDomainContextError`
+ * Unverified or tampered domain context throws `UnverifiedDomainContextError`
  * before the response stream starts and before `llms.txt` is parsed.
+ * That block is the default (`failClosed: true`).
  */
 export declare function agenticTrustVercelAiMiddleware(options?: AgenticTrustVercelAiOptions): AgenticTrustVercelAiMiddleware;
 /** Verify with the SDK, fetch the URL, then parse `llms.txt`. */
