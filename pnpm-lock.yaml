@@ -11,7 +11,7 @@ importers:
   packages/cli:
     dependencies:
       '@agentic-trust/sdk':
-        specifier: file:../sdk
+        specifier: workspace:*
         version: link:../sdk
     devDependencies:
       '@types/node':

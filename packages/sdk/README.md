@@ -11,10 +11,11 @@ The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustf
 ## Install
 
 ```bash
+# Once packages/sdk is on the default branch:
 pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
 ```
 
-npm cannot install this workspace package from a git URL. Clone the repository and depend on `packages/sdk`, or use pnpm as above.
+Until then, clone the repository and use the workspace package `@agentic-trust/sdk`. npm cannot install this workspace path from a git URL.
 
 ## Migration
 

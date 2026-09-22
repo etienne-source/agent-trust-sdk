@@ -10,20 +10,16 @@ Binary: `agentic-trust`
 
 ## Install
 
-```bash
-pnpm add github:etienne-source/agent-trust-sdk#path:/packages/cli
-npx agentic-trust init
-```
-
-The package depends on `@agentic-trust/sdk` from `packages/sdk` (`file:../sdk`). `dist/` is committed so a Git install can run `agentic-trust` without a compile step.
-
-npm does not install a git subdirectory. From a clone:
+`@agentic-trust/cli` depends on `@agentic-trust/sdk` with `workspace:*`. Clone the repository so that link resolves. npm does not install a workspace package from a git URL, and `pnpm add github:...#path:/packages/cli` cannot resolve `workspace:*` on its own.
 
 ```bash
+git clone https://github.com/etienne-source/agent-trust-sdk.git
+cd agent-trust-sdk
 pnpm install
-pnpm build
-pnpm --filter @agentic-trust/cli exec agentic-trust --help
+pnpm --filter @agentic-trust/cli exec agentic-trust init
 ```
+
+`dist/` is committed, so the binary runs after `pnpm install` links the SDK. Use `pnpm --filter @agentic-trust/cli exec agentic-trust --help` from the clone.
 
 ## init
 

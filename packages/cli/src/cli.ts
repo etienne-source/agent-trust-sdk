@@ -47,8 +47,14 @@ Options:
 Secrets are written to .agentic-trust/ and that directory is added to
 .gitignore. Do not commit private-key.pem.
 
-Install from Git until the @agentic-trust npm scope exists:
-  pnpm add github:etienne-source/agent-trust-sdk#path:/packages/cli
+Install from Git until the @agentic-trust npm scope exists (clone so the
+workspace dependency on @agentic-trust/sdk resolves):
+  git clone https://github.com/etienne-source/agent-trust-sdk.git
+  cd agent-trust-sdk && pnpm install
+  pnpm --filter @agentic-trust/cli exec agentic-trust init
+
+The SDK package alone can be added with:
+  pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
 
 Do not install the unrelated npm package trustflow-sdk.
 `;

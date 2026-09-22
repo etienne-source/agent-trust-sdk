@@ -17,7 +17,7 @@ The `@agentic-trust` npm scope is not registered yet. Install from this Git repo
 
 ## CLI
 
-`@agentic-trust/cli` depends on `@agentic-trust/sdk` via `workspace:*`. Clone the repository so that dependency resolves:
+`@agentic-trust/cli` exposes the `agentic-trust` binary. It depends on `@agentic-trust/sdk` via `workspace:*`. Clone the repository so that dependency resolves:
 
 ```bash
 git clone https://github.com/etienne-source/agent-trust-sdk.git
