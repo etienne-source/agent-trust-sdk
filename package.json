@@ -1,8 +1,16 @@
 {
-  "name": "trustflow-sdk",
+  "name": "@trustflow/sdk",
   "version": "0.1.0",
-  "description": "Client SDK for Trustflow domain identity verification",
+  "description": "Trustflow domain identity verification SDK (@trustflow/sdk). Install from github:etienne-source/agent-trust-sdk. The public npm package trustflow-sdk is an unrelated logging package.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/etienne-source/agent-trust-sdk.git"
+  },
+  "homepage": "https://github.com/etienne-source/agent-trust-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/etienne-source/agent-trust-sdk/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
