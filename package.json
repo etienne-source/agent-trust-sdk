@@ -7,7 +7,8 @@
   "scripts": {
     "build": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build && pnpm --filter @agentic-trust/mcp-server build && pnpm --filter @agentic-trust/next-plugin build && pnpm --filter @agentic-trust/langchain-middleware build && pnpm --filter @agentic-trust/vercel-ai-middleware build",
     "typecheck": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli typecheck && pnpm --filter @agentic-trust/mcp-server typecheck && pnpm --filter @agentic-trust/next-plugin typecheck && pnpm --filter @agentic-trust/langchain-middleware typecheck && pnpm --filter @agentic-trust/vercel-ai-middleware typecheck",
-    "test": "pnpm --filter @agentic-trust/sdk test && pnpm --filter @agentic-trust/cli test && pnpm --filter @agentic-trust/mcp-server test && pnpm --filter @agentic-trust/next-plugin test && pnpm --filter @agentic-trust/langchain-middleware test && pnpm --filter @agentic-trust/vercel-ai-middleware test",
+    "test": "pnpm --filter @agentic-trust/sdk test && pnpm --filter @agentic-trust/cli test && pnpm --filter @agentic-trust/mcp-server test && pnpm --filter @agentic-trust/next-plugin test && pnpm --filter @agentic-trust/langchain-middleware test && pnpm --filter @agentic-trust/vercel-ai-middleware test && node --test scripts/create-starter-prs.test.mjs scripts/notify-verified-domain.test.mjs",
+    "starter-prs": "node scripts/create-starter-prs.mjs",
     "smoke": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build && pnpm --filter @agentic-trust/cli smoke",
     "starters:check": "node starters/check.mjs",
     "clean": "pnpm --filter @agentic-trust/sdk --filter @agentic-trust/cli --filter @agentic-trust/mcp-server --filter @agentic-trust/next-plugin --filter @agentic-trust/langchain-middleware --filter @agentic-trust/vercel-ai-middleware clean"

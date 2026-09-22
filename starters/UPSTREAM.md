@@ -2,6 +2,8 @@
 
 `starters/nextjs`, `starters/v0`, and `starters/bolt` are ready to copy into popular Next.js, v0, and Bolt.new templates. Open those pull requests yourself, against a fork, one template at a time. This repository does not open them.
 
+`scripts/create-starter-prs.mjs` dry-runs that same placeholder (`REPLACE_ME` `did.json`, `llms.txt`, and `withAgenticTrust` or LangChain middleware). It opens a pull request only when you pass `--apply` and an allowlist of repositories you maintain. The example allowlist is empty. It does not use the suggested targets below.
+
 Do not send a drive-by pull request that replaces an existing app with the whole starter. Add the AgenticTrust files to the template that is already there.
 
 ## What to add

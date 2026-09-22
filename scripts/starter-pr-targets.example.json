@@ -1,0 +1,16 @@
+{
+  "example": true,
+  "description": "Allowlist for scripts/create-starter-prs.mjs. Copy to scripts/starter-pr-targets.json (gitignored), set example to false, and list only repositories you maintain. targets stays empty until then. The script does not search GitHub and does not open a pull request unless you pass --apply with that copied file. Suggested upstreams in starters/UPSTREAM.md are not targets.",
+  "targetShape": {
+    "repo": "owner/name",
+    "framework": "next or langchain",
+    "enabled": true,
+    "domain": "example.com",
+    "name": "Example",
+    "description": "What the site is",
+    "services": ["Docs"],
+    "base": "main",
+    "nextConfig": "ts, mjs, or js (next only)"
+  },
+  "targets": []
+}

@@ -69,6 +69,21 @@ export VERIFICATION_API_URL=https://api.trustflow.systems
 
 That calls `GET /v1/verify?domain=`. The SDK only performs HTTPS fetches. It has no database client.
 
+## Verified-domain webhook
+
+`notifyVerifiedDomain` fires only when the caller reports **100/100 VERIFIED** (`status` `VERIFIED`, `score` `100`, `maxScore` `100` or omitted). It POSTs to `VERIFIED_NOTIFY_WEBHOOK`. It does not query Trustflow and it does not post to X. Sharing on X is a separate explicit step.
+
+```ts
+import { notifyVerifiedDomain } from "@agentic-trust/sdk";
+
+const result = await notifyVerifiedDomain({
+  domain: "example.com",
+  status: "VERIFIED",
+  score: 100,
+});
+// result.reason: "sent" | "webhook_unset" | "not_complete" | "webhook_rejected" | "request_failed"
+```
+
 ## Signature algorithms
 
 DID proofs are compact JWS. Verification accepts only:
@@ -89,6 +104,7 @@ clearVerifyCache(): void
 agenticTrustMiddleware(options?): AgenticTrustMiddleware
 // middleware.verify / annotateContext / annotateDocuments / fetch / wrapTool
 createSignedDidDocument(input): Promise<SignedDidIdentity>
+notifyVerifiedDomain(notice, options?): Promise<NotifyVerifiedDomainResult>
 hashPublicKeyPem(pem): string
 normalizeDomain, didWebId, wellKnownDidUrl, verifyDidJws, ...
 ```

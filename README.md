@@ -367,12 +367,62 @@ Details are in [packages/next-plugin/README.md](packages/next-plugin/README.md).
 
 Drop-in App Router boilerplates for Next.js, v0, and Bolt.new community templates live in [`starters/`](starters/README.md) (`nextjs`, `v0`, `bolt`). Each one wraps `next.config` with `withAgenticTrust` and commits placeholder `public/llms.txt` and `public/.well-known/did.json` files (`REPLACE_ME`, no private key). How to open upstream pull requests is in [starters/UPSTREAM.md](starters/UPSTREAM.md). Those pull requests are not opened from this repository.
 
+## Starter pull requests
+
+`scripts/create-starter-prs.mjs` plans a pull request that adds the same placeholder identity the starters use, plus framework wiring:
+
+| Target `framework` | Files | Wiring |
+|--------------------|-------|--------|
+| `next` | `public/llms.txt`, `public/.well-known/llms.txt`, `public/.well-known/did.json`, Cursor rules | `@agentic-trust/next-plugin` `withAgenticTrust`, using the `next.config` shape from `starters/nextjs`, `starters/v0`, or `starters/bolt` |
+| `langchain` | `llms.txt`, `.well-known/llms.txt`, `.well-known/did.json`, Cursor rules | `src/agentic-trust.ts` exporting `agenticTrustLangChainMiddleware()` from `@agentic-trust/langchain-middleware` |
+
+`did.json` stays the unsigned `REPLACE_ME` placeholder from `starters/nextjs`. It is not a signature and it does not make a domain VERIFIED. Install lines use `github:etienne-source/agent-trust-sdk`. Do not install the unrelated `trustflow-sdk` package.
+
+The default run is a dry run. It prints the title, body, and file contents and does not call GitHub.
+
+```bash
+node scripts/create-starter-prs.mjs
+# or: pnpm starter-prs
+```
+
+A real pull request needs both `--apply` and `--targets`, a `GITHUB_TOKEN` or `GH_TOKEN` that can open pull requests on those repositories, and an allowlist you maintain. Copy [`scripts/starter-pr-targets.example.json`](scripts/starter-pr-targets.example.json) to `scripts/starter-pr-targets.json` (gitignored), set `"example"` to false, and add at most five `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. The script does not search GitHub and does not read the suggested upstreams in `starters/UPSTREAM.md`.
+
+```bash
+node scripts/create-starter-prs.mjs --targets scripts/starter-pr-targets.json --apply
+```
+
+## Verified-domain webhook
+
+`notifyVerifiedDomain` in `@agentic-trust/sdk` runs when something else reports a domain at **100/100 VERIFIED**. It does not score the domain and it does not call the registry. A complete notice is `status: "VERIFIED"` with `score` and `maxScore` both `100`. Anything else returns `not_complete` and does not send.
+
+When the notice is complete, the helper POSTs JSON to `VERIFIED_NOTIFY_WEBHOOK` (HTTPS). The body is `event: "agentic_trust.domain.verified"` and names **AgenticTrust** as the protocol and **Trustflow Systems** as the registry. If the variable is unset, it logs and returns `webhook_unset`. Hosts under `x.com` and `twitter.com` are refused. Sharing on X is a separate explicit step. This hook does not post to X.
+
+```ts
+import { notifyVerifiedDomain } from "@agentic-trust/sdk";
+
+await notifyVerifiedDomain({
+  domain: "example.com",
+  status: "VERIFIED",
+  score: 100,
+});
+```
+
+The command-line form is also a dry run until `--send`:
+
+```bash
+node scripts/notify-verified-domain.mjs --domain example.com --score 100
+VERIFIED_NOTIFY_WEBHOOK=https://example.com/hooks/agentic-trust \
+  node scripts/notify-verified-domain.mjs --domain example.com --score 100 --send
+```
+
 ## Development
 
 ```bash
 pnpm install
 pnpm starters:check
 pnpm test
+node scripts/create-starter-prs.mjs
+node scripts/notify-verified-domain.mjs --domain example.invalid --score 100
 pnpm typecheck
 pnpm build
 pnpm smoke
