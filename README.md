@@ -1,17 +1,41 @@
-# agent-trust-sdk
+# trustflow-sdk
 
-Lightweight TypeScript client for **Agentic Trust** domain identity verification.
+Lightweight TypeScript client for **Trustflow** domain identity verification.
 Use it in AI agents and frameworks before tool / MCP execution to reduce tool
 poisoning, fake listings, and unverified data.
 
-**License:** MIT · **Package:** `agent-trust-sdk`
+**License:** MIT · **Package:** `trustflow-sdk`
 
-## Install
+## Package name
+
+`@trustflow/sdk` is the preferred npm name. The `@trustflow` scope is not registered on the public registry, and this repository cannot create that organization, so the package name is the unscoped `trustflow-sdk`.
+
+The public name `trustflow-sdk` is already published as an unrelated package (HTTP log shipping, `trustflow-sdk@1.0.0`). `npm install trustflow-sdk` installs that package. Install this SDK from Git until the name is free or the `@trustflow` scope exists:
 
 ```bash
-pnpm add agent-trust-sdk
-# or: npm install agent-trust-sdk / yarn add agent-trust-sdk
+pnpm add github:etienne-source/agent-trust-sdk
+# or: npm install github:etienne-source/agent-trust-sdk
+# or: yarn add github:etienne-source/agent-trust-sdk
 ```
+
+## Migration
+
+The published package name and import specifier changed. Function names are unchanged.
+
+| Before | After |
+|--------|--------|
+| `agent-trust-sdk` | `trustflow-sdk` |
+| `import { verifyDomain } from "agent-trust-sdk"` | `import { verifyDomain } from "trustflow-sdk"` |
+
+## CLI
+
+The Trustflow CLI command is:
+
+```bash
+npx trustflow init
+```
+
+That command belongs to the future `trustflow` CLI. This package is the verification SDK.
 
 ## Quick start
 
@@ -20,7 +44,7 @@ import {
   verifyDomain,
   inspectEndpointBeforeExecution,
   clearVerifyCache,
-} from "agent-trust-sdk";
+} from "trustflow-sdk";
 
 // 1) Verify a business domain (did:web + JWS, with optional API fallback)
 const result = await verifyDomain("example.com");
