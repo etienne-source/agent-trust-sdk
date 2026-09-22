@@ -1,13 +1,13 @@
 # AgenticTrust
 
-Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, the CLI, and the MCP server. **Trustflow Systems** is the hosted registry.
+Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, the CLI, the MCP server, and the Next.js plugin. **Trustflow Systems** is the hosted registry.
 
 | Piece | Name | What it is |
 |-------|------|------------|
-| Protocol, SDK, CLI, MCP | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`), `@agentic-trust/mcp-server` |
+| Protocol, SDK, CLI, MCP, Next | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` (`agentic-trust`), `@agentic-trust/mcp-server`, `@agentic-trust/next-plugin` |
 | Hosted platform | **Trustflow Systems** | [trustflow.systems](https://trustflow.systems) · API `https://api.trustflow.systems` |
 
-`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems. `@agentic-trust/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio.
+`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems. `@agentic-trust/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio. `@agentic-trust/next-plugin` warns during `next dev` when `public/llms.txt` or `public/.well-known/did.json` is missing or invalid.
 
 **License:** MIT
 
@@ -258,6 +258,24 @@ Publish `llms.txt`, `.well-known/llms.txt`, `.well-known/did.json`, and (for SSL
 
 That snippet is the `mcpServers` entry for Cursor (`cursor.json` or `.cursor/mcp.json`) and Claude Desktop (`claude_desktop_config.json`). Tool details and the future `npx -y @agentic-trust/mcp-server` form are in [packages/mcp-server/README.md](packages/mcp-server/README.md).
 
+## Next.js
+
+`@agentic-trust/next-plugin` wraps a Next.js config. In development it checks `public/llms.txt` and `public/.well-known/did.json`. Missing, empty, unreadable, or non-JSON identity files print a terminal warning and do not fail the build. Production builds stay quiet. Create the files with `npx agentic-trust init` (`@agentic-trust/cli`). The plugin is not on npm. Do not install the unrelated `trustflow-sdk` package.
+
+```bash
+pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin
+```
+
+```js
+const { withAgenticTrust } = require("@agentic-trust/next-plugin");
+
+module.exports = withAgenticTrust({
+  reactStrictMode: true,
+});
+```
+
+Details are in [packages/next-plugin/README.md](packages/next-plugin/README.md).
+
 ## Development
 
 ```bash
@@ -270,7 +288,7 @@ pnpm smoke
 
 Pull requests and pushes to `main` run those three checks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
 
-`packages/*/dist` is committed so a clone can run `agentic-trust` and `agentic-trust-mcp` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, or MCP server sources change.
+`packages/*/dist` is committed so a clone can run `agentic-trust` and `agentic-trust-mcp` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, MCP server, or Next plugin sources change.
 
 `TRUSTFLOW_LIVE=1 pnpm --filter @agentic-trust/cli test` also calls the production register endpoint.
 
