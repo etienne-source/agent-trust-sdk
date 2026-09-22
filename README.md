@@ -1,6 +1,10 @@
 # AgenticTrust
 
-Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, the CLI, the MCP server, the Next.js plugin, and the framework middleware. **Trustflow Systems** is the hosted registry.
+Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, the SDK, the CLI, the MCP server, the Next.js plugin, and the framework middleware. **Trustflow Systems** hosts the registry at [trustflow.systems](https://trustflow.systems) and `https://api.trustflow.systems`.
+
+[Verified by AgenticTrust | trustflow.systems](https://trustflow.systems/verify/example.com)
+
+That link is the public verify page the CLI badge uses. `agentic-trust init` prints an inline SVG with the same words, **Verified by AgenticTrust | trustflow.systems**, and the same href pattern: `https://trustflow.systems/verify/<domain>`. Probes of `/badge` on `trustflow.systems` and `api.trustflow.systems` return 404, so this README does not point at a badge image URL.
 
 | Piece | Name | What it is |
 |-------|------|------------|
@@ -10,30 +14,108 @@ Open-standard domain identity for AI agents. **AgenticTrust** is the protocol, t
 
 `@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems. `@agentic-trust/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio. `@agentic-trust/next-plugin` warns during `next dev` when `public/llms.txt` or `public/.well-known/did.json` is missing or invalid.
 
+The signature and fetch rules are in [SPEC.md](SPEC.md).
+
 **License:** MIT
 
 > **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` and `npx trustflow init` point at an unrelated logging package. This repository is not that package, and the `@agentic-trust` scope is not on npm. Install from GitHub: `github:etienne-source/agent-trust-sdk`.
 
-## Install
+## Architecture
 
-Git only.
+```mermaid
+flowchart LR
+  subgraph agents [AgenticTrust — open protocol]
+    CLI["@agentic-trust/cli<br/>agentic-trust init"]
+    SDK["@agentic-trust/sdk<br/>did:web + JWS"]
+    MCP["@agentic-trust/mcp-server"]
+    NEXT["@agentic-trust/next-plugin"]
+    LC["langchain-middleware"]
+    VAI["vercel-ai-middleware"]
+  end
 
-SDK, from another project:
+  subgraph registry [Trustflow Systems — hosted registry]
+    SITE["trustflow.systems<br/>/verify/domain"]
+    API["api.trustflow.systems<br/>/v1/register · /v1/verify"]
+  end
 
-```bash
-pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
+  DOMAIN["Your domain<br/>/.well-known/did.json<br/>/.well-known/llms.txt"]
+
+  CLI --> SDK
+  MCP --> SDK
+  LC --> SDK
+  VAI --> SDK
+  CLI -->|"POST /v1/register"| API
+  SDK -->|"GET did.json"| DOMAIN
+  SDK -->|"GET /v1/verify"| API
+  SITE --> API
+  API -->|"domain proof"| DOMAIN
 ```
 
-CLI, from a clone. `@agentic-trust/cli` depends on `@agentic-trust/sdk` with `workspace:*`, which only resolves inside this repository:
+AgenticTrust code in this repository signs and checks documents. Trustflow Systems stores the registration and serves the public verify page. The registry’s domain-proof fetch is not a function in this repository; see [SPEC.md](SPEC.md).
+
+## Packages
+
+| Package | Path | Install |
+|---------|------|---------|
+| `@agentic-trust/sdk` | [packages/sdk](packages/sdk) | `pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk` |
+| `@agentic-trust/cli` | [packages/cli](packages/cli) | Clone this repo (`workspace:*` on the SDK). Binary: `agentic-trust` |
+| `@agentic-trust/mcp-server` | [packages/mcp-server](packages/mcp-server) | Clone this repo. Binary: `agentic-trust-mcp` |
+| `@agentic-trust/next-plugin` | [packages/next-plugin](packages/next-plugin) | `pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin` |
+| `@agentic-trust/langchain-middleware` | [packages/langchain-middleware](packages/langchain-middleware) | GitHub path install, plus the SDK path above |
+| `@agentic-trust/vercel-ai-middleware` | [packages/vercel-ai-middleware](packages/vercel-ai-middleware) | GitHub path install, plus the SDK path above |
+
+This repository has no `starters/` directory. The quickstart below is the scaffold.
+
+## Quickstart
+
+The command once `@agentic-trust/cli` is on npm:
+
+```bash
+npx agentic-trust init
+```
+
+That scope is not on npm yet, so `npx agentic-trust init` does not resolve from the registry today. From a clone, the same binary is:
 
 ```bash
 git clone https://github.com/etienne-source/agent-trust-sdk.git
 cd agent-trust-sdk
 pnpm install
-pnpm --filter @agentic-trust/cli exec agentic-trust --help
+pnpm --filter @agentic-trust/cli exec agentic-trust init \
+  --non-interactive \
+  --domain example.com \
+  --name "Example Co" \
+  --description "Widgets for agents"
 ```
 
-`dist/` is already built, so the binary runs after `pnpm install`. Do not `pnpm add` only `packages/cli` from Git. Do not `npm install github:etienne-source/agent-trust-sdk` against the repository root: that package is the private workspace.
+SDK only, from another project:
+
+```bash
+pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
+```
+
+```ts
+import { verifyDomain } from "@agentic-trust/sdk";
+
+const result = await verifyDomain("example.com", {
+  verificationApiUrl: "https://api.trustflow.systems",
+});
+```
+
+Do not run `npm install trustflow-sdk`, `npm install github:etienne-source/agent-trust-sdk` against the repository root, or `pnpm add` of `packages/cli` by itself. The root package is the private workspace. CLI, MCP, and the two middleware packages depend on `@agentic-trust/sdk` with `workspace:*`, which resolves inside this clone. `dist/` is committed, so the CLI runs after `pnpm install`.
+
+## Badge
+
+`renderBadge` in `@agentic-trust/cli` emits HTML whose visible text and link are fixed:
+
+```html
+<a href="https://trustflow.systems/verify/example.com">Verified by AgenticTrust | trustflow.systems</a>
+```
+
+Replace `example.com` with the registered hostname. The verify page is [https://trustflow.systems/verify/example.com](https://trustflow.systems/verify/example.com). Markdown for a README:
+
+```md
+[Verified by AgenticTrust | trustflow.systems](https://trustflow.systems/verify/example.com)
+```
 
 ## Configure
 
