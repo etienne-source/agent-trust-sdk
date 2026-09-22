@@ -20,6 +20,8 @@
  * @packageDocumentation
  */
 export { verifyDomain, inspectEndpointBeforeExecution, clearVerifyCache } from "./verifyDomain.js";
+export { agenticTrustMiddleware, DEFAULT_TRUST_API_URL, DEFAULT_MIDDLEWARE_TIMEOUT_MS, DEFAULT_MIDDLEWARE_CACHE_TTL_MS, } from "./agenticTrustMiddleware.js";
+export type { AgenticTrustMetadata, AgenticTrustMiddleware, AgenticTrustMiddlewareOptions, LangChainLikeDocument, } from "./agenticTrustMiddleware.js";
 export { MemoryCache, defaultCache } from "./cache.js";
 export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem } from "./jws.js";

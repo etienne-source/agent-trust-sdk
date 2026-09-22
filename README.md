@@ -67,6 +67,39 @@ if (!gate.allowed) throw new Error(gate.reason ?? "Endpoint blocked");
 
 Set `VERIFICATION_API_URL=https://api.trustflow.systems` to use the hosted registry (`GET /v1/verify?domain=`). See `.env.example`.
 
+### Demand-side middleware
+
+`agenticTrustMiddleware` checks a domain when an agent fetches it. The wrapper calls `GET https://api.trustflow.systems/v1/verify` (base URL configurable). Verified content gets `{ verified: true, trustScore }` on the context and, for `fetch`, an `x-agentic-trust` header. Unverified domains and registry timeouts or network errors set `securityWarning: true` and do not throw. Results reuse the SDK memory cache (middleware misses for 5 minutes; transport failures for 15 seconds). The registry timeout is 4 seconds.
+
+```ts
+import { agenticTrustMiddleware } from "@agentic-trust/sdk";
+
+const trust = agenticTrustMiddleware();
+
+const context = await trust.annotateContext({ snippet: pageText }, "https://example.com/pricing");
+// context.agenticTrust = { verified: true, trustScore, domain, status, did }
+
+const response = await trust.fetch("https://example.com/data.json");
+const payload = await response.json();
+if (payload.securityWarning) {
+  // unverified, or the registry could not be reached
+}
+
+const browser = trust.wrapTool(webBrowserTool);
+const docs = await trust.annotateDocuments(await loader.load());
+```
+
+Vercel AI SDK providers accept the wrapped fetch:
+
+```ts
+import { createOpenAI } from "@ai-sdk/openai";
+import { agenticTrustMiddleware } from "@agentic-trust/sdk";
+
+const openai = createOpenAI({ fetch: agenticTrustMiddleware().fetch });
+```
+
+`clearVerifyCache()` drops both `verifyDomain` entries and middleware entries.
+
 ### Migration
 
 Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
@@ -83,7 +116,8 @@ Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
 
 | Framework / pattern | Integration tip |
 |---------------------|-----------------|
-| **LangChain / LangGraph** | Wrap tool registration: call `inspectEndpointBeforeExecution` on each tool URL before binding. |
+| **LangChain / LangGraph** | `agenticTrustMiddleware().wrapTool` on URL-fetching tools, or `annotateDocuments` after a loader. |
+| **Vercel AI SDK** | Pass `agenticTrustMiddleware().fetch` as the provider `fetch`, or `wrapTool` on a tool `execute`. |
 | **OpenAI Agents / function calling** | Before `fetch`/`tools` invocation, `verifyDomain` on the host of any remote tool schema URL. |
 | **MCP clients** | On `tools/list` or connect, inspect each `serviceEndpoint`; refuse non-HTTPS or RISK. |
 | **Custom agent loops** | Cache-first `verifyDomain` on first contact with a domain; reuse until TTL expires. |
