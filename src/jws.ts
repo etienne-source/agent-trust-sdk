@@ -35,7 +35,7 @@ export async function importPublicKey(
 }
 
 /**
- * Verify compact JWS (RS256/ES256) attached as did.proof.jws.
+ * Verify an AgenticTrust DID signature: compact JWS (RS256/ES256) attached as `did.proof.jws`.
  */
 export async function verifyDidJws(
   did: DidDocument,

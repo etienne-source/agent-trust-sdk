@@ -1,41 +1,44 @@
-# @trustflow/sdk
+# AgenticTrust SDK
 
-Lightweight TypeScript client for **Trustflow** domain identity verification.
-Use it in AI agents and frameworks before tool / MCP execution to reduce tool
-poisoning, fake listings, and unverified data.
+`@agentic-trust/sdk` is the open-standard TypeScript client for the **AgenticTrust** cryptographic protocol. It verifies domain identity with DID signatures (`did:web` + JWS) and is the SDK integration used by AI agents and frameworks before tool / MCP execution. Use it to reduce tool poisoning, fake listings, and unverified data.
 
-**License:** MIT · **Package:** `@trustflow/sdk` · **Install:** GitHub only
+The open standard and this SDK are **AgenticTrust**. The future CLI package is `@agentic-trust/cli` (not fully built yet).
 
-> **Warning:** Do not install `trustflow-sdk` from the public npm registry — that is a different package (unrelated logging).
+**License:** MIT · **Package:** `@agentic-trust/sdk` · **Install:** GitHub only
+
+> **Warning:** Do not run `npm install trustflow-sdk`. That npm name is an unrelated logging package.
 
 ## Install
 
-The `@trustflow` npm scope is not registered yet. This repository's `package.json` name is `@trustflow/sdk`, and the only supported install is from Git. That GitHub URL installs the package so imports resolve to `@trustflow/sdk`:
+The `@agentic-trust` npm scope is not registered yet. This repository's `package.json` name is `@agentic-trust/sdk`, and the only supported install is from Git. That GitHub URL installs the package so imports resolve to `@agentic-trust/sdk`:
 
 ```bash
 pnpm add github:etienne-source/agent-trust-sdk
-# or: npm install github:etienne-source/agent-trust-sdk
+npm install github:etienne-source/agent-trust-sdk
 # or: yarn add github:etienne-source/agent-trust-sdk
 ```
 
 ## Migration
 
-Function names are unchanged. Install from Git and import `@trustflow/sdk`.
+Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
 
-| Before | After |
-|--------|--------|
-| `agent-trust-sdk` | `@trustflow/sdk` via `github:etienne-source/agent-trust-sdk` |
-| `import { verifyDomain } from "agent-trust-sdk"` | `import { verifyDomain } from "@trustflow/sdk"` |
+| Previous | Current |
+|----------|---------|
+| `agent-trust-sdk` | `@agentic-trust/sdk` |
+| `@trustflow/sdk` | `@agentic-trust/sdk` |
+| `import { verifyDomain } from "agent-trust-sdk"` | `import { verifyDomain } from "@agentic-trust/sdk"` |
+| `import { verifyDomain } from "@trustflow/sdk"` | `import { verifyDomain } from "@agentic-trust/sdk"` |
+| `npx trustflow init` | `npx agentic-trust init` |
 
 ## CLI
 
-This package is the verification SDK and does not ship a CLI. A future Trustflow CLI command is:
+This package is the verification SDK and does not ship a CLI. The future CLI package is `@agentic-trust/cli`. Developers scaffold a project with:
 
 ```bash
-npx trustflow init
+npx agentic-trust init
 ```
 
-Install this SDK with the GitHub commands in [Install](#install).
+Do not use `npx trustflow init`. Install this SDK with the GitHub commands in [Install](#install).
 
 ## Quick start
 
@@ -44,9 +47,9 @@ import {
   verifyDomain,
   inspectEndpointBeforeExecution,
   clearVerifyCache,
-} from "@trustflow/sdk";
+} from "@agentic-trust/sdk";
 
-// 1) Verify a business domain (did:web + JWS, with optional API fallback)
+// 1) Verify a business domain (AgenticTrust did:web DID signature + JWS, with optional API fallback)
 const result = await verifyDomain("example.com");
 // result.status: "VERIFIED" | "UNVERIFIED" | "RISK"
 // result.claims: { did, services, llmsTxtPresent, mcpEndpoints, ... }
@@ -64,6 +67,8 @@ if (!gate.allowed) {
 
 ## How AI frameworks should use it
 
+AgenticTrust SDK integrations:
+
 | Framework / pattern | Integration tip |
 |---------------------|-----------------|
 | **LangChain / LangGraph** | Wrap tool registration: call `inspectEndpointBeforeExecution` on each tool URL before binding. |
@@ -73,7 +78,7 @@ if (!gate.allowed) {
 
 Statuses:
 
-- **VERIFIED** — `did:web` present and JWS verifies (and/or central registry confirms)
+- **VERIFIED** — AgenticTrust `did:web` present and the DID signature (JWS) verifies (and/or central registry confirms)
 - **UNVERIFIED** — missing manifest, key, proof, or registry entry
 - **RISK** — bad signature, non-`did:web`, or unsafe (e.g. non-HTTPS) endpoint
 
