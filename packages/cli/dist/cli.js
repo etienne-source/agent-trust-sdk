@@ -20,6 +20,9 @@ init
   Look for llms.txt in the project. If it is missing, write one (prompting for
   site name, description, and optional services). Generate a did:web keypair,
   sign .well-known/did.json, and register the domain.
+  By default, also write IDE rules so coding agents keep a W3C did:web document
+  at public/.well-known/did.json and a signed public/llms.txt:
+  .cursorrules and .cursor/rules/agentic-trust.mdc. Pass --no-ide-rules to skip.
 
   POST https://api.trustflow.systems/v1/register
   Body: domain, businessName, verificationType (SSL_CHALLENGE | DNS_TXT),
@@ -50,6 +53,7 @@ Options:
   --dry-run                       Sign locally and skip POST /v1/register
   --skip-register                 Write local files only
   --force-keys                    Rotate the did:web keypair
+  --no-ide-rules                  Do not write .cursorrules or .cursor/rules/agentic-trust.mdc
   --non-interactive               Do not prompt (CI)
   -h, --help                      Show this help
 
@@ -86,6 +90,7 @@ function parse(argv) {
             "dry-run": { type: "boolean", default: false },
             "skip-register": { type: "boolean", default: false },
             "force-keys": { type: "boolean", default: false },
+            "no-ide-rules": { type: "boolean", default: false },
             "non-interactive": { type: "boolean", default: false },
             help: { type: "boolean", short: "h", default: false },
         },
@@ -113,6 +118,7 @@ function parse(argv) {
         dryRun: values["dry-run"],
         skipRegister: values["skip-register"],
         forceKeys: values["force-keys"],
+        noIdeRules: values["no-ide-rules"],
         nonInteractive: values["non-interactive"],
     };
 }
@@ -172,6 +178,7 @@ export async function main(argv, io) {
                 confirm: parsed.confirm,
                 skipRegister: parsed.skipRegister,
                 forceKeys: parsed.forceKeys,
+                ideRules: !parsed.noIdeRules,
                 fetch: fetchFn,
                 prompt,
                 log,

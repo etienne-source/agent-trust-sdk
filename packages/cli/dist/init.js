@@ -1,6 +1,7 @@
 import { createSignedDidDocument, normalizeDomain } from "@agentic-trust/sdk";
 import { resolveTrustflowApiBase } from "./api.js";
 import { renderBadge } from "./badge.js";
+import { writeIdeRules } from "./ideRules.js";
 import { parseServiceList, readLlms, renderLlms, } from "./llms.js";
 import { ensureGitignore, gitignoreNotice, readKeyPair, writeDidDocument, writePrivateKey, writeProjectFile, writePublicKey, } from "./project.js";
 import { registerAndStore } from "./registerFlow.js";
@@ -94,6 +95,7 @@ export async function runInit(options) {
     if (!name || !description) {
         throw new Error("Site name and description are required.");
     }
+    await writeIdeRulesIfEnabled(options);
     if (!options.skipRegister) {
         const apiBase = resolveTrustflowApiBase(options.apiUrl ?? options.envApiUrl);
         options.log(`Trustflow API: POST ${apiBase}/v1/register`);
@@ -148,6 +150,15 @@ export async function runInit(options) {
     options.log("- Register later with: agentic-trust init");
     printBadge(options.log, normalizedDomain);
     return 0;
+}
+async function writeIdeRulesIfEnabled(options) {
+    if (!options.ideRules) {
+        options.log("Skipped IDE rules (--no-ide-rules).");
+        return;
+    }
+    const written = await writeIdeRules(options.cwd);
+    options.log(`Wrote ${written.cursorrules}`);
+    options.log(`Wrote ${written.mdc}`);
 }
 function printBadge(log, domain) {
     log("");

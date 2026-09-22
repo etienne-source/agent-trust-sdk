@@ -12,6 +12,8 @@ export interface InitOptions {
     confirm: boolean;
     skipRegister: boolean;
     forceKeys: boolean;
+    /** When false, skip `.cursorrules` and `.cursor/rules/agentic-trust.mdc`. Default true. */
+    ideRules: boolean;
     fetch: typeof fetch;
     prompt: (question: string) => Promise<string>;
     log: (line?: string) => void;
