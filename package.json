@@ -1,54 +1,17 @@
 {
-  "name": "@agentic-trust/sdk",
+  "name": "agent-trust-sdk",
+  "private": true,
   "version": "0.1.0",
-  "description": "AgenticTrust open-standard SDK (@agentic-trust/sdk) for domain identity, DID signatures, and agent integrations. Install from Git (github:etienne-source/agent-trust-sdk) until the npm scope exists. Scaffold with npx agentic-trust init (@agentic-trust/cli).",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/etienne-source/agent-trust-sdk.git"
-  },
-  "homepage": "https://github.com/etienne-source/agent-trust-sdk#readme",
-  "bugs": {
-    "url": "https://github.com/etienne-source/agent-trust-sdk/issues"
-  },
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": ["dist", "README.md", "LICENSE"],
+  "description": "AgenticTrust workspace: @agentic-trust/sdk and @agentic-trust/cli. Hosted registry: Trustflow Systems.",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "jose": "^5.9.6"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "build": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build",
+    "typecheck": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli typecheck",
+    "test": "pnpm --filter @agentic-trust/sdk test && pnpm --filter @agentic-trust/cli test",
+    "smoke": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build && pnpm --filter @agentic-trust/cli smoke",
+    "clean": "pnpm --filter @agentic-trust/sdk --filter @agentic-trust/cli clean"
   },
   "engines": {
     "node": ">=20"
-  },
-  "keywords": [
-    "agentictrust",
-    "agentic-trust",
-    "ai",
-    "agents",
-    "did",
-    "did:web",
-    "verification",
-    "mcp",
-    "trust",
-    "llms.txt"
-  ]
+  }
 }

@@ -1,5 +1,5 @@
 node_modules
-dist
+/dist
 .env
 .env.local
 *.pem
@@ -9,3 +9,4 @@ certificates
 coverage
 *.log
 .DS_Store
+.agentic-trust/

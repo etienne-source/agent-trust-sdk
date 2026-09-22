@@ -224,7 +224,8 @@ async function verifyViaApi(
  * Verify a domain against the **AgenticTrust** protocol (`did:web` DID signature + JWS),
  * with central API fallback. Cache-first path targets <50ms on repeat lookups.
  *
- * Import from `@agentic-trust/sdk`.
+ * Import from `@agentic-trust/sdk`. The hosted registry is Trustflow Systems
+ * (`https://api.trustflow.systems`).
  */
 export async function verifyDomain(
   domainUrl: string,

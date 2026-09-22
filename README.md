@@ -1,24 +1,73 @@
-# AgenticTrust SDK
+# AgenticTrust
 
-`@agentic-trust/sdk` is the open-standard TypeScript client for the **AgenticTrust** cryptographic protocol. It verifies domain identity with DID signatures (`did:web` + JWS) and is the SDK integration used by AI agents and frameworks before tool / MCP execution. Use it to reduce tool poisoning, fake listings, and unverified data.
+Open-standard domain identity for AI agents, plus the Trustflow Systems registry client.
 
-The open standard and this SDK are **AgenticTrust**. The future CLI package is `@agentic-trust/cli` (not fully built yet).
+| Piece | Name | What it is |
+|-------|------|------------|
+| Protocol, SDK, CLI | **AgenticTrust** | `did:web` signatures, `@agentic-trust/sdk`, `@agentic-trust/cli` |
+| Hosted platform | **Trustflow Systems** | [trustflow.systems](https://trustflow.systems) · API `https://api.trustflow.systems` |
 
-**License:** MIT · **Package:** `@agentic-trust/sdk` · **Install:** GitHub only
+`@agentic-trust/sdk` verifies domain identity with DID signatures (`did:web` + JWS) before tool / MCP execution. `@agentic-trust/cli` scaffolds a domain and registers it with Trustflow Systems.
 
-> **Warning:** Do not run `npm install trustflow-sdk`. That npm name is an unrelated logging package.
+**License:** MIT
 
-## Install
+> **Warning:** Do not run `npm install trustflow-sdk`. That npm name is an unrelated logging package. Do not run `npx trustflow init`.
 
-The `@agentic-trust` npm scope is not registered yet. This repository's `package.json` name is `@agentic-trust/sdk`, and the only supported install is from Git. That GitHub URL installs the package so imports resolve to `@agentic-trust/sdk`:
+The `@agentic-trust` npm scope is not registered yet. Install from this Git repository.
+
+## CLI
+
+`@agentic-trust/cli` exposes the `agentic-trust` binary. It depends on `@agentic-trust/sdk` via `workspace:*`. Clone the repository so that dependency resolves:
 
 ```bash
-pnpm add github:etienne-source/agent-trust-sdk
-npm install github:etienne-source/agent-trust-sdk
-# or: yarn add github:etienne-source/agent-trust-sdk
+git clone https://github.com/etienne-source/agent-trust-sdk.git
+cd agent-trust-sdk
+pnpm install
+pnpm --filter @agentic-trust/cli exec agentic-trust init
 ```
 
-## Migration
+`dist/` is already built in the repository, so you do not need a compile step to run the binary. Do not `pnpm add` only `packages/cli` from Git: pnpm cannot satisfy `workspace:*` outside this repository.
+
+`agentic-trust init`:
+
+1. Looks for `llms.txt` (project root, `.well-known/`, `public/`, `static/`, `docs/`, `src/`). If it is missing, prompts for site name, description, and optional services, then writes `llms.txt` and `.well-known/llms.txt`.
+2. Generates an RS256 `did:web` key, signs `.well-known/did.json`, and stores the private key in `.agentic-trust/` (added to `.gitignore`, mode `0600`).
+3. Registers the domain with Trustflow: `POST https://api.trustflow.systems/v1/register` (`verificationType` `SSL_CHALLENGE` or `DNS_TXT`). `https://trustflow.systems/api/register` is an alias of that API origin.
+4. Prints the challenge instructions. `agentic-trust confirm` calls `POST /v1/register/confirm`.
+5. Prints an embeddable badge: **Verified by AgenticTrust | trustflow.systems**, linking to `https://trustflow.systems/verify/[domain]`.
+
+## SDK
+
+`@agentic-trust/sdk` verifies a domain before an agent calls a tool.
+
+```bash
+# From a clone of this repository the SDK is packages/sdk (@agentic-trust/sdk).
+# Once this layout is the default branch, this also works:
+pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
+```
+
+```ts
+import {
+  verifyDomain,
+  inspectEndpointBeforeExecution,
+  clearVerifyCache,
+} from "@agentic-trust/sdk";
+
+// AgenticTrust did:web DID signature + JWS, with optional API fallback
+const result = await verifyDomain("example.com");
+// result.status: "VERIFIED" | "UNVERIFIED" | "RISK"
+
+if (result.status !== "VERIFIED") {
+  throw new Error(result.reason ?? result.status);
+}
+
+const gate = await inspectEndpointBeforeExecution("https://example.com/mcp");
+if (!gate.allowed) throw new Error(gate.reason ?? "Endpoint blocked");
+```
+
+Set `VERIFICATION_API_URL=https://api.trustflow.systems` to use the hosted registry (`GET /v1/verify?domain=`). See `.env.example`.
+
+### Migration
 
 Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
 
@@ -30,44 +79,7 @@ Function names are unchanged. Install from Git and import `@agentic-trust/sdk`.
 | `import { verifyDomain } from "@trustflow/sdk"` | `import { verifyDomain } from "@agentic-trust/sdk"` |
 | `npx trustflow init` | `npx agentic-trust init` |
 
-## CLI
-
-This package is the verification SDK and does not ship a CLI. The future CLI package is `@agentic-trust/cli`. Developers scaffold a project with:
-
-```bash
-npx agentic-trust init
-```
-
-Do not use `npx trustflow init`. Install this SDK with the GitHub commands in [Install](#install).
-
-## Quick start
-
-```ts
-import {
-  verifyDomain,
-  inspectEndpointBeforeExecution,
-  clearVerifyCache,
-} from "@agentic-trust/sdk";
-
-// 1) Verify a business domain (AgenticTrust did:web DID signature + JWS, with optional API fallback)
-const result = await verifyDomain("example.com");
-// result.status: "VERIFIED" | "UNVERIFIED" | "RISK"
-// result.claims: { did, services, llmsTxtPresent, mcpEndpoints, ... }
-
-if (result.status !== "VERIFIED") {
-  throw new Error(result.reason ?? `Domain ${result.status}`);
-}
-
-// 2) Gate MCP / tool endpoints before the agent runs them
-const gate = await inspectEndpointBeforeExecution("https://example.com/mcp");
-if (!gate.allowed) {
-  throw new Error(gate.reason ?? "Endpoint blocked");
-}
-```
-
-## How AI frameworks should use it
-
-AgenticTrust SDK integrations:
+### How AI frameworks should use it
 
 | Framework / pattern | Integration tip |
 |---------------------|-----------------|
@@ -78,46 +90,35 @@ AgenticTrust SDK integrations:
 
 Statuses:
 
-- **VERIFIED** — AgenticTrust `did:web` present and the DID signature (JWS) verifies (and/or central registry confirms)
+- **VERIFIED** — AgenticTrust `did:web` present and the DID signature (JWS) verifies (and/or the Trustflow registry confirms)
 - **UNVERIFIED** — missing manifest, key, proof, or registry entry
-- **RISK** — bad signature, non-`did:web`, or unsafe (e.g. non-HTTPS) endpoint
+- **RISK** — bad signature, non-`did:web`, or unsafe endpoint (for example non-HTTPS)
 
-## Configuration
+## Trustflow register API
 
-| Env / option | Purpose |
-|--------------|---------|
-| `VERIFICATION_API_URL` | Base URL for HTTPS fallback (`GET /v1/verify?domain=`) |
-| `options.verificationApiUrl` | Per-call override of the API base |
-| `options.cacheTtlMs` | In-memory cache TTL (default 1 hour) |
-| `options.bypassCache` | Skip cache for this call |
-| `options.fetch` | Inject a custom `fetch` (tests / proxies) |
+Live contract (not a guessed path):
 
-```bash
-export VERIFICATION_API_URL=https://your-verification-api.example
-```
+| Method | URL |
+|--------|-----|
+| `GET` | `https://api.trustflow.systems/health` |
+| `POST` | `https://api.trustflow.systems/v1/register` |
+| `POST` | `https://api.trustflow.systems/v1/register/confirm` |
+| `GET` | `https://api.trustflow.systems/v1/verify?domain=` |
 
-See `.env.example`. The SDK only performs HTTPS fetches — it has **no** database,
-Prisma, Redis, or SQL clients.
-
-## API surface
-
-```ts
-verifyDomain(domainUrl, options?): Promise<VerifyResult>
-inspectEndpointBeforeExecution(endpoint, options?): Promise<EndpointInspectionResult>
-clearVerifyCache(): void
-MemoryCache / defaultCache
-// helpers: normalizeDomain, didWebId, wellKnownDidUrl, verifyDidJws, ...
-```
+`POST /v1/register` requires `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`). The response includes `challengeToken`, `instructions`, and either `challengePath` (HTTPS file `/.well-known/agentic-trust-challenge.txt`) or `dnsRecord` (`_agentic-trust.<domain>` TXT `agentic-trust-verification=<token>`). Confirm with `domain` and `challengeToken`.
 
 ## Development
 
-Clone the repository, then install dependencies and run the local scripts:
-
 ```bash
 pnpm install
-pnpm build
 pnpm test
+pnpm build
+pnpm smoke
 ```
+
+`packages/*/dist` is committed so a clone can run `agentic-trust` before the npm scope exists. Rebuild and commit `dist/` when CLI or SDK sources change.
+
+`TRUSTFLOW_LIVE=1 pnpm --filter @agentic-trust/cli test` also calls the production register endpoint.
 
 ## License
 
