@@ -59,6 +59,8 @@ const response = await trust.fetch("https://example.com/data.json");
 const tool = trust.wrapTool(existingTool);
 ```
 
+`@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` wrap this middleware and throw `UnverifiedDomainContextError` before parsing unsigned `llms.txt`. The SDK helper above still annotates and does not throw.
+
 Point the fallback registry at Trustflow Systems:
 
 ```bash
