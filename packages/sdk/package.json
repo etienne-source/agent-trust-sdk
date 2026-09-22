@@ -1,0 +1,55 @@
+{
+  "name": "@agentic-trust/sdk",
+  "version": "0.1.0",
+  "description": "AgenticTrust open-standard SDK (@agentic-trust/sdk) for domain identity, DID signatures, and agent integrations. Install from Git (github:etienne-source/agent-trust-sdk#path:/packages/sdk) until the npm scope exists. Scaffold with npx agentic-trust init (@agentic-trust/cli).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/etienne-source/agent-trust-sdk.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/etienne-source/agent-trust-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/etienne-source/agent-trust-sdk/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "agentictrust",
+    "agentic-trust",
+    "ai",
+    "agents",
+    "did",
+    "did:web",
+    "verification",
+    "mcp",
+    "trust",
+    "llms.txt"
+  ]
+}

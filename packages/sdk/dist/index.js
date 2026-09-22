@@ -1,0 +1,24 @@
+/**
+ * **AgenticTrust** open-standard SDK (`@agentic-trust/sdk`).
+ *
+ * Cryptographic protocol for domain identity: DID signatures (`did:web` + compact JWS)
+ * and SDK integrations for AI agents. The CLI package is `@agentic-trust/cli`
+ * (`npx agentic-trust init`), which registers domains with Trustflow Systems.
+ *
+ * Git-only install until the npm scope exists:
+ *
+ * ```bash
+ * pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
+ * ```
+ *
+ * Do not install `trustflow-sdk` (unrelated logging package) or run `npx trustflow init`.
+ * Previous names `agent-trust-sdk` and `@trustflow/sdk` migrate to `@agentic-trust/sdk`.
+ *
+ * @packageDocumentation
+ */
+export { verifyDomain, inspectEndpointBeforeExecution, clearVerifyCache } from "./verifyDomain.js";
+export { MemoryCache, defaultCache } from "./cache.js";
+export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
+export { importPublicKey, verifyDidJws, fingerprintPem } from "./jws.js";
+export { createSignedDidDocument, hashPublicKeyPem } from "./identity.js";
+//# sourceMappingURL=index.js.map
