@@ -53,6 +53,20 @@ export {
 export type { AllowedJwsAlg } from "./jws.js";
 export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
 export type { CreateSignedDidInput, DidServiceEndpoint, SignedDidIdentity } from "./identity.js";
+export {
+  notifyVerifiedDomain,
+  isCompleteVerification,
+  buildVerifiedNotifyPayload,
+  VERIFIED_NOTIFY_ENV,
+  VERIFIED_SCORE_COMPLETE,
+} from "./verifiedNotify.js";
+export type {
+  VerifiedDomainNotice,
+  NotifyVerifiedDomainOptions,
+  NotifyVerifiedDomainResult,
+  VerifiedNotifyPayload,
+  NotifyVerifiedReason,
+} from "./verifiedNotify.js";
 export type {
   VerificationStatus,
   DomainClaims,
