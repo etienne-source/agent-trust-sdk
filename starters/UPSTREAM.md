@@ -4,7 +4,7 @@
 
 `scripts/create-starter-prs.mjs` dry-runs that same placeholder (`REPLACE_ME` `did.json`, `llms.txt`, and `withAgenticTrust` or LangChain middleware). It opens a pull request only when you pass `--apply` and an allowlist of repositories you maintain. The example allowlist is empty. It does not use the suggested targets below.
 
-Do not send a drive-by pull request that replaces an existing app with the whole starter. Add the AgenticTrust files to the template that is already there.
+Do not send a drive-by pull request that replaces an existing app with the whole starter. Add the Trustflow files to the template that is already there.
 
 ## What to add
 
@@ -22,7 +22,7 @@ pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin
 
 Leave `.agentic-trust/` and every private key out of the pull request. Do not document `npm install trustflow-sdk`.
 
-In the template README, name **AgenticTrust** as the protocol and **Trustflow Systems** as the hosted registry, and point identity setup at `npx trustflow init` (from a clone of `github:etienne-source/agent-trust-sdk` until npm publish). After `init`, copy `.well-known/did.json` to `public/.well-known/did.json`, because Next.js serves `public/`.
+In the template README, name **Trustflow** as the protocol and **Trustflow Systems** as the hosted registry, and point identity setup at `npx trustflow init` (from a clone of `github:etienne-source/agent-trust-sdk` until npm publish). After `init`, copy `.well-known/did.json` to `public/.well-known/did.json`, because Next.js serves `public/`.
 
 ## Suggested targets
 

@@ -20,7 +20,7 @@ const secret = process.env.AGENTIC_TRUST_PRIVATE_KEY;
 renewBuildSignatures()
     .then(async (result) => {
     const lines = [
-        `AgenticTrust renewed signatures for ${result.domain} (${result.algorithm}).`,
+        `Trustflow renewed signatures for ${result.domain} (${result.algorithm}).`,
         `DID: ${result.did}`,
         `publicKeyHash: ${result.publicKeyHash || "(unchanged)"}`,
         `rotated: ${result.rotated ? "yes" : "no"}`,

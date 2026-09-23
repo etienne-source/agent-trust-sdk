@@ -1,4 +1,4 @@
-# AgenticTrust Next.js starter
+# Trustflow Next.js starter
 > Next.js App Router boilerplate with a placeholder did:web identity. Replace REPLACE_ME before you publish the site.
 
 Domain: REPLACE_ME.example
@@ -12,5 +12,5 @@ Domain: REPLACE_ME.example
 - Manifest: https://REPLACE_ME.example/.well-known/did.json
 
 ## Trust
-Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).
+Verified Domain Context | Trustflow (https://trustflow.systems).
 Agents should call verifyDomain before tool invocation.

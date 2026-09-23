@@ -1,5 +1,5 @@
 /**
- * **AgenticTrust** Vercel build hook (`@trustflow/vercel-plugin`).
+ * **Trustflow** Vercel build hook (`@trustflow/vercel-plugin`).
  *
  * During a Vercel or Next.js build, signs `llms.txt` and writes
  * `.well-known/did.json` from `AGENTIC_TRUST_PRIVATE_KEY`. The private key

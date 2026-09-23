@@ -1,8 +1,8 @@
 {
-  "name": "agentic-trust-starter-nextjs",
+  "name": "trustflow-starter-nextjs",
   "private": true,
   "version": "0.1.0",
-  "description": "Next.js App Router starter with AgenticTrust did:web, llms.txt, and @trustflow/next-plugin. Not on npm.",
+  "description": "Next.js App Router starter with Trustflow did:web, llms.txt, and @trustflow/next-plugin. Not on npm.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

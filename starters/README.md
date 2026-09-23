@@ -1,4 +1,4 @@
-# AgenticTrust starters
+# Trustflow starters
 
 Drop-in Next.js App Router boilerplates for community templates. Each one includes a placeholder `did:web` document, `llms.txt`, Cursor rules, and `withAgenticTrust` from `@trustflow/next-plugin`.
 
@@ -8,13 +8,13 @@ Drop-in Next.js App Router boilerplates for community templates. Each one includ
 | [`v0`](./v0) | v0.dev / v0.app community templates | `next.config.mjs` |
 | [`bolt`](./bolt) | Bolt.new Next.js templates | `next.config.js` |
 
-These folders are not pnpm workspace packages. Scaffold identity with `npx @trustflow/cli@latest init` (`npx trustflow init` is an alias). From the folder you want, install its own dependencies and start Next.js:
+These folders are not pnpm workspace packages. Scaffold identity with `npx @trustflow/cli@latest init` (`npx trustflow init` is an alias; `agentic-trust` is deprecated). From the folder you want, install its own dependencies and start Next.js:
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-**AgenticTrust** is the protocol (and the plugin). **Trustflow Systems** is the hosted registry. Do not install `trustflow-sdk`.
+**Trustflow** is the protocol and the product (including this plugin). The registry is hosted at trustflow.systems. Do not install `trustflow-sdk`.
 
 Copy a folder into an upstream template instead of pushing these files to `main` here or opening pull requests against third-party repositories from automation. [UPSTREAM.md](./UPSTREAM.md) is the note for that pull request.

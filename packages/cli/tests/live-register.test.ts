@@ -8,7 +8,7 @@ describe.runIf(live)("live Trustflow register", () => {
     const domain = "agentic-trust-cli.invalid";
     const challenge = await registerDomain(TRUSTFLOW_API_BASE, {
       domain,
-      businessName: "AgenticTrust CLI contract probe",
+      businessName: "Trustflow CLI contract probe",
       verificationType: "SSL_CHALLENGE",
     });
     expect(challenge.domain).toBe(domain);

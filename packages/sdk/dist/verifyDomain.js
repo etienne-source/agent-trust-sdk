@@ -161,7 +161,7 @@ async function verifyViaApi(domain, apiBase, fetchFn) {
     }
 }
 /**
- * Verify a domain against the **AgenticTrust** protocol (`did:web` DID signature + JWS),
+ * Verify a domain against the **Trustflow** protocol (`did:web` DID signature + JWS),
  * with central API fallback. A warm in-memory cache hit stays under 5ms.
  *
  * Import from `@trustflow/sdk`. The hosted registry is Trustflow Systems
@@ -216,7 +216,7 @@ export async function verifyDomain(domainUrl, options = {}) {
     return result;
 }
 /**
- * AgenticTrust SDK gate for MCP / tool endpoints before agent execution.
+ * Trustflow SDK gate for MCP / tool endpoints before agent execution.
  * Verifies the owning domain's DID signature and requires HTTPS.
  */
 export async function inspectEndpointBeforeExecution(endpoint, options = {}) {

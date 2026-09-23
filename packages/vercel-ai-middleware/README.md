@@ -1,6 +1,6 @@
 # @trustflow/vercel-ai-middleware
 
-Fetch and language-model middleware for the Vercel AI SDK. The default mode is audit. Unverified, unsigned, or tampered **AgenticTrust** domain context does not throw. The middleware logs a security alert, emits a telemetry event, and does not parse `llms.txt`. `{ strict: true }` or `{ mode: "strict" }` rejects that context before a response stream starts and before `llms.txt` is parsed.
+Fetch and language-model middleware for the Vercel AI SDK. The default mode is audit. Unverified, unsigned, or tampered **Trustflow** domain context does not throw. The middleware logs a security alert, emits a telemetry event, and does not parse `llms.txt`. `{ strict: true }` or `{ mode: "strict" }` rejects that context before a response stream starts and before `llms.txt` is parsed.
 
 Verification and signing stay in `@trustflow/sdk` (`agenticTrustMiddleware`). The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
 
@@ -51,7 +51,7 @@ const stream = streamText({
 });
 
 const llms = await trust.loadLlmsFromUrl("https://example.com/llms.txt");
-// llms.text starts with "Verified by AgenticTrust | trustflow.systems"
+// llms.text starts with "Verified Domain Context | Trustflow"
 ```
 
 `trust.fetch` forwards ordinary provider URLs (for example `api.openai.com`) without a domain check. A request is domain context when the path ends in `llms.txt`, or when the request sets `x-agentic-trust-context: llms.txt` or `x-agentic-trust-context: domain`. Those requests call the SDK first. In audit mode the fetch continues, the trust header is not set, and the alert below is logged. In strict mode `UnverifiedDomainContextError` is thrown before `contextFetch` runs, so the response body is never read.
@@ -64,7 +64,7 @@ try {
 } catch (err) {
   if (err instanceof UnverifiedDomainContextError) {
     // err.domain, err.status ("UNVERIFIED" | "RISK"), err.reason
-    // "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
+    // "[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
   }
 }
 ```
@@ -78,13 +78,13 @@ The SDK lookup uses the `fetch` option (registry and `did:web`). The context dow
 The default is audit mode (`mode: "audit"`). `fetch`, `transformParams`, `wrapGenerate`, `wrapStream`, `loadLlmsFromUrl`, and `readVerifiedLlms` warn and continue without parsing. The console warning and the telemetry `message` are:
 
 ```text
-[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.
+[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.
 ```
 
 Pass `onAudit` to receive that event. There is no network call. `{ strict: true }`, `{ mode: "strict" }`, or `{ failClosed: true }` throws before execution. The thrown message is:
 
 ```text
-[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.
+[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.
 ```
 
 Signing the files those checks read, without a local terminal, is `@trustflow/vercel-plugin`: set `AGENTIC_TRUST_PRIVATE_KEY` and `AGENTIC_TRUST_DOMAIN` in the Vercel project environment and use `buildCommand` `agentic-trust-vercel && next build`. The private key is not committed. See [packages/vercel-plugin](../vercel-plugin/README.md).

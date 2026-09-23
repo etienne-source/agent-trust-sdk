@@ -5,7 +5,7 @@ import type { AgenticTrustMetadata } from "@trustflow/sdk";
  * would otherwise be parsed or executed.
  */
 export function contextPoisoningErrorMessage(domain: string): string {
-  return `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for ${domain}. Execution blocked.`;
+  return `[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for ${domain}. Execution blocked.`;
 }
 
 /** Thrown when domain context is unsigned, unverified, tampered, or marked RISK. */
@@ -28,5 +28,5 @@ export class UnverifiedDomainContextError extends Error {
 
 function defaultReason(status: string): string {
   if (status === "RISK") return "Domain signature failed or the domain is marked RISK";
-  return "Domain is not verified or has no AgenticTrust signature";
+  return "Domain is not verified or has no Trustflow signature";
 }

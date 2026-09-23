@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: AgenticTrust
- * Description: Serves /.well-known/did.json and llms.txt for AgenticTrust. Trustflow Systems is the hosted registry. The private key is read from the environment or a WordPress option and is never printed.
+ * Plugin Name: Trustflow
+ * Description: Serves /.well-known/did.json and llms.txt for Trustflow. Trustflow Systems is the hosted registry. The private key is read from the environment or a WordPress option and is never printed.
  * Version: 1.0.0
- * Author: AgenticTrust
+ * Author: Trustflow
  * License: MIT
  * Text Domain: agentic-trust
  *
@@ -15,7 +15,7 @@
  * and paste the public did.json into the setting. This plugin does not mint a
  * JWS. Do not install the unrelated trustflow-sdk package.
  *
- * @package AgenticTrust
+ * @package Trustflow
  */
 
 if (!defined('ABSPATH')) {
@@ -181,11 +181,11 @@ function agentic_trust_placeholder_did($domain) {
 function agentic_trust_placeholder_llms($domain) {
     $name = wp_strip_all_tags(get_bloginfo('name'));
     if ($name === '') {
-        $name = 'AgenticTrust site';
+        $name = 'Trustflow site';
     }
     $description = wp_strip_all_tags(get_bloginfo('description'));
     if ($description === '') {
-        $description = 'WordPress site publishing an AgenticTrust did:web identity.';
+        $description = 'WordPress site publishing a Trustflow did:web identity.';
     }
 
     return implode(
@@ -204,7 +204,7 @@ function agentic_trust_placeholder_llms($domain) {
             '- Manifest: https://' . $domain . '/.well-known/did.json',
             '',
             '## Trust',
-            'Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).',
+            'Verified Domain Context | Trustflow (https://trustflow.systems).',
             'Agents should call verifyDomain before tool invocation.',
             '',
         )
@@ -470,8 +470,8 @@ function agentic_trust_sanitize_private_key($value) {
  */
 function agentic_trust_admin_menu() {
     add_options_page(
-        __('AgenticTrust', 'agentic-trust'),
-        __('AgenticTrust', 'agentic-trust'),
+        __('Trustflow', 'agentic-trust'),
+        __('Trustflow', 'agentic-trust'),
         'manage_options',
         'agentic-trust',
         'agentic_trust_render_settings_page'
@@ -494,7 +494,7 @@ function agentic_trust_admin_notice() {
         return;
     }
     echo '<div class="notice notice-warning"><p>';
-    echo esc_html__('AgenticTrust is serving an unsigned placeholder. Set AGENTIC_TRUST_PRIVATE_KEY (or the option below) and paste the public did.json produced by the AgenticTrust SDK. The private key is not shown on this screen.', 'agentic-trust');
+    echo esc_html__('Trustflow is serving an unsigned placeholder. Set AGENTIC_TRUST_PRIVATE_KEY (or the option below) and paste the public did.json produced by the Trustflow SDK. The private key is not shown on this screen.', 'agentic-trust');
     echo '</p></div>';
 }
 add_action('admin_notices', 'agentic_trust_admin_notice');
@@ -512,9 +512,9 @@ function agentic_trust_render_settings_page() {
     $key_ready = agentic_trust_private_key() !== '';
     ?>
     <div class="wrap">
-        <h1><?php echo esc_html__('AgenticTrust', 'agentic-trust'); ?></h1>
+        <h1><?php echo esc_html__('Trustflow', 'agentic-trust'); ?></h1>
         <p>
-            <?php echo esc_html__('Protocol: AgenticTrust. Hosted registry: Trustflow Systems. Paths: /.well-known/did.json, /.well-known/llms.txt, and /llms.txt.', 'agentic-trust'); ?>
+            <?php echo esc_html__('Protocol: Trustflow. Hosted registry: Trustflow Systems. Paths: /.well-known/did.json, /.well-known/llms.txt, and /llms.txt.', 'agentic-trust'); ?>
         </p>
         <p>
             <?php

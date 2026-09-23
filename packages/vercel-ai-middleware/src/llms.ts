@@ -110,7 +110,7 @@ export function parseLlmsTxt(raw: string): ParsedLlmsTxt {
 }
 
 export function formatVerifiedLlms(parsed: ParsedLlmsTxt, meta: AgenticTrustMetadata): string {
-  const lines = ["Verified by AgenticTrust | trustflow.systems", `domain: ${meta.domain}`];
+  const lines = ["Verified Domain Context | Trustflow", `domain: ${meta.domain}`];
   if (meta.did) lines.push(`did: ${meta.did}`);
   if (meta.trustScore !== undefined) lines.push(`trustScore: ${meta.trustScore}`);
   if (parsed.title) lines.push(`# ${parsed.title}`);

@@ -31,7 +31,7 @@ describe("signLlmsTxt", () => {
     expect(result.llmsTxt).toContain("# Example Co");
     expect(result.llmsTxt).toContain("- DID: did:web:example.com");
     expect(result.llmsTxt).toContain("- Manifest: https://example.com/.well-known/did.json");
-    expect(result.llmsTxt).toContain("Verified by AgenticTrust");
+    expect(result.llmsTxt).toContain("Verified Domain Context | Trustflow");
     expect(result.llmsTxt).not.toContain("PRIVATE KEY");
     expect(result.didJson).not.toContain("PRIVATE KEY");
     expect(result.artifacts[".well-known/llms.txt"]).toBe(result.llmsTxt);
@@ -57,7 +57,7 @@ Domain: kept.example
 - Manifest: https://other.example/.well-known/did.json
 
 ## Trust
-Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).
+Verified Domain Context | Trustflow (https://trustflow.systems).
 Agents should call verifyDomain before tool invocation.
 `;
     await writeFile(source, stale, "utf8");
@@ -125,7 +125,7 @@ Domain: example.com
 - Manifest: https://example.com/.well-known/did.json
 
 ## Trust
-Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).
+Verified Domain Context | Trustflow (https://trustflow.systems).
 Agents should call verifyDomain before tool invocation.
 `;
     const aligned = alignLlmsTxt(body, "example.com");

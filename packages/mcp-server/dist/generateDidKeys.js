@@ -3,7 +3,7 @@ import { mkdir, writeFile, chmod } from "node:fs/promises";
 import path from "node:path";
 import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
 /** Shown next to `privateKeyPem` in every tool result. */
-export const PRIVATE_KEY_SECRET_WARNING = "SECRET — AgenticTrust did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json. This tool does not write the key unless privateKeyPath is set.";
+export const PRIVATE_KEY_SECRET_WARNING = "SECRET — Trustflow did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json. This tool does not write the key unless privateKeyPath is set.";
 export function parseDidKeyAlgorithm(value) {
     const raw = (value ?? "").trim();
     if (!raw || /^ed25519$/i.test(raw) || /^eddsa$/i.test(raw))

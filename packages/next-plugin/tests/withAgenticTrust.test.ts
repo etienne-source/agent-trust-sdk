@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withAgenticTrust, type AgenticTrustWebpackFn } from "../src/index.js";
 
 const WARNING =
-  "[AgenticTrust Warning] Domain identity unverified. Run 'npx trustflow init' to generate did:web identity.";
+  "[Trustflow Warning] Domain identity unverified. Run 'npx @trustflow/cli@latest init' to generate did:web identity.";
 
 const VALID_LLMS = "# Example\n\nWidgets for agents.\n";
 const VALID_DID = JSON.stringify({

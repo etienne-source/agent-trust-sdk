@@ -23,7 +23,7 @@ test("dry-run prints a 100/100 payload and does not post", () => {
   assert.match(result.stdout, /webhook: set/);
   assert.match(result.stdout, /"domain": "example.com"/);
   assert.match(result.stdout, /"score": 100/);
-  assert.match(result.stdout, /AgenticTrust/);
+  assert.match(result.stdout, /Trustflow/);
   assert.match(result.stdout, /Trustflow Systems/);
   assert.match(result.stdout, /separate explicit step/);
   assert.doesNotMatch(result.stdout, /secret-path/);

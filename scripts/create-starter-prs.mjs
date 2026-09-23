@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Plan pull requests that add an AgenticTrust placeholder did:web, llms.txt,
+ * Plan pull requests that add a Trustflow placeholder did:web, llms.txt,
  * and Next.js or LangChain wiring. Dry-run unless --apply and --targets.
  *
  * Does not search GitHub. The example allowlist has no targets.

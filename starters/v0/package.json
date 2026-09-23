@@ -1,8 +1,8 @@
 {
-  "name": "agentic-trust-starter-v0",
+  "name": "trustflow-starter-v0",
   "private": true,
   "version": "0.1.0",
-  "description": "v0-style Next.js starter with AgenticTrust did:web, llms.txt, and @trustflow/next-plugin. Not on npm.",
+  "description": "v0-style Next.js starter with Trustflow did:web, llms.txt, and @trustflow/next-plugin. Not on npm.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

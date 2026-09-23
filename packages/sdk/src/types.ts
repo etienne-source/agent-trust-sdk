@@ -31,7 +31,7 @@ export interface EndpointInspectionResult {
   reason?: string;
 }
 
-/** AgenticTrust DID document (`did:web`) carrying verification methods and an optional JWS proof. */
+/** Trustflow DID document (`did:web`) carrying verification methods and an optional JWS proof. */
 export interface DidDocument {
   "@context"?: string | string[];
   id: string;

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
-  "description": "AgenticTrust workspace: @trustflow/sdk, @trustflow/cli, @trustflow/mcp-server, @trustflow/next-plugin, @trustflow/vercel-plugin, framework middleware, and Next.js starters. Hosted registry: Trustflow Systems.",
+  "description": "Trustflow workspace: @trustflow/sdk, @trustflow/cli, @trustflow/mcp-server, @trustflow/next-plugin, @trustflow/vercel-plugin, framework middleware, and Next.js starters. Hosted registry: Trustflow Systems.",
   "scripts": {
     "build": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli build && pnpm --filter @trustflow/mcp-server build && pnpm --filter @trustflow/next-plugin build && pnpm --filter @trustflow/langchain-middleware build && pnpm --filter @trustflow/vercel-ai-middleware build && pnpm --filter @trustflow/vercel-plugin build",
     "typecheck": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli typecheck && pnpm --filter @trustflow/mcp-server typecheck && pnpm --filter @trustflow/next-plugin typecheck && pnpm --filter @trustflow/langchain-middleware typecheck && pnpm --filter @trustflow/vercel-ai-middleware typecheck && pnpm --filter @trustflow/vercel-plugin typecheck",

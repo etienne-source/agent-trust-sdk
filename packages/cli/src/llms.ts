@@ -101,7 +101,7 @@ export function renderLlms(input: {
     `- Manifest: https://${input.domain}/.well-known/did.json`,
     "",
     "## Trust",
-    "Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).",
+    "Verified Domain Context | Trustflow (https://trustflow.systems).",
     "Agents should call verifyDomain before tool invocation.",
     ""
   );

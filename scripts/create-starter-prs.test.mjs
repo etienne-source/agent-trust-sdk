@@ -81,7 +81,7 @@ test("plans Next.js and LangChain files from the starters", () => {
   assert.equal(plans.length, 2);
 
   const next = plans[0];
-  assert.equal(next.title, "Add AgenticTrust placeholder did:web identity");
+  assert.equal(next.title, "Add Trustflow placeholder did:web identity");
   assert.equal(next.branch, "agentic-trust/starter-identity");
   const did = JSON.parse(next.files.find((file) => file.path === "public/.well-known/did.json").content);
   assert.equal(did.id, "did:web:widgets.example");
@@ -92,8 +92,8 @@ test("plans Next.js and LangChain files from the starters", () => {
   const llmsCopy = next.files.find((file) => file.path === "public/.well-known/llms.txt").content;
   assert.equal(llms, llmsCopy);
   assert.match(llms, /Domain: widgets\.example/);
-  assert.match(llms, /Verified by AgenticTrust/);
-  assert.match(llms, /Trustflow Systems/);
+  assert.match(llms, /Verified Domain Context \| Trustflow/);
+  assert.match(llms, /https:\/\/trustflow\.systems/);
   assert.match(llms, /Catalog/);
   const snippet = next.files.find((file) => file.path === "agentic-trust/next.config.snippet.ts").content;
   assert.match(snippet, /withAgenticTrust/);
@@ -113,7 +113,7 @@ test("plans Next.js and LangChain files from the starters", () => {
   assert.doesNotMatch(chain.files.find((file) => file.path === ".cursorrules").content, /public\/llms\.txt/);
 
   const rendered = formatDryRun(allowlist([nextTarget()]), [next]);
-  assert.match(rendered, /title: Add AgenticTrust placeholder did:web identity/);
+  assert.match(rendered, /title: Add Trustflow placeholder did:web identity/);
   assert.match(rendered, /--- body ---/);
   assert.match(rendered, /--- public\/\.well-known\/did\.json ---/);
   assert.match(rendered, /does not post to X/);
@@ -281,7 +281,7 @@ test("cli dry-run smoke", () => {
   );
   const planned = spawnSync(process.execPath, [script, "--targets", file], { encoding: "utf8" });
   assert.equal(planned.status, 0, planned.stderr);
-  assert.match(planned.stdout, /title: Add AgenticTrust placeholder did:web identity/);
+  assert.match(planned.stdout, /title: Add Trustflow placeholder did:web identity/);
   assert.match(planned.stdout, /public\/\.well-known\/did\.json/);
   assert.match(planned.stdout, /REPLACE_ME/);
   assert.match(planned.stdout, /Dry run only/);

@@ -13,7 +13,7 @@ export interface AgenticTrustMcpServerOptions {
 const SERVER_VERSION = "1.0.0";
 
 /**
- * Stdio MCP server for AgenticTrust.
+ * Stdio MCP server for Trustflow.
  * Hosted audits go to Trustflow Systems (`https://api.trustflow.systems`).
  */
 export function createAgenticTrustMcpServer(options: AgenticTrustMcpServerOptions = {}): McpServer {
@@ -27,7 +27,7 @@ export function createAgenticTrustMcpServer(options: AgenticTrustMcpServerOption
     {
       title: "Audit domain",
       description:
-        "Fetch the live Trustflow Systems TrustScore and verification status for a domain (GET https://api.trustflow.systems/v1/verify?domain=). Returns status, isVerified, and the audit score with factors. Protocol: AgenticTrust. Optional baseUrl overrides the API origin (tests).",
+        "Fetch the live Trustflow Systems TrustScore and verification status for a domain (GET https://api.trustflow.systems/v1/verify?domain=). Returns status, isVerified, and the audit score with factors. Protocol: Trustflow. Optional baseUrl overrides the API origin (tests).",
       inputSchema: {
         domain: z.string().describe("Hostname or URL to audit, for example example.com"),
         baseUrl: z

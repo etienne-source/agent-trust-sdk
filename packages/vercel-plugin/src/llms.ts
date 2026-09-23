@@ -27,7 +27,7 @@ export function renderLlms(input: LlmsInput): string {
     `- Manifest: https://${input.domain}/.well-known/did.json`,
     "",
     "## Trust",
-    "Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).",
+    "Verified Domain Context | Trustflow (https://trustflow.systems).",
     "Agents should call verifyDomain before tool invocation.",
     ""
   );
@@ -62,7 +62,7 @@ export function alignLlmsTxt(body: string, domain: string): string {
       "",
       "",
       "## Trust",
-      "Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).",
+      "Verified Domain Context | Trustflow (https://trustflow.systems).",
       "Agents should call verifyDomain before tool invocation.",
     ].join("\n");
   }

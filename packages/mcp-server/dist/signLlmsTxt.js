@@ -34,7 +34,7 @@ export async function signLlmsTxt(input) {
     }
     const guidance = [
         `Signed did:web for ${domain} with @trustflow/sdk createSignedDidDocument (${algorithm}).`,
-        "The did:web JWS is the AgenticTrust signature for this llms.txt. Its service endpoint is /.well-known/llms.txt.",
+        "The did:web JWS is the Trustflow signature for this llms.txt. Its service endpoint is /.well-known/llms.txt.",
         "Publish llms.txt at the site root and the same body at /.well-known/llms.txt.",
         `Publish did.json at /.well-known/did.json (${identity.did.id}). It contains the public key only.`,
         "The private key was used to sign and was not written.",
@@ -92,7 +92,7 @@ export function alignLlmsTxt(body, domain) {
             "",
             "",
             "## Trust",
-            "Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).",
+            "Verified Domain Context | Trustflow (https://trustflow.systems).",
             "Agents should call verifyDomain before tool invocation.",
         ].join("\n");
     }

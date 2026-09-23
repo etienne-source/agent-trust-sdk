@@ -12,7 +12,7 @@ const secret = process.env.AGENTIC_TRUST_PRIVATE_KEY;
 runAgenticTrustVercelBuild({ dryRun })
   .then((result) => {
     const lines = [
-      `AgenticTrust signed ${result.domain} (${result.algorithm}).`,
+      `Trustflow signed ${result.domain} (${result.algorithm}).`,
       `DID: ${result.did}`,
       `publicKeyHash: ${result.publicKeyHash}`,
       `llms.txt generated: ${result.llmsGenerated ? "yes" : "no"}`,

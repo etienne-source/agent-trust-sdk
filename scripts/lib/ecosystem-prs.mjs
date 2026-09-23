@@ -29,14 +29,14 @@ export const FRAMEWORKS = [
 ];
 
 const SECURITY_ERROR =
-  "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for ${domain}. Execution blocked.";
+  "[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for ${domain}. Execution blocked.";
 
 function installComment(specs) {
   return [
     " * Install from GitHub until the npm scope exists:",
     ` *   pnpm add ${specs.join(" ")}`,
     " * Do not install the unrelated trustflow-sdk package.",
-    " * Protocol: AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).",
+    " * Protocol: Trustflow. Registry: Trustflow Systems (https://trustflow.systems).",
   ].join("\n");
 }
 
@@ -48,7 +48,7 @@ function langchainFile() {
   return `import { agenticTrustLangChainMiddleware } from "@trustflow/langchain-middleware";
 
 /**
- * AgenticTrust middleware for LangChain.js. Audit mode is the default.
+ * Trustflow middleware for LangChain.js. Audit mode is the default.
  * Set strict: true to throw before unsigned or tampered llms.txt is parsed.
 ${installComment([SDK_SPEC, LANGCHAIN_SPEC])}
  */
@@ -62,7 +62,7 @@ function langgraphFile() {
   return `import { agenticTrustLangChainMiddleware } from "@trustflow/langchain-middleware";
 
 /**
- * AgenticTrust middleware for LangGraph. Audit mode is the default.
+ * Trustflow middleware for LangGraph. Audit mode is the default.
  * Pass \`agenticTrust\` to \`createMiddleware\` on the graph. Set strict: true
  * to stop execution when llms.txt context is unverified or tampered.
 ${installComment([SDK_SPEC, LANGCHAIN_SPEC])}
@@ -77,7 +77,7 @@ function vercelAiFile() {
   return `import { agenticTrustVercelAiMiddleware } from "@trustflow/vercel-ai-middleware";
 
 /**
- * AgenticTrust middleware for the Vercel AI SDK. Audit mode is the default.
+ * Trustflow middleware for the Vercel AI SDK. Audit mode is the default.
  * Pass \`fetch\` to the provider and this object to \`wrapLanguageModel\`.
  * Set strict: true to block unsigned context.
 ${installComment([SDK_SPEC, VERCEL_AI_SPEC])}
@@ -92,7 +92,7 @@ function openaiFile() {
   return `import { verifyDomain } from "@trustflow/sdk";
 
 /**
- * AgenticTrust check for OpenAI Agents tool URLs.
+ * Trustflow check for OpenAI Agents tool URLs.
  * Call \`assertToolDomain\` before a remote tool runs.
 ${installComment([SDK_SPEC])}
  */
@@ -113,7 +113,7 @@ function llamaindexFile() {
   return `import { verifyDomain } from "@trustflow/sdk";
 
 /**
- * AgenticTrust check for LlamaIndex source domains.
+ * Trustflow check for LlamaIndex source domains.
  * Call \`assertSourceDomain\` before a loader reads remote context.
 ${installComment([SDK_SPEC])}
  */
@@ -133,7 +133,7 @@ function mastraFile() {
   return `import { agenticTrustVercelAiMiddleware } from "@trustflow/vercel-ai-middleware";
 
 /**
- * AgenticTrust middleware for Mastra agents that use the Vercel AI SDK.
+ * Trustflow middleware for Mastra agents that use the Vercel AI SDK.
  * Audit mode is the default. Pass \`fetch\` to the model provider and this object
  * to \`wrapLanguageModel\`. Set strict: true to block unsigned context.
 ${installComment([SDK_SPEC, VERCEL_AI_SPEC])}
@@ -303,13 +303,13 @@ function pullRequestBody(target) {
     "A later edit that breaks an Ed25519 or P-256 JWS is the same class of failure: the text is no longer authenticated.",
     "Context signing is the TLS check for that fetch. Verify the domain, then parse the file.",
     "",
-    `This pull request adds **AgenticTrust** wiring for a ${target.framework} starter.`,
+    `This pull request adds **Trustflow** wiring for a ${target.framework} starter.`,
     "The hosted registry is **Trustflow Systems** (https://trustflow.systems).",
-    "The middleware defaults to audit mode. Unsigned context logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and is not parsed.",
+    "The middleware defaults to audit mode. Unsigned context logs `[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and is not parsed.",
     "Set `{ strict: true }` to fail closed. Strict mode throws:",
     "",
     "```text",
-    "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.",
+    "[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.",
     "```",
     "",
     "`.well-known/did.json` and `llms.txt` in this change are unsigned placeholders (`proof.jws` is `REPLACE_ME`).",
@@ -335,7 +335,7 @@ export function planTarget(target, templates = loadStarterTemplates()) {
     throw new Error(`Refusing to plan ${target.framework}: unsafe snippet`);
   }
   const llms = renderLlms({
-    name: target.name ?? `AgenticTrust ${target.framework} starter`,
+    name: target.name ?? `Trustflow ${target.framework} starter`,
     description:
       target.description ?? "Placeholder did:web identity. Replace REPLACE_ME before you publish the site.",
     domain: target.domain,
@@ -361,10 +361,10 @@ export function planTarget(target, templates = loadStarterTemplates()) {
     base: target.base,
     domain: target.domain,
     branch: ECOSYSTEM_BRANCH,
-    title: "Add AgenticTrust fail-closed middleware",
+    title: "Add Trustflow fail-closed middleware",
     body: pullRequestBody(target),
     commitMessage:
-      "Add AgenticTrust fail-closed domain middleware\n\nPlaceholder did:web and llms.txt only. proof.jws stays REPLACE_ME. Does not add a private key.",
+      "Add Trustflow fail-closed domain middleware\n\nPlaceholder did:web and llms.txt only. proof.jws stays REPLACE_ME. Does not add a private key.",
     files,
     packageDependencies: spec.dependencies,
   };

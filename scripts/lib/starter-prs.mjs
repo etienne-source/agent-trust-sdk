@@ -159,7 +159,7 @@ export function renderLlms({ name, description, domain, services }) {
     `- Manifest: https://${domain}/.well-known/did.json`,
     "",
     "## Trust",
-    "Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).",
+    "Verified Domain Context | Trustflow (https://trustflow.systems).",
     "Agents should call verifyDomain before tool invocation.",
     ""
   );
@@ -185,8 +185,8 @@ function adaptRules(text, framework) {
     .replaceAll("public/.well-known/llms.txt", ".well-known/llms.txt")
     .replaceAll("public/llms.txt", "llms.txt")
     .replace(
-      "This project uses the AgenticTrust default public folder `public/`.",
-      "This project keeps AgenticTrust identity files at the repository root."
+      "This project uses the Trustflow default public folder `public/`.",
+      "This project keeps Trustflow identity files at the repository root."
     );
   return rewritten;
 }
@@ -195,9 +195,9 @@ function langchainWiring(domain) {
   return `import { agenticTrustLangChainMiddleware } from "@trustflow/langchain-middleware";
 
 /**
- * AgenticTrust middleware for LangChain.js. Pass it to \`createMiddleware\`.
+ * Trustflow middleware for LangChain.js. Pass it to \`createMiddleware\`.
  * Unsigned llms.txt throws before it is parsed.
- * Protocol: AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).
+ * Protocol: Trustflow. Registry: Trustflow Systems (https://trustflow.systems).
  *
  * Packages: @trustflow/langchain-middleware and @trustflow/sdk.
  * Install from GitHub until the npm scope exists:
@@ -229,9 +229,9 @@ function pullRequestBody(target) {
       : "`src/agentic-trust.ts` exports `agenticTrustLangChainMiddleware()` from `@trustflow/langchain-middleware`. Pass it to LangChain `createMiddleware`. It throws before parsing unsigned `llms.txt`.";
 
   return [
-    "## AgenticTrust identity placeholder",
+    "## Trustflow identity placeholder",
     "",
-    "Adds a placeholder `did:web` document, `llms.txt`, and wiring for **AgenticTrust**.",
+    "Adds a placeholder `did:web` document, `llms.txt`, and wiring for **Trustflow**.",
     "The hosted registry is **Trustflow Systems** (https://trustflow.systems).",
     "",
     `\`did.json\` is the unsigned starter placeholder (\`proof.jws\` is \`REPLACE_ME\`). It does not make \`${target.domain}\` VERIFIED.`,
@@ -258,7 +258,7 @@ function pullRequestBody(target) {
 export function planTarget(target, templates = loadStarterTemplates()) {
   const name =
     target.name ??
-    (target.framework === "langchain" ? "AgenticTrust LangChain starter" : "AgenticTrust starter");
+    (target.framework === "langchain" ? "Trustflow LangChain starter" : "Trustflow starter");
   const description =
     target.description ?? "Placeholder did:web identity. Replace REPLACE_ME before you publish the site.";
   const llms = renderLlms({
@@ -303,10 +303,10 @@ export function planTarget(target, templates = loadStarterTemplates()) {
     framework: target.framework,
     base: target.base,
     branch: STARTER_BRANCH,
-    title: "Add AgenticTrust placeholder did:web identity",
+    title: "Add Trustflow placeholder did:web identity",
     body: pullRequestBody(target),
     commitMessage:
-      "Add AgenticTrust placeholder identity files\n\nPlaceholder did:web and llms.txt only. proof.jws stays REPLACE_ME.",
+      "Add Trustflow placeholder identity files\n\nPlaceholder did:web and llms.txt only. proof.jws stays REPLACE_ME.",
     files,
     snippetPath: snippet?.path ?? null,
     packageDependencies:
@@ -496,7 +496,7 @@ export function ensureGitignore(existing) {
   const missing = required.filter((line) => !present.has(line));
   if (existing !== null && missing.length === 0) return null;
   const base = existing === null ? "" : text.endsWith("\n") || text === "" ? text : `${text}\n`;
-  const header = existing === null ? "# AgenticTrust local secrets\n" : "";
+  const header = existing === null ? "# Trustflow local secrets\n" : "";
   return `${base}${header}${missing.join("\n")}\n`;
 }
 

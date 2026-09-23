@@ -1,6 +1,6 @@
 import { compactVerify, decodeProtectedHeader, importJWK, importSPKI, } from "jose";
 /**
- * JWS `alg` values accepted for AgenticTrust DID proofs.
+ * JWS `alg` values accepted for Trustflow DID proofs.
  *
  * - `EdDSA` — Ed25519 (OKP, crv Ed25519). This is the JWS name for Ed25519.
  * - `ES256` — ECDSA P-256.

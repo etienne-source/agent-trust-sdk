@@ -13,10 +13,10 @@ export default function HomePage() {
           <code className="rounded bg-neutral-100 px-1.5 py-0.5">public/llms.txt</code> and{" "}
           <code className="rounded bg-neutral-100 px-1.5 py-0.5">public/.well-known/did.json</code> are
           placeholders marked <code className="rounded bg-neutral-100 px-1.5 py-0.5">REPLACE_ME</code>. Replace
-          them with <code className="rounded bg-neutral-100 px-1.5 py-0.5">npx trustflow init</code>.
+          them with <code className="rounded bg-neutral-100 px-1.5 py-0.5">npx @trustflow/cli@latest init</code>.
         </p>
         <p className="text-sm text-neutral-500">
-          Protocol: AgenticTrust. Hosted registry: Trustflow Systems.{" "}
+          Protocol: Trustflow. Hosted registry: Trustflow Systems.{" "}
           <code className="rounded bg-neutral-100 px-1.5 py-0.5">next.config.mjs</code> calls{" "}
           <code className="rounded bg-neutral-100 px-1.5 py-0.5">withAgenticTrust</code>.
         </p>

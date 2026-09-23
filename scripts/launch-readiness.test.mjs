@@ -66,7 +66,7 @@ test("WordPress plugin and Shopify/Webflow guide host did.json without a hardcod
   assert.match(plugin, /\/\.well-known\/did\.json/);
   assert.match(plugin, /llms\.txt/);
   assert.match(plugin, /agentic_trust_sign_llms_txt/);
-  assert.match(plugin, /AgenticTrust/);
+  assert.match(plugin, /Trustflow/);
   assert.match(plugin, /Trustflow Systems/);
   assert.doesNotMatch(plugin, /-----BEGIN PRIVATE KEY-----\s+[A-Za-z0-9+/=]{16}/);
   assert.doesNotMatch(plugin, /npm install trustflow-sdk/);
@@ -77,7 +77,7 @@ test("WordPress plugin and Shopify/Webflow guide host did.json without a hardcod
   assert.match(guide, /Custom code/);
   assert.match(guide, /\/\.well-known\/did\.json/);
   assert.match(guide, /AGENTIC_TRUST_DID_JSON/);
-  assert.match(guide, /AgenticTrust/);
+  assert.match(guide, /Trustflow/);
   assert.match(guide, /Trustflow Systems/);
   assert.doesNotMatch(guide, /npm install trustflow-sdk/);
   assert.doesNotMatch(guide, /-----BEGIN PRIVATE KEY-----/);

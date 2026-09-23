@@ -1,8 +1,8 @@
-# AgenticTrust 0.1.0
+# Trustflow 0.1.0
 
-First public release of the AgenticTrust monorepo. The feature list below is that open-source tree. Publishable packages are now version **1.0.1** in `package.json`. npm publication is [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) on `v1.*` and `v*` tags and needs the `NPM_TOKEN` secret ([docs/publishing/npm.md](docs/publishing/npm.md)). Merging the workflow does not publish. Until a tag publish succeeds, install from GitHub, `github:etienne-source/agent-trust-sdk`.
+First public release of the Trustflow monorepo. The feature list below is that open-source tree. Publishable packages are now version **1.0.1** in `package.json`. npm publication is [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) on `v1.*` and `v*` tags and needs the `NPM_TOKEN` secret ([docs/publishing/npm.md](docs/publishing/npm.md)). Merging the workflow does not publish. Until a tag publish succeeds, install from GitHub, `github:etienne-source/agent-trust-sdk`.
 
-**AgenticTrust** is the protocol, SDK, CLI, MCP server, Next.js plugin, and framework middleware. **Trustflow Systems** is the hosted registry at https://trustflow.systems and https://api.trustflow.systems.
+**Trustflow** is the protocol, SDK, CLI, MCP server, Next.js plugin, and framework middleware. **Trustflow Systems** is the hosted registry at https://trustflow.systems and https://api.trustflow.systems.
 
 Do not install `trustflow-sdk`. That npm name is an unrelated package.
 
@@ -24,7 +24,7 @@ Binary: `trustflow`.
 - `init` — write `llms.txt` when it is missing, sign `.well-known/did.json`, store the private key under `.agentic-trust/` (mode `0600`, gitignored), `POST /v1/register`, print the challenge, print the badge, and write IDE rules.
 - `confirm` — `POST /v1/register/confirm`.
 - `sign` — non-interactive path used by the GitHub Action. `--dry-run` skips the API call.
-- Badge label: `Verified by AgenticTrust | trustflow.systems`. Link: `https://trustflow.systems/verify/<domain>`.
+- Badge label: `Verified Domain Context | Trustflow`. Link: `https://trustflow.systems/verify/<domain>`.
 - Default API base: `https://api.trustflow.systems`. `https://trustflow.systems/api/register` is an alias of that origin.
 
 The intended npm command, after the scope exists, is `npx trustflow init`. Until then, run the binary from a clone.

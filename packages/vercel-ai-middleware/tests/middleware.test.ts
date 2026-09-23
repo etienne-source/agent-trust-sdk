@@ -30,7 +30,7 @@ function verified(domain: string, trustScore = 91): AgenticTrustMetadata {
 function blocked(
   domain: string,
   status: AgenticTrustMetadata["status"] = "UNVERIFIED",
-  warning = "Domain is not verified or has no AgenticTrust signature"
+  warning = "Domain is not verified or has no Trustflow signature"
 ): AgenticTrustMetadata {
   return { verified: false, securityWarning: true, warning, domain, status };
 }
@@ -201,7 +201,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
 
     const rewritten = await trust.transformParams({ params, type: "stream" });
     const text = rewritten.prompt[0]?.content[0]?.text ?? "";
-    expect(text).toContain("Verified by AgenticTrust | trustflow.systems");
+    expect(text).toContain("Verified Domain Context | Trustflow");
     expect(text).toContain("# Example");
     expect(text).toContain("https://example.com/guide");
     expect(params.prompt[0]?.content[0]?.text.startsWith("{")).toBe(true);
@@ -231,7 +231,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
     expect(loaded.title).toBe("Example");
     expect(loaded.summary).toBe("Widgets for agents");
     expect(loaded.agenticTrust.trustScore).toBe(80);
-    expect(loaded.text).toContain("Verified by AgenticTrust | trustflow.systems");
+    expect(loaded.text).toContain("Verified Domain Context | Trustflow");
   });
 
   it("does not fetch when loadLlmsFromUrl is given an unsigned domain", async () => {
@@ -256,7 +256,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
           JSON.stringify({
             status: "UNVERIFIED",
             domain: "unsigned.example",
-            reason: "No AgenticTrust signature",
+            reason: "No Trustflow signature",
           }),
           { status: 200, headers: { "content-type": "application/json" } }
         );
@@ -282,7 +282,7 @@ describe("agenticTrustVercelAiMiddleware", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const events: string[] = [];
     const alert =
-      "[AgenticTrust Security Alert] Unverified context payload detected for evil.example. Enable strict mode to block.";
+      "[Trustflow Security Alert] Unverified context payload detected for evil.example. Enable strict mode to block.";
     const contextFetch = vi.fn(async () => new Response(LLMS, { status: 200 }));
     const closed = agenticTrustVercelAiMiddleware({
       strict: true,

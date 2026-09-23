@@ -46,7 +46,7 @@ const output = run(
   cwd
 );
 
-if (!output.includes("Verified by AgenticTrust | trustflow.systems")) {
+if (!output.includes("Verified Domain Context | Trustflow")) {
   throw new Error("badge label missing from init output");
 }
 if (!output.includes("https://trustflow.systems/verify/example.com")) {

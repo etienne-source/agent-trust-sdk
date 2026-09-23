@@ -25,7 +25,7 @@ interface PackageJson {
 
 /**
  * Static folder this repo already uses for public files.
- * Prefers `public/`, then `static/`. Otherwise the AgenticTrust default `public`.
+ * Prefers `public/`, then `static/`. Otherwise the Trustflow default `public`.
  */
 export async function detectPublicDir(cwd: string): Promise<string> {
   for (const name of PUBLIC_DIR_CANDIDATES) {
@@ -87,7 +87,7 @@ export async function detectProjectLayout(cwd: string): Promise<ProjectLayout> {
   if (existing) {
     return { framework: "unknown", publicDir: existing, reason: `existing ${existing}/ directory` };
   }
-  return { framework: "unknown", publicDir: "public", reason: "AgenticTrust default public/" };
+  return { framework: "unknown", publicDir: "public", reason: "Trustflow default public/" };
 }
 
 /** Major version from a package.json range, when one is present. */

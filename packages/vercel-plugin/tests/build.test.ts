@@ -50,8 +50,8 @@ describe("runAgenticTrustVercelBuild", () => {
     const copy = await readFile(path.join(cwd, "public/.well-known/llms.txt"), "utf8");
     expect(llms).toBe(copy);
     expect(llms).toContain("DID: did:web:shop.example");
-    expect(llms).toContain("Verified by AgenticTrust");
-    expect(llms).toContain("Trustflow Systems");
+    expect(llms).toContain("Verified Domain Context | Trustflow");
+    expect(llms).toContain("https://trustflow.systems");
     expect(llms).toContain("- Catalog");
 
     const tree = JSON.stringify(result) + llms + JSON.stringify(did);

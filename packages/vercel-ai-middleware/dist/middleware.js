@@ -94,7 +94,7 @@ function trustHeader(meta) {
  *
  * Pass `fetch` to a provider factory and the object itself to `wrapLanguageModel`.
  * The default mode is `"audit"`: unsigned context logs
- * `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
+ * `[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
  * and does not throw. `{ strict: true }` or `{ mode: "strict" }` throws
  * `UnverifiedDomainContextError` before the response stream starts and before `llms.txt` is parsed.
  */

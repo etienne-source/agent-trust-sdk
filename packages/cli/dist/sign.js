@@ -172,7 +172,7 @@ async function writeGitHubResult(options, result) {
     }
     if (options.githubSummary) {
         const summary = [
-            "### AgenticTrust sign",
+            "### Trustflow sign",
             "",
             `- DID: \`${result.did}\``,
             `- publicKeyHash: \`${result.publicKeyHash}\``,

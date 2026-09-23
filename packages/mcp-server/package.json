@@ -1,7 +1,7 @@
 {
   "name": "@trustflow/mcp-server",
   "version": "1.0.1",
-  "description": "AgenticTrust MCP server. Stdio tools for Trustflow Systems domain audits, did:web keys, and signed llms.txt. Binary: agentic-trust-mcp. Scaffold with npx @trustflow/cli@latest init.",
+  "description": "Trustflow MCP server. Stdio tools for Trustflow Systems domain audits, did:web keys, and signed llms.txt. Binary: agentic-trust-mcp. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -27,7 +27,11 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -49,8 +53,6 @@
     "node": ">=20"
   },
   "keywords": [
-    "agentictrust",
-    "agentic-trust",
     "mcp",
     "did",
     "did:web",

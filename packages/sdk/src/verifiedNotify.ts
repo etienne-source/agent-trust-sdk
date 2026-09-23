@@ -32,7 +32,12 @@ export interface NotifyVerifiedDomainOptions {
 }
 
 export interface VerifiedNotifyPayload {
+  /** Stable event id. Not a display name. */
   event: "agentic_trust.domain.verified";
+  /**
+   * Wire discriminator already emitted to customer webhooks.
+   * Display copy says Trustflow; this field stays so receivers keep matching.
+   */
   protocol: "AgenticTrust";
   registry: "Trustflow Systems";
   domain: string;
@@ -106,7 +111,7 @@ export async function notifyVerifiedDomain(
   const webhook = (configured ?? "").trim();
   if (!webhook) {
     logger.info(
-      `[AgenticTrust] ${domain} is 100/100 VERIFIED. ${VERIFIED_NOTIFY_ENV} is unset, so no webhook was sent. Sharing on X is a separate explicit step and is not performed by this hook.`
+      `[Trustflow] ${domain} is 100/100 VERIFIED. ${VERIFIED_NOTIFY_ENV} is unset, so no webhook was sent. Sharing on X is a separate explicit step and is not performed by this hook.`
     );
     return { sent: false, reason: "webhook_unset" };
   }
@@ -115,7 +120,7 @@ export async function notifyVerifiedDomain(
   try {
     url = new URL(webhook);
   } catch {
-    logger.warn(`[AgenticTrust] ${VERIFIED_NOTIFY_ENV} is not a URL. No notification was sent.`);
+    logger.warn(`[Trustflow] ${VERIFIED_NOTIFY_ENV} is not a URL. No notification was sent.`);
     return { sent: false, reason: "webhook_rejected" };
   }
 
@@ -126,7 +131,7 @@ export async function notifyVerifiedDomain(
     webhookHostBlocked(url.hostname)
   ) {
     logger.warn(
-      `[AgenticTrust] Refusing webhook host ${url.hostname}. Notifications are HTTPS webhooks you configure. This hook does not post to X.`
+      `[Trustflow] Refusing webhook host ${url.hostname}. Notifications are HTTPS webhooks you configure. This hook does not post to X.`
     );
     return { sent: false, reason: "webhook_rejected" };
   }
@@ -146,13 +151,13 @@ export async function notifyVerifiedDomain(
       signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
     });
     if (!response.ok) {
-      logger.warn(`[AgenticTrust] Verified-domain webhook for ${payload.domain} returned ${response.status}.`);
+      logger.warn(`[Trustflow] Verified-domain webhook for ${payload.domain} returned ${response.status}.`);
       return { sent: false, reason: "request_failed", statusCode: response.status };
     }
-    logger.info(`[AgenticTrust] Notified ${url.hostname} that ${payload.domain} is 100/100 VERIFIED.`);
+    logger.info(`[Trustflow] Notified ${url.hostname} that ${payload.domain} is 100/100 VERIFIED.`);
     return { sent: true, reason: "sent", statusCode: response.status };
   } catch {
-    logger.warn(`[AgenticTrust] Verified-domain webhook for ${domain} failed before a response.`);
+    logger.warn(`[Trustflow] Verified-domain webhook for ${domain} failed before a response.`);
     return { sent: false, reason: "request_failed" };
   }
 }

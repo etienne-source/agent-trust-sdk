@@ -5,7 +5,7 @@ import { generateDidKeys } from "./generateDidKeys.js";
 import { signLlmsTxt } from "./signLlmsTxt.js";
 const SERVER_VERSION = "1.0.0";
 /**
- * Stdio MCP server for AgenticTrust.
+ * Stdio MCP server for Trustflow.
  * Hosted audits go to Trustflow Systems (`https://api.trustflow.systems`).
  */
 export function createAgenticTrustMcpServer(options = {}) {
@@ -15,7 +15,7 @@ export function createAgenticTrustMcpServer(options = {}) {
     });
     server.registerTool("audit_domain", {
         title: "Audit domain",
-        description: "Fetch the live Trustflow Systems TrustScore and verification status for a domain (GET https://api.trustflow.systems/v1/verify?domain=). Returns status, isVerified, and the audit score with factors. Protocol: AgenticTrust. Optional baseUrl overrides the API origin (tests).",
+        description: "Fetch the live Trustflow Systems TrustScore and verification status for a domain (GET https://api.trustflow.systems/v1/verify?domain=). Returns status, isVerified, and the audit score with factors. Protocol: Trustflow. Optional baseUrl overrides the API origin (tests).",
         inputSchema: {
             domain: z.string().describe("Hostname or URL to audit, for example example.com"),
             baseUrl: z

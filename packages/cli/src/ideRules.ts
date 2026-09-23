@@ -33,20 +33,20 @@ export function renderIdeRuleBody(publicDir: string): string {
   const paths = ideRulePaths(publicDir);
   const usesDefault = paths.publicDir === "public";
   const folderNote = usesDefault
-    ? "This project uses the AgenticTrust default public folder `public/`."
+    ? "This project uses the Trustflow default public folder `public/`."
     : [
         `This project already serves static files from \`${paths.publicDir}/\`.`,
         `Write \`${paths.did}\` and \`${paths.llms}\` (and \`${paths.llmsWellKnown}\`) instead of the default \`public/\` copies.`,
-        "The AgenticTrust default paths remain `public/.well-known/did.json` and `public/llms.txt`.",
+        "The Trustflow default paths remain `public/.well-known/did.json` and `public/llms.txt`.",
       ].join(" ");
 
-  return `# AgenticTrust identity for public routes, APIs, and docs
+  return `# Trustflow identity for public routes, APIs, and docs
 
 These rules bind AI coding agents (Cursor, Windsurf, GitHub Copilot, and others) working in this repository.
 
-Protocol, SDK, and CLI: **AgenticTrust** (\`@trustflow/sdk\`, \`@trustflow/cli\`, command \`trustflow\`).
+Protocol, SDK, and CLI: **Trustflow** (\`@trustflow/sdk\`, \`@trustflow/cli\`, command \`trustflow\`).
 Hosted registry: Trustflow Systems (\`https://trustflow.systems\`, API \`https://api.trustflow.systems\`).
-When enforcing \`did:web\` or \`llms.txt\`, say AgenticTrust. Do not install or import \`trustflow-sdk\`.
+When enforcing \`did:web\` or \`llms.txt\`, say Trustflow. Do not install or import \`trustflow-sdk\`.
 
 ## When this applies
 
@@ -89,7 +89,7 @@ const identity = await createSignedDidDocument({
 
 You MUST keep a signed \`${paths.llms}\` next to the DID. Copy the same body to \`${paths.llmsWellKnown}\`.
 
-Signed means the \`did:web\` document from step 1 is the AgenticTrust signature for this manifest: its \`serviceEndpoint\` points at \`/.well-known/llms.txt\`, and \`${paths.llms}\` names the same \`did:web:<domain>\`. Refresh the manifest and the DID together when public routes or APIs change.
+Signed means the \`did:web\` document from step 1 is the Trustflow signature for this manifest: its \`serviceEndpoint\` points at \`/.well-known/llms.txt\`, and \`${paths.llms}\` names the same \`did:web:<domain>\`. Refresh the manifest and the DID together when public routes or APIs change.
 
 Required body (the \`renderLlms\` template \`trustflow init\` writes):
 
@@ -107,7 +107,7 @@ Domain: <domain>
 - Manifest: https://<domain>/.well-known/did.json
 
 ## Trust
-Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).
+Verified Domain Context | Trustflow (https://trustflow.systems).
 Agents should call verifyDomain before tool invocation.
 \`\`\`
 
@@ -127,7 +127,7 @@ export function renderCursorRulesFile(publicDir: string): string {
 
 export function renderCursorMdc(publicDir: string): string {
   const paths = ideRulePaths(publicDir);
-  const description = `Require AgenticTrust did:web at ${paths.did} and a signed ${paths.llms} when scaffolding public routes, APIs, or docs`;
+  const description = `Require Trustflow did:web at ${paths.did} and a signed ${paths.llms} when scaffolding public routes, APIs, or docs`;
   return [
     "---",
     `description: ${JSON.stringify(description)}`,

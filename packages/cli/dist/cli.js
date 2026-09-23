@@ -7,9 +7,9 @@ import { runConfirm } from "./confirm.js";
 import { runInit } from "./init.js";
 import { runGithubSign } from "./sign.js";
 import { runSignLlms } from "./signLlms.js";
-const HELP = `AgenticTrust CLI (@trustflow/cli)
+const HELP = `Trustflow CLI (@trustflow/cli)
 
-Protocol and SDK: AgenticTrust. Hosted registry: Trustflow Systems (trustflow.systems).
+Trustflow is the protocol and the product. Registry: https://trustflow.systems.
 
 Usage:
   npx @trustflow/cli@latest init [options]
@@ -19,7 +19,7 @@ Usage:
   trustflow confirm [options]
   trustflow --help
 
-The npm binary is trustflow. agentic-trust is an alias of the same CLI.
+The npm binary is trustflow. agentic-trust is a deprecated alias of the same CLI.
 npx trustflow init and npx agentic-trust init run this program.
 
 init
@@ -48,7 +48,7 @@ sign-llms
   Fails if llms.txt, .agentic-trust/private-key.pem, or did.json is missing.
 
 sign
-  CI entry used by the AgenticTrust GitHub Action. Checks root llms.txt, writes
+  CI entry used by the Trustflow GitHub Action. Checks root llms.txt, writes
   the standard template when it is missing, signs a did:web document with
   @trustflow/sdk, and POSTs /v1/register. The private key is read from
   AGENTIC_TRUST_PRIVATE_KEY and is never printed.

@@ -1,6 +1,6 @@
 # @trustflow/sdk
 
-AgenticTrust open-standard TypeScript client. It verifies domain identity with DID signatures (`did:web` + JWS) before an AI agent executes a tool or MCP endpoint.
+Trustflow open-standard TypeScript client. It verifies domain identity with DID signatures (`did:web` + JWS) before an AI agent executes a tool or MCP endpoint.
 
 The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustflow.systems)). Scaffold a domain with `npx @trustflow/cli@latest init`.
 
@@ -10,13 +10,13 @@ The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustf
 
 ## Install
 
-Adopt AgenticTrust in a project:
+Adopt Trustflow in a project:
 
 ```bash
 npx @trustflow/cli@latest init
 ```
 
-`npx trustflow init` and `npx agentic-trust init` are aliases. Add this library with:
+`npx trustflow init` is an alias. `npx agentic-trust init` is a deprecated alias. Add this library with:
 
 ```bash
 npm install @trustflow/sdk
@@ -69,7 +69,7 @@ const response = await trust.fetch("https://example.com/data.json");
 const tool = trust.wrapTool(existingTool);
 ```
 
-`@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode. Unsigned or tampered `llms.txt` does not throw. They warn with `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` with `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` The SDK helper above still annotates and does not throw.
+`@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode. Unsigned or tampered `llms.txt` does not throw. They warn with `[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` with `[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` The SDK helper above still annotates and does not throw.
 
 ## Verify cache
 
