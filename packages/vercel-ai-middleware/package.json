@@ -1,6 +1,6 @@
 {
   "name": "@trustflow/vercel-ai-middleware",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Vercel AI SDK fetch and stream middleware that rejects unverified AgenticTrust domain context.",
   "license": "MIT",
   "repository": {
