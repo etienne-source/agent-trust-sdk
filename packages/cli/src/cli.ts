@@ -20,8 +20,8 @@ Usage:
   trustflow confirm [options]
   trustflow --help
 
-The npm binary is trustflow. agentic-trust is a deprecated alias of the same CLI.
-npx trustflow init and npx agentic-trust init run this program.
+The npm binary is trustflow. agentic-trust is a deprecated name for that same installed command.
+There is no unscoped trustflow package, so npx trustflow does not install this CLI.
 
 init
   Detect Next.js, Vite, or Nuxt (or an existing public/ or static/ folder) and
@@ -37,7 +37,7 @@ init
   Body: domain, businessName, verificationType (SSL_CHALLENGE | DNS_TXT),
   and the SPKI publicKeyPem from the did:web key.
   The CLI writes the SSL challenge file itself. When that file and did.json are
-  already on HTTPS (or appear within a short poll), it POSTs /v1/register/confirm.
+  already on HTTPS (or appear within about 90 seconds), it POSTs /v1/register/confirm.
   Pass --no-auto-confirm to register without that confirm call. The did.json
   public key must still match the key sent at registration.
 

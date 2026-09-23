@@ -69,7 +69,7 @@ Do not install the unrelated `trustflow-sdk` package.
 
 ## What to ship instead
 
-- Publish a real `did:web` document with `npx trustflow init` from `@trustflow/cli`. A file whose `proof.jws` is `REPLACE_ME` is a placeholder, not a signature, and it does not make a domain `VERIFIED`.
+- Publish a real `did:web` document with `npx @trustflow/cli@latest init`. A file whose `proof.jws` is `REPLACE_ME` is a placeholder, not a signature, and it does not make a domain `VERIFIED`.
 - Keep the private key in `.agentic-trust/` (mode `0600`, gitignored). Do not put it in the pull request or in `did.json`.
 - Use `{ strict: true }` when unsigned context must throw. The package default is audit mode.
 - Treat `RISK` as a block, including a disallowed JWS `alg` (`none`, any `HS*`). See [SPEC.md](../../SPEC.md).

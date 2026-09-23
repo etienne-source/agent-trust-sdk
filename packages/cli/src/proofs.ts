@@ -4,10 +4,10 @@ import { confirmRegistration, TrustflowApiError, type VerificationType } from ".
 
 /**
  * CLI wait budget for "register → proofs reachable → confirm".
- * Short on purpose: the loop should finish in well under 10 seconds once the
- * network can see the files. This does not include a hung API timeout.
+ * Short on purpose for the gap between probes. The overall window is
+ * {@link DEFAULT_PROOF_BUDGET_MS}. This does not include a hung API timeout.
  */
-export const DEFAULT_PROOF_BUDGET_MS = 8_000;
+export const DEFAULT_PROOF_BUDGET_MS = 90_000;
 export const DEFAULT_PROOF_INTERVAL_MS = 200;
 const PROOF_FETCH_TIMEOUT_MS = 1_500;
 
@@ -48,9 +48,11 @@ export interface AutoConfirmResult {
  * `SSL_CHALLENGE`, `challengePath` (`/.well-known/agentic-trust-challenge.txt`).
  * `POST /v1/register/confirm` still requires that token. This client does not
  * treat a live `did.json` as a substitute for the challenge file. It writes the
- * challenge, then confirms only after a short parallel poll sees both the live
+ * challenge, then confirms only after a poll sees both the live
  * DID (public key must match registration) and the challenge body, or the DNS
- * TXT record for `DNS_TXT`. Confirm is the registry check, not a local bypass.
+ * TXT record for `DNS_TXT`. The default window is 90 seconds so a deploy can
+ * finish. The interval stays short, so a site that is already live confirms
+ * on the first check. Confirm is the registry check, not a local bypass.
  */
 export async function autoConfirm(input: AutoConfirmInput): Promise<AutoConfirmResult> {
   const budgetMs = input.budgetMs ?? DEFAULT_PROOF_BUDGET_MS;

@@ -1,7 +1,7 @@
 import { createPrivateKey } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain, wellKnownLlmsUrl, } from "@trustflow/sdk";
+import { createSignedDidDocument, hashLlmsTxt, normalizeDomain, wellKnownLlmsUrl, } from "@trustflow/sdk";
 /**
  * Sign a domain's llms.txt the way `@trustflow/cli` does:
  * `createSignedDidDocument` produces the did:web JWS whose service endpoint is
@@ -20,6 +20,7 @@ export async function signLlmsTxt(input) {
     const identity = await createSignedDidDocument({
         domain,
         privateKeyPem,
+        llmsTxtSha256: hashLlmsTxt(llmsTxt),
         services: [
             {
                 id: `did:web:${domain}#llms`,

@@ -23,7 +23,7 @@ npx @trustflow/cli@latest init
 npx -y @trustflow/mcp-server
 ```
 
-`npx trustflow init` is an alias of the CLI. Binary: `agentic-trust-mcp`.
+Run `npx @trustflow/cli@latest init`. Binary: `agentic-trust-mcp`.
 
 ### Contributors
 

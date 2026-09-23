@@ -4,7 +4,7 @@
  * Cryptographic protocol for domain identity: DID signatures (`did:web` + compact JWS).
  * The CLI package is `@trustflow/cli`
  * (`npx @trustflow/cli@latest init`), which registers domains with Trustflow Systems.
- * `npx trustflow init` is an alias. `npx agentic-trust init` is a deprecated alias.
+ * There is no unscoped `trustflow` package. After install, the command name is `trustflow`.
  *
  * ```bash
  * npm install @trustflow/sdk
@@ -25,7 +25,8 @@ export { agenticTrustMiddleware, DEFAULT_TRUST_API_URL, DEFAULT_MIDDLEWARE_TIMEO
 export { MemoryCache, defaultCache } from "./cache.js";
 export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, sameSiteRedirect, } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem, allowedAlgForKey, clearPublicKeyCache, ALLOWED_JWS_ALGS, } from "./jws.js";
-export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
+export { createSignedDidDocument, hashLlmsTxt, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
+export { cloneValue, collectContextTargets, collectLlmsPayloads, formatVerifiedLlms, isContextTarget, isLlmsTxtUrl, parseLlmsTxt, readBody, writeVerifiedText, } from "./llmsContext.js";
 export { signBuildArtifacts, renewBuildSignatures } from "./buildSign.js";
 export { emitSecurityAlert, resolveEnforcementMode, securityAlertEvent, subscribeSecurityAlerts, unverifiedContextAlert, } from "./audit.js";
 export { notifyVerifiedDomain, isCompleteVerification, buildVerifiedNotifyPayload, VERIFIED_NOTIFY_ENV, VERIFIED_SCORE_COMPLETE, } from "./verifiedNotify.js";

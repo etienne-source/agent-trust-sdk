@@ -16,7 +16,7 @@ Adopt Trustflow in a project:
 npx @trustflow/cli@latest init
 ```
 
-`npx trustflow init` is an alias. `npx agentic-trust init` is a deprecated alias. Add this library with:
+Run `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package. After install, the command name is `trustflow`. Add this library with:
 
 ```bash
 npm install @trustflow/sdk

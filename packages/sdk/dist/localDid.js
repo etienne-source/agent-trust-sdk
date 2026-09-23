@@ -110,6 +110,7 @@ export async function assessDidDocument(domain, body) {
         did,
         didId: typeof did.id === "string" && did.id ? did.id : expected,
         record,
+        llmsTxtSha256: jwsResult.llmsTxtSha256,
     };
 }
 //# sourceMappingURL=localDid.js.map

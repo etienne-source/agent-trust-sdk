@@ -16,6 +16,7 @@ export type DidAssessment = {
     did: DidDocument;
     didId: string;
     record: Record<string, unknown>;
+    llmsTxtSha256?: string;
 } | {
     outcome: "risk";
     reason: string;

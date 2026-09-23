@@ -4,7 +4,7 @@
  * Cryptographic protocol for domain identity: DID signatures (`did:web` + compact JWS).
  * The CLI package is `@trustflow/cli`
  * (`npx @trustflow/cli@latest init`), which registers domains with Trustflow Systems.
- * `npx trustflow init` is an alias. `npx agentic-trust init` is a deprecated alias.
+ * There is no unscoped `trustflow` package. After install, the command name is `trustflow`.
  *
  * ```bash
  * npm install @trustflow/sdk
@@ -28,7 +28,9 @@ export type { MemoryCacheOptions } from "./cache.js";
 export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, sameSiteRedirect, } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem, allowedAlgForKey, clearPublicKeyCache, ALLOWED_JWS_ALGS, } from "./jws.js";
 export type { AllowedJwsAlg } from "./jws.js";
-export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
+export { createSignedDidDocument, hashLlmsTxt, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
+export { cloneValue, collectContextTargets, collectLlmsPayloads, formatVerifiedLlms, isContextTarget, isLlmsTxtUrl, parseLlmsTxt, readBody, writeVerifiedText, } from "./llmsContext.js";
+export type { LlmsPayloadSite, ParsedLlmsSection, ParsedLlmsTxt } from "./llmsContext.js";
 export type { CreateSignedDidInput, DidServiceEndpoint, SignedDidIdentity } from "./identity.js";
 export { signBuildArtifacts, renewBuildSignatures } from "./buildSign.js";
 export type { BuildSignatureFile, RenewBuildSignaturesOptions, RenewBuildSignaturesResult, SignBuildArtifactsInput, SignBuildArtifactsResult, } from "./buildSign.js";

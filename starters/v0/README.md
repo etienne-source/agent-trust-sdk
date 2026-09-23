@@ -51,7 +51,7 @@ Signing does not require a local shell. Add `AGENTIC_TRUST_PRIVATE_KEY` (Sensiti
 }
 ```
 
-The build writes `public/llms.txt`, `public/.well-known/llms.txt`, and `public/.well-known/did.json`. The private key stays in Vercel and is not committed. Details are in [packages/vercel-plugin/README.md](../../packages/vercel-plugin/README.md). The local `npx trustflow init` flow below is the alternative when you do have a terminal.
+The build writes `public/llms.txt`, `public/.well-known/llms.txt`, and `public/.well-known/did.json`. The private key stays in Vercel and is not committed. Details are in [packages/vercel-plugin/README.md](../../packages/vercel-plugin/README.md). The local `npx @trustflow/cli@latest init` flow below is the alternative when you do have a terminal.
 
 ## Replace the placeholders
 
@@ -69,7 +69,7 @@ npx @trustflow/cli@latest init \
   --description "What this site offers agents"
 ```
 
-`npx trustflow init` is an alias of `@trustflow/cli`. `npx agentic-trust init` is a deprecated alias.
+Run `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package. After install, the command name is `trustflow`.
 
 `--skip-register` writes the local files and skips `POST /v1/register`. Omit it when you want Trustflow Systems to issue a challenge.
 

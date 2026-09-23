@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
+import { createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { detectProjectLayout, nextMiddlewareNotice } from "./framework.js";
 import { readLlms } from "./llms.js";
 import { readKeyPair } from "./project.js";
@@ -32,11 +32,13 @@ export async function runSignLlms(options) {
     if (llms.domain && normalizeDomain(llms.domain) !== domain) {
         throw new Error(`llms.txt Domain (${llms.domain}) does not match did.json (${domain}). sign-llms did not rewrite the JWS.`);
     }
+    const llmsText = await fs.readFile(llms.path, "utf8");
     const identity = await createSignedDidDocument({
         domain,
         privateKeyPem: keys.privateKeyPem,
         publicKeyPem: keys.publicKeyPem,
         services: documents[0].did.service,
+        llmsTxtSha256: hashLlmsTxt(llmsText),
     });
     if (!identity.did.proof?.jws) {
         throw new Error("Signing did not produce a JWS.");
@@ -50,6 +52,7 @@ export async function runSignLlms(options) {
     for (const document of documents) {
         const next = {
             ...document.did,
+            llmsTxtSha256: identity.did.llmsTxtSha256,
             proof: identity.did.proof,
         };
         const body = `${JSON.stringify(next, null, 2)}\n`;

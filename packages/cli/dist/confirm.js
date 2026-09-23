@@ -1,5 +1,5 @@
 import { confirmRegistration, resolveTrustflowApiBase } from "./api.js";
-import { renderBadge } from "./badge.js";
+import { embedBadge, renderBadge } from "./badge.js";
 import { readRegistration } from "./project.js";
 export async function runConfirm(options) {
     const stored = await readRegistration(options.cwd);
@@ -21,6 +21,11 @@ export async function runConfirm(options) {
     options.log("Registration confirmed.");
     options.log(JSON.stringify(result, null, 2));
     if (options.printBadge !== false) {
+        const embedded = await embedBadge(options.cwd, domain);
+        if (embedded.status === "written")
+            options.log(`Wrote the Trustflow badge into ${embedded.file}`);
+        else if (embedded.status === "present")
+            options.log("Trustflow badge is already in the page.");
         options.log("");
         options.log("Embeddable badge:");
         options.log(renderBadge(domain));

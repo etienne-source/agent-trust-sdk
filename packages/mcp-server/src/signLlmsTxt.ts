@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   createSignedDidDocument,
+  hashLlmsTxt,
   normalizeDomain,
   wellKnownLlmsUrl,
   type DidDocument,
@@ -64,6 +65,7 @@ export async function signLlmsTxt(input: SignLlmsTxtInput): Promise<SignLlmsTxtR
   const identity = await createSignedDidDocument({
     domain,
     privateKeyPem,
+    llmsTxtSha256: hashLlmsTxt(llmsTxt),
     services: [
       {
         id: `did:web:${domain}#llms`,

@@ -48,6 +48,8 @@ export interface DidDocument {
     type: string;
     serviceEndpoint: string;
   }>;
+  /** SHA-256 hex of the published llms.txt body, when the JWS covers that file. */
+  llmsTxtSha256?: string;
   proof?: {
     type: string;
     created?: string;

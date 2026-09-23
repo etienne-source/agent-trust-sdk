@@ -6,4 +6,17 @@ export declare function verifyPageUrl(domain: string): string;
  * `https://trustflow.systems/verify/[domain]`.
  */
 export declare function renderBadge(domain: string): string;
+export type BadgeEmbed = {
+    status: "written";
+    file: string;
+} | {
+    status: "present";
+} | {
+    status: "skipped";
+};
+/**
+ * Insert the badge before `</footer>` or `</body>` in the nearest layout.
+ * Leaves the file alone when that verify link is already there.
+ */
+export declare function embedBadge(cwd: string, domain: string): Promise<BadgeEmbed>;
 //# sourceMappingURL=badge.d.ts.map

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
+import { hashLlmsTxt, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
 import { main } from "../src/cli.js";
 
 async function tempProject(): Promise<string> {
@@ -83,7 +83,10 @@ describe("trustflow sign-llms", () => {
     expect(after.proof?.jws).not.toBe("not-a-signature");
     expect(after.proof?.jws?.split(".")).toHaveLength(3);
     const key = await importPublicKey(after);
-    expect((await verifyDidJws(after, key!)).ok).toBe(true);
+    const verified = await verifyDidJws(after, key!);
+    expect(verified.ok).toBe(true);
+    expect(after.llmsTxtSha256).toBe(hashLlmsTxt(llmsBefore));
+    expect(verified.llmsTxtSha256).toBe(after.llmsTxtSha256);
   });
 
   it("fails when llms.txt, keys, or did.json are missing", async () => {

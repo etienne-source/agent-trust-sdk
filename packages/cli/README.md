@@ -6,7 +6,7 @@ Binary: `trustflow` (`agentic-trust` is a deprecated alias of the same program)
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. The CLI command is `npx @trustflow/cli@latest init`. `npx trustflow init` is an alias. `npx agentic-trust init` is a deprecated alias.
+> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. The CLI command is `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package. After install, the command name is `trustflow`, and `agentic-trust` is a deprecated name for that same command.
 
 ## Install
 

@@ -40,7 +40,7 @@ Trustflow Systems hosts the registry (trustflow.systems, api.trustflow.systems).
 
 9/10
 
-Do not npm install trustflow-sdk. That name is an unrelated package. Install from GitHub: github:etienne-source/agent-trust-sdk. Run npx trustflow init, and keep the private key out of git.
+Do not npm install trustflow-sdk. That name is an unrelated package. Run npx @trustflow/cli@latest init, and keep the private key out of git.
 
 10/10
 

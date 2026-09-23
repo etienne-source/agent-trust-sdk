@@ -17,7 +17,7 @@ If either file is missing or invalid, the plugin prints:
 
 The warning does not fail `next dev` or `next build`. Production builds (`NODE_ENV` other than `development`) stay quiet.
 
-**Trustflow** is the protocol and this plugin. **Trustflow Systems** is the hosted registry that `npx trustflow init` registers with. This package does not call the registry.
+**Trustflow** is the protocol and this plugin. **Trustflow Systems** is the hosted registry that `npx @trustflow/cli@latest init` registers with. This package does not call the registry.
 
 **License:** MIT
 
@@ -30,7 +30,7 @@ npx @trustflow/cli@latest init
 npm install @trustflow/next-plugin
 ```
 
-`npx trustflow init` is an alias of `@trustflow/cli`. Next.js 13 or newer is the host app. This package does not bundle Next.js.
+Run `npx @trustflow/cli@latest init`. Next.js 13 or newer is the host app. This package does not bundle Next.js.
 
 ### Contributors
 

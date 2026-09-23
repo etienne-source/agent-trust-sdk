@@ -14,6 +14,7 @@ export type DidAssessment =
       did: DidDocument;
       didId: string;
       record: Record<string, unknown>;
+      llmsTxtSha256?: string;
     }
   | {
       outcome: "risk";
@@ -155,5 +156,6 @@ export async function assessDidDocument(domain: string, body: unknown): Promise<
     did,
     didId: typeof did.id === "string" && did.id ? did.id : expected,
     record,
+    llmsTxtSha256: jwsResult.llmsTxtSha256,
   };
 }

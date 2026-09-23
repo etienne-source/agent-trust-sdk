@@ -1,6 +1,6 @@
 {
   "name": "@trustflow/sdk",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Trustflow open-standard SDK (@trustflow/sdk) for domain identity, DID signatures, and agent integrations. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,7 @@
 import { defaultCache, type MemoryCache } from "./cache.js";
 import { clearPublicKeyCache } from "./jws.js";
 import { fingerprintPem } from "./jws.js";
+import { hashLlmsTxt } from "./identity.js";
 import { assessDidDocument, fetchDidDocument } from "./localDid.js";
 import {
   normalizeDomain,
@@ -66,7 +67,7 @@ function verifyResult(
 async function softFetchLlms(
   domain: string,
   fetchFn: typeof fetch
-): Promise<{ present: boolean; summary?: string }> {
+): Promise<{ present: boolean; summary?: string; sha256?: string }> {
   try {
     const res = await fetchFn(wellKnownLlmsUrl(domain), {
       method: "GET",
@@ -77,7 +78,7 @@ async function softFetchLlms(
     if (!final.ok) return { present: false };
     const text = await final.text();
     const summary = text.slice(0, 280).replace(/\s+/g, " ").trim();
-    return { present: true, summary };
+    return { present: true, summary, sha256: hashLlmsTxt(text) };
   } catch {
     return { present: false };
   }
@@ -155,6 +156,14 @@ async function verifyLocalDid(
   const claims = buildClaims(domain, assessment.did, llms, keyFp);
 
   if (assessment.outcome === "verified") {
+    if (assessment.llmsTxtSha256 && assessment.llmsTxtSha256 !== llms.sha256) {
+      return verifyResult(domain, "RISK", {
+        claims,
+        reason: llms.present
+          ? "llms.txt does not match the signed hash"
+          : "Signed llms.txt is not published",
+      });
+    }
     return verifyResult(domain, "VERIFIED", { claims });
   }
   if (assessment.outcome === "risk") {

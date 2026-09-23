@@ -176,10 +176,9 @@ describe("zero-config init writes", () => {
 });
 
 describe("auto-confirm", () => {
-  it("keeps the proof loop under 10 seconds", () => {
+  it("waits long enough for a deploy and still polls quickly", () => {
     expect(DEFAULT_PROOF_INTERVAL_MS).toBeLessThanOrEqual(250);
-    expect(DEFAULT_PROOF_BUDGET_MS).toBeLessThanOrEqual(8_000);
-    expect(DEFAULT_PROOF_BUDGET_MS).toBeLessThan(10_000);
+    expect(DEFAULT_PROOF_BUDGET_MS).toBe(90_000);
   });
 
   it("probes the DID and the challenge in parallel", async () => {

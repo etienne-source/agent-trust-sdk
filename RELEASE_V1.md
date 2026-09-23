@@ -27,7 +27,7 @@ Binary: `trustflow`.
 - Badge label: `Verified Domain Context | Trustflow`. Link: `https://trustflow.systems/verify/<domain>`.
 - Default API base: `https://api.trustflow.systems`. `https://trustflow.systems/api/register` is an alias of that origin.
 
-The intended npm command, after the scope exists, is `npx trustflow init`. Until then, run the binary from a clone.
+The npm command is `npx @trustflow/cli@latest init`.
 
 ### `@trustflow/mcp-server` (`packages/mcp-server`)
 

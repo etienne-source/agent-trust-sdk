@@ -1,10 +1,10 @@
 import { type VerificationType } from "./api.js";
 /**
  * CLI wait budget for "register → proofs reachable → confirm".
- * Short on purpose: the loop should finish in well under 10 seconds once the
- * network can see the files. This does not include a hung API timeout.
+ * Short on purpose for the gap between probes. The overall window is
+ * {@link DEFAULT_PROOF_BUDGET_MS}. This does not include a hung API timeout.
  */
-export declare const DEFAULT_PROOF_BUDGET_MS = 8000;
+export declare const DEFAULT_PROOF_BUDGET_MS = 90000;
 export declare const DEFAULT_PROOF_INTERVAL_MS = 200;
 export type ProofProbe = "ready" | "pending" | "mismatch";
 export interface LiveProofInput {
@@ -42,9 +42,11 @@ export interface AutoConfirmResult {
  * `SSL_CHALLENGE`, `challengePath` (`/.well-known/agentic-trust-challenge.txt`).
  * `POST /v1/register/confirm` still requires that token. This client does not
  * treat a live `did.json` as a substitute for the challenge file. It writes the
- * challenge, then confirms only after a short parallel poll sees both the live
+ * challenge, then confirms only after a poll sees both the live
  * DID (public key must match registration) and the challenge body, or the DNS
- * TXT record for `DNS_TXT`. Confirm is the registry check, not a local bypass.
+ * TXT record for `DNS_TXT`. The default window is 90 seconds so a deploy can
+ * finish. The interval stays short, so a site that is already live confirms
+ * on the first check. Confirm is the registry check, not a local bypass.
  */
 export declare function autoConfirm(input: AutoConfirmInput): Promise<AutoConfirmResult>;
 export declare function confirmResultVerified(result: Record<string, unknown>): boolean;

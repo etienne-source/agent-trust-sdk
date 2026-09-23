@@ -27,6 +27,8 @@ export interface CreateSignedDidInput {
    */
   privateKeyPem?: string;
   publicKeyPem?: string;
+  /** SHA-256 hex from {@link hashLlmsTxt}. Included in the signed payload when set. */
+  llmsTxtSha256?: string;
 }
 
 export interface SignedDidIdentity {
@@ -45,6 +47,15 @@ export interface SignedDidIdentity {
 export function hashPublicKeyPem(pem: string): string {
   const normalized = pem.replace(/\r\n/g, "\n").trim();
   return createHash("sha256").update(normalized).digest("hex");
+}
+
+/**
+ * SHA-256 hex of an llms.txt body. A leading BOM and CRLF are normalized, and
+ * one trailing newline is ignored, so the file on disk and the HTTP body match.
+ */
+export function hashLlmsTxt(text: string): string {
+  const normalized = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\n$/, "");
+  return createHash("sha256").update(normalized, "utf8").digest("hex");
 }
 
 function pemToString(value: string | Buffer): string {
@@ -134,8 +145,14 @@ export async function createSignedDidDocument(
           },
         ];
 
+  const llmsTxtSha256 = input.llmsTxtSha256?.trim().toLowerCase();
+  if (llmsTxtSha256 && !/^[0-9a-f]{64}$/.test(llmsTxtSha256)) {
+    throw new Error("llmsTxtSha256 must be a SHA-256 hex digest.");
+  }
+
   const payload = {
     id,
+    ...(llmsTxtSha256 ? { llmsTxtSha256 } : {}),
     verificationMethod: [
       {
         id: `${id}#key-1`,

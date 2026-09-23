@@ -31,7 +31,7 @@ describe("trustflow init", () => {
     expect(text).toContain("sign-llms");
     expect(text).toContain("npx @trustflow/cli@latest init");
     expect(text).toContain("Trustflow CLI");
-    expect(text).toContain("agentic-trust is a deprecated alias");
+    expect(text).toContain("agentic-trust is a deprecated name");
     expect(text).not.toContain("AgenticTrust");
     expect(text).toContain("https://api.trustflow.systems/v1/register");
     expect(text).toContain("SSL_CHALLENGE");

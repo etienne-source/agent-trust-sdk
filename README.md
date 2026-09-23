@@ -18,7 +18,7 @@ The signature and fetch rules are in [SPEC.md](SPEC.md).
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. This repository publishes `@trustflow/*`. Adopt the product with `npx @trustflow/cli@latest init`. `npx trustflow init` is an alias of `@trustflow/cli`. `npx agentic-trust init` is a deprecated alias. The npm scope `@agentic-trust` is taken by an unrelated maintainer, so it is not used. npm publication of `@trustflow/*` is the tag workflow in [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) (Actions secret `NPM_TOKEN`).
+> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. This repository publishes `@trustflow/*`. Adopt the product with `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package, so `npx trustflow` does not install this CLI. After install, the command name is `trustflow`, and `agentic-trust` is a deprecated name for that same command. The npm scope `@agentic-trust` is taken by an unrelated maintainer, so it is not used. npm publication of `@trustflow/*` is the tag workflow in [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) (Actions secret `NPM_TOKEN`).
 
 ## Architecture
 
@@ -68,7 +68,7 @@ Trustflow code in this repository signs and checks documents. Trustflow Systems 
 | `@trustflow/vercel-plugin` | [packages/vercel-plugin](packages/vercel-plugin) | `npm install @trustflow/vercel-plugin`. Binary: `agentic-trust-vercel` |
 | Starters | [starters/](starters/README.md) | [nextjs](starters/nextjs), [v0](starters/v0), [bolt](starters/bolt). Not workspace packages. Scaffold with `npx @trustflow/cli@latest init`. |
 
-Publishable packages are version **1.0.4**, MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
+Publishable packages are version **1.0.5**, MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
 
 WordPress sites copy [plugins/wordpress/agentic-trust.php](plugins/wordpress/agentic-trust.php) to serve `/.well-known/did.json` and `llms.txt`. Shopify and Webflow use the header and asset-routing snippets in [docs/cms/shopify-webflow-guide.md](docs/cms/shopify-webflow-guide.md). **Trustflow** is the protocol. **Trustflow Systems** is the hosted registry. Do not install the unrelated `trustflow-sdk` package.
 
@@ -78,7 +78,7 @@ WordPress sites copy [plugins/wordpress/agentic-trust.php](plugins/wordpress/age
 npx @trustflow/cli@latest init
 ```
 
-`npx trustflow init` is an alias of the same `@trustflow/cli` binary. `npx agentic-trust init` is a deprecated alias.
+After install, the command name is `trustflow`. `agentic-trust` is a deprecated name for that same command. `npx trustflow` does not install this CLI.
 
 ```bash
 npx @trustflow/cli@latest init \
@@ -255,7 +255,7 @@ Function names are unchanged. Install `@trustflow/sdk` and scaffold with `npx @t
 | `@agentic-trust/sdk` | `@trustflow/sdk` |
 | `import { verifyDomain } from "agent-trust-sdk"` | `import { verifyDomain } from "@trustflow/sdk"` |
 | `import { verifyDomain } from "@agentic-trust/sdk"` | `import { verifyDomain } from "@trustflow/sdk"` |
-| `npx agentic-trust init` | `npx @trustflow/cli@latest init` (`npx trustflow init` is the same binary) |
+| `npx agentic-trust init` | `npx @trustflow/cli@latest init` (after install, the command name `agentic-trust` still runs this CLI) |
 
 ### How AI frameworks should use it
 

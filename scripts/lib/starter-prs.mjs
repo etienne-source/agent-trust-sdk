@@ -235,7 +235,7 @@ function pullRequestBody(target) {
     "The hosted registry is **Trustflow Systems** (https://trustflow.systems).",
     "",
     `\`did.json\` is the unsigned starter placeholder (\`proof.jws\` is \`REPLACE_ME\`). It does not make \`${target.domain}\` VERIFIED.`,
-    "Replace it with `npx trustflow init` from `@trustflow/cli` (clone `github:etienne-source/agent-trust-sdk` until the npm scope exists).",
+    "Replace it with `npx @trustflow/cli@latest init`. Do not commit a private key or `.agentic-trust/`.",
     "For Next.js, copy the signed document to `public/.well-known/did.json`. Do not commit a private key or `.agentic-trust/`.",
     "",
     "### Install",

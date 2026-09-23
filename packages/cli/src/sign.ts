@@ -1,8 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
+import { createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { confirmRegistration, resolveTrustflowApiBase, TrustflowApiError } from "./api.js";
-import { renderBadge } from "./badge.js";
+import { embedBadge, renderBadge } from "./badge.js";
 import { detectProjectLayout, directoryExists, shouldMirrorPublishedFiles } from "./framework.js";
 import { parseLlms, parseServiceList, renderLlms } from "./llms.js";
 import {
@@ -80,9 +80,11 @@ async function signDomain(
   const businessName = (options.name?.trim() || existing?.name || domain).trim();
   const description = (options.description?.trim() || existing?.description || DEFAULT_DESCRIPTION).trim();
 
+  let manifest = existingText;
   let llmsGenerated = false;
   if (existingText === undefined) {
     const llms = renderLlms({ name: businessName, description, domain, services });
+    manifest = llms;
     const llmsPaths = [
       ...(await writePublishedFile(options.cwd, layout.publicDir, "llms.txt", llms, mirrorRoot)),
       ...(await writePublishedFile(options.cwd, layout.publicDir, ".well-known/llms.txt", llms, mirrorRoot)),
@@ -105,6 +107,7 @@ async function signDomain(
   const identity = await createSignedDidDocument({
     domain,
     privateKeyPem: providedKey,
+    llmsTxtSha256: manifest ? hashLlmsTxt(manifest) : undefined,
   });
   secrets.push(identity.privateKeyPem);
   maskForGitHubActions(identity.privateKeyPem);
@@ -140,6 +143,8 @@ async function signDomain(
     log(`Dry run: skipped POST ${apiBase}/v1/register`);
     log("Publish llms.txt and .well-known/did.json, then rerun without dry-run to register the domain.");
     log(renderBadge(domain));
+    const embedded = await embedBadge(options.cwd, domain);
+    if (embedded.status === "written") log(`Wrote the Trustflow badge into ${embedded.file}`);
     await writeGitHubResult(options, {
       publicKeyHash: identity.publicKeyHash,
       live: "dry-run",
@@ -211,6 +216,8 @@ async function signDomain(
   }
 
   log(renderBadge(domain));
+  const embedded = await embedBadge(options.cwd, domain);
+  if (embedded.status === "written") log(`Wrote the Trustflow badge into ${embedded.file}`);
   await writeGitHubResult(options, {
     publicKeyHash: identity.publicKeyHash,
     live: live ? "true" : "false",

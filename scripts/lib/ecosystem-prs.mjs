@@ -314,7 +314,7 @@ function pullRequestBody(target) {
     "",
     "`.well-known/did.json` and `llms.txt` in this change are unsigned placeholders (`proof.jws` is `REPLACE_ME`).",
     `They do not make \`${target.domain}\` VERIFIED.`,
-    "Replace them with `npx trustflow init` from `@trustflow/cli`. Do not commit a private key or `.agentic-trust/`.",
+    "Replace them with `npx @trustflow/cli@latest init`. Do not commit a private key or `.agentic-trust/`.",
     "",
     "### Install",
     "",

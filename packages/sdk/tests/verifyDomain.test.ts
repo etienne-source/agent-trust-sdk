@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SignJWT, exportSPKI, generateKeyPair } from "jose";
-import {
-  verifyDomain,
-  clearVerifyCache,
-  inspectEndpointBeforeExecution,
-} from "../src/index.js";
+import { createSignedDidDocument, hashLlmsTxt, clearVerifyCache, inspectEndpointBeforeExecution, verifyDomain } from "../src/index.js";
 import type { DidDocument } from "../src/types.js";
 
 async function makeSignedDid(domain: string) {
@@ -94,6 +90,38 @@ describe("verifyDomain", () => {
     expect(result.claims.llmsTxtPresent).toBe(true);
     expect(result.claims.did).toBe(`did:web:${domain}`);
     expect(result.cached).toBeFalsy();
+  });
+
+  it("returns RISK when llms.txt does not match the signed hash", async () => {
+    const domain = "hashed.example";
+    const body = "# Hashed\n> Matching manifest\n";
+    const identity = await createSignedDidDocument({
+      domain,
+      llmsTxtSha256: hashLlmsTxt(body),
+    });
+    const match = mockFetchRouter({
+      "/.well-known/did.json": { body: identity.did },
+      "/.well-known/llms.txt": { text: body },
+    });
+    const ok = await verifyDomain(domain, {
+      fetch: match,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(ok.status).toBe("VERIFIED");
+
+    clearVerifyCache();
+    const tampered = mockFetchRouter({
+      "/.well-known/did.json": { body: identity.did },
+      "/.well-known/llms.txt": { text: "# Hashed\n> Tampered\n" },
+    });
+    const risk = await verifyDomain(domain, {
+      fetch: tampered,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(risk.status).toBe("RISK");
+    expect(risk.reason).toMatch(/does not match the signed hash/);
   });
 
   it("returns UNVERIFIED when did.json missing and API says so", async () => {

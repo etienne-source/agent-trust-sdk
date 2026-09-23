@@ -20,11 +20,11 @@ function read(relativePath) {
   return readFileSync(path.join(root, relativePath), "utf8");
 }
 
-test("publishable packages are 1.0.4 public MIT packages of this repository", () => {
+test("publishable packages are 1.0.5 public MIT packages of this repository", () => {
   for (const [name, relativePath, directory] of publishable) {
     const pkg = JSON.parse(read(relativePath));
     assert.equal(pkg.name, name);
-    assert.equal(pkg.version, "1.0.4");
+    assert.equal(pkg.version, "1.0.5");
     assert.equal(pkg.license, "MIT");
     assert.equal(pkg.private, undefined);
     assert.equal(pkg.repository.type, "git");

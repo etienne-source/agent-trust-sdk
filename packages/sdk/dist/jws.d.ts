@@ -31,6 +31,8 @@ export declare function importPublicKey(did: DidDocument): Promise<PublicKeyMate
 export declare function verifyDidJws(did: DidDocument, key: PublicKeyMaterial): Promise<{
     ok: boolean;
     reason?: string;
+    llmsTxtSha256?: string;
 }>;
+/** SHA-256 hex of a normalized SPKI PEM. Same bytes as the registry `publicKeyHash`. */
 export declare function fingerprintPem(pem: string): string;
 //# sourceMappingURL=jws.d.ts.map

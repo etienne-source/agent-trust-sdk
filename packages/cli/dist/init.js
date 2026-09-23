@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
-import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
+import { createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { resolveTrustflowApiBase } from "./api.js";
-import { renderBadge, verifyPageUrl } from "./badge.js";
+import { embedBadge, renderBadge, verifyPageUrl } from "./badge.js";
 import { detectProjectLayout, directoryExists, nextMiddlewareNotice, shouldMirrorPublishedFiles, } from "./framework.js";
 import { writeIdeRules } from "./ideRules.js";
 import { parseServiceList, readLlms, renderLlms, } from "./llms.js";
@@ -31,6 +31,7 @@ export async function runInit(options) {
     if (layout.framework === "next") {
         options.log(nextMiddlewareNotice());
     }
+    let llmsBody;
     if (!existing) {
         name = await requireValue({
             preset: name,
@@ -58,6 +59,7 @@ export async function runInit(options) {
             domain: normalizedDomain,
             services,
         });
+        llmsBody = llms;
         for (const leaf of ["llms.txt", ".well-known/llms.txt"]) {
             for (const file of await writePublishedFile(options.cwd, layout.publicDir, leaf, llms, mirrorRoot)) {
                 options.log(`Wrote ${file}`);
@@ -84,9 +86,9 @@ export async function runInit(options) {
         }
         if (!existing.path)
             throw new Error("Found llms.txt has no path.");
-        const existingText = await fs.readFile(existing.path, "utf8");
+        llmsBody = await fs.readFile(existing.path, "utf8");
         for (const leaf of ["llms.txt", ".well-known/llms.txt"]) {
-            for (const file of await ensurePublishedFile(options.cwd, layout.publicDir, leaf, existingText, mirrorRoot)) {
+            for (const file of await ensurePublishedFile(options.cwd, layout.publicDir, leaf, llmsBody, mirrorRoot)) {
                 options.log(`Wrote ${file}`);
             }
         }
@@ -99,6 +101,7 @@ export async function runInit(options) {
         domain: normalizedDomain,
         privateKeyPem: existingKeys?.privateKeyPem,
         publicKeyPem: existingKeys?.publicKeyPem,
+        llmsTxtSha256: hashLlmsTxt(llmsBody),
     });
     if (existingKeys) {
         options.log("Reused did:web keypair in .agentic-trust/.");
@@ -149,7 +152,7 @@ export async function runInit(options) {
         if (!options.autoConfirm) {
             options.log("Skipped auto-confirm (--no-auto-confirm).");
             options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-            printBadge(options.log, normalizedDomain);
+            await printBadge(options.cwd, options.log, normalizedDomain);
             return finishInit(options, 0);
         }
         options.log(`Trustflow API: POST ${apiBase}/v1/register/confirm`);
@@ -173,14 +176,14 @@ export async function runInit(options) {
             log: options.log,
         });
         options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-        printBadge(options.log, normalizedDomain);
+        await printBadge(options.cwd, options.log, normalizedDomain);
         return finishInit(options, confirmed.code);
     }
     options.log("Skipped Trustflow registration (--skip-register).");
     options.log(`Publish ${layout.publicDir}/.well-known/did.json and ${layout.publicDir}/llms.txt on the domain (HTTPS).`);
     options.log("Keep .agentic-trust/ out of git. It holds the private key.");
     options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-    printBadge(options.log, normalizedDomain);
+    await printBadge(options.cwd, options.log, normalizedDomain);
     return finishInit(options, 0);
 }
 function finishInit(options, code) {
@@ -206,7 +209,12 @@ async function writeIdeRulesIfEnabled(options, publicDir) {
     options.log(`Wrote ${written.cursorrules}`);
     options.log(`Wrote ${written.mdc}`);
 }
-function printBadge(log, domain) {
+async function printBadge(cwd, log, domain) {
+    const embed = await embedBadge(cwd, domain);
+    if (embed.status === "written")
+        log(`Wrote the Trustflow badge into ${embed.file}`);
+    else if (embed.status === "present")
+        log("Trustflow badge is already in the page.");
     log("");
     log("Embeddable badge:");
     log(renderBadge(domain));
