@@ -10,7 +10,7 @@ export interface AgenticTrustMcpServerOptions {
   fetch?: typeof fetch;
 }
 
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "1.0.0";
 
 /**
  * Stdio MCP server for AgenticTrust.

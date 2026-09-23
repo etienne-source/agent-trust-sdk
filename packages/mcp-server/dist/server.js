@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auditDomain } from "./auditDomain.js";
 import { generateDidKeys } from "./generateDidKeys.js";
 import { signLlmsTxt } from "./signLlmsTxt.js";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "1.0.0";
 /**
  * Stdio MCP server for AgenticTrust.
  * Hosted audits go to Trustflow Systems (`https://api.trustflow.systems`).

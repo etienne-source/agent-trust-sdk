@@ -1,6 +1,6 @@
 {
   "name": "@agentic-trust/vercel-ai-middleware",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Vercel AI SDK fetch and stream middleware that rejects unverified AgenticTrust domain context.",
   "license": "MIT",
   "repository": {
@@ -11,6 +11,9 @@
   "homepage": "https://github.com/etienne-source/agent-trust-sdk#readme",
   "bugs": {
     "url": "https://github.com/etienne-source/agent-trust-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.js",

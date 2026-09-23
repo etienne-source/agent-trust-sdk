@@ -1,6 +1,6 @@
 {
   "name": "@agentic-trust/vercel-plugin",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AgenticTrust Vercel build hook. Signs did:web and llms.txt from environment secrets during deploy, with no interactive CLI. Not on npm yet — install from github:etienne-source/agent-trust-sdk.",
   "license": "MIT",
   "repository": {
@@ -11,6 +11,9 @@
   "homepage": "https://github.com/etienne-source/agent-trust-sdk#readme",
   "bugs": {
     "url": "https://github.com/etienne-source/agent-trust-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "type": "module",
   "bin": {

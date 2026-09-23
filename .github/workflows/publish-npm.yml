@@ -1,0 +1,70 @@
+# Publish @agentic-trust packages to npm.
+#
+# Triggers on version tags (v1.* and v*). Pull requests and branch pushes do
+# not publish.
+#
+# Required GitHub Actions secret: NPM_TOKEN
+#   Repository: etienne-source/agent-trust-sdk
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Name: NPM_TOKEN
+#   Value: an npm access token that can publish the @agentic-trust scope
+#   The workflow passes it to npm as NODE_AUTH_TOKEN. Do not commit the token.
+#
+# pnpm recursive publish rewrites workspace:* dependencies to the version in
+# each package.json and skips the private root workspace. See docs/publishing/npm.md.
+name: Publish npm
+
+on:
+  push:
+    tags:
+      - "v1.*"
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.repository == 'etienne-source/agent-trust-sdk'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Setup pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.3 --activate
+
+      - name: Require NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN}" ]; then
+            echo "GitHub secret NPM_TOKEN is required to publish @agentic-trust packages."
+            exit 1
+          fi
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Edge bundle
+        run: pnpm --filter @agentic-trust/sdk bundle:edge
+
+      - name: Build
+        run: pnpm build
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm --filter "@agentic-trust/*" --fail-if-no-match publish -r --access public --no-git-checks

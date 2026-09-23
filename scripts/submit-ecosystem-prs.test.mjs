@@ -12,6 +12,7 @@ import {
   loadAllowlist,
   planAllowlist,
 } from "./lib/ecosystem-prs.mjs";
+import { run } from "./submit-ecosystem-prs.mjs";
 import { createGithubClient, repoRoot } from "./lib/starter-prs.mjs";
 
 const script = path.join(repoRoot(), "scripts", "submit-ecosystem-prs.mjs");
@@ -335,4 +336,100 @@ test("cli dry-run smoke", () => {
   });
   assert.equal(applyMissingToken.status, 1);
   assert.match(applyMissingToken.stderr, /GITHUB_TOKEN/);
+});
+
+test("--live gate refuses a missing targets file, the example file, and an empty list", () => {
+  const loaded = loadAllowlist(readFileSync(examplePath, "utf8"), examplePath);
+  assert.throws(
+    () => assertApplyAllowed(allowlist([target()]), { targetsFlag: false, mode: "live" }),
+    /--live/
+  );
+  assert.throws(
+    () => assertApplyAllowed(allowlist([target()]), { targetsFlag: false, mode: "live" }),
+    /Pass --targets/
+  );
+  assert.throws(
+    () => assertApplyAllowed(allowlist([target()]), { targetsFlag: false, mode: "live" }),
+    /does not search GitHub/
+  );
+  assert.throws(() => assertApplyAllowed(loaded, { targetsFlag: true, mode: "live" }), /example allowlist/);
+  assert.throws(() => assertApplyAllowed(allowlist([]), { targetsFlag: true, mode: "live" }), /no targets/);
+  assert.throws(() => createOctokitClient({ token: "  ", mode: "live" }), /GITHUB_TOKEN or GH_TOKEN is required for --live/);
+});
+
+test("dry-run does not call Octokit; --live without targets refuses; --live with targets opens a pull request", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "ecosystem-live-"));
+  const file = path.join(directory, "targets.json");
+  writeFileSync(
+    file,
+    JSON.stringify({ example: false, targets: [target({ repo: "acme/starter", framework: "langchain" })] })
+  );
+  const empty = path.join(directory, "empty.json");
+  writeFileSync(empty, JSON.stringify({ example: false, targets: [] }));
+
+  const { octokit, calls } = mockOctokit({
+    files: new Map([["package.json", '{\n  "name": "starter",\n  "dependencies": {}\n}\n']]),
+  });
+  const tokenEnv = { GITHUB_TOKEN: "test-token" };
+
+  const dry = await run(["--targets", file], tokenEnv, { octokit });
+  assert.equal(dry.exitCode, 0);
+  assert.match(dry.output, /mode: dry-run/);
+  assert.match(dry.output, /Dry run only/);
+  assert.equal(calls.length, 0);
+
+  await assert.rejects(() => run(["--live"], tokenEnv, { octokit }), /Pass --targets/);
+  await assert.rejects(() => run(["--live"], tokenEnv, { octokit }), /does not search GitHub/);
+  assert.equal(calls.length, 0);
+
+  await assert.rejects(() => run(["--live", "--targets", file], {}, { octokit }), /GITHUB_TOKEN/);
+  assert.equal(calls.length, 0);
+
+  const cleaned = { ...process.env };
+  delete cleaned.GITHUB_TOKEN;
+  delete cleaned.GH_TOKEN;
+  const liveNoTargets = spawnSync(process.execPath, [script, "--live"], { encoding: "utf8", env: cleaned });
+  assert.equal(liveNoTargets.status, 1);
+  assert.match(liveNoTargets.stderr, /--live/);
+  assert.match(liveNoTargets.stderr, /--targets/);
+  assert.match(liveNoTargets.stderr, /does not search GitHub/);
+
+  const liveExample = spawnSync(process.execPath, [script, "--live", "--targets", examplePath], {
+    encoding: "utf8",
+    env: { ...cleaned, GITHUB_TOKEN: "test-token" },
+  });
+  assert.equal(liveExample.status, 1);
+  assert.match(liveExample.stderr, /example allowlist/);
+
+  const liveEmpty = spawnSync(process.execPath, [script, "--live", "--targets", empty], {
+    encoding: "utf8",
+    env: { ...cleaned, GITHUB_TOKEN: "test-token" },
+  });
+  assert.equal(liveEmpty.status, 1);
+  assert.match(liveEmpty.stderr, /no targets/);
+
+  const liveMissingToken = spawnSync(process.execPath, [script, "--live", "--targets", file], {
+    encoding: "utf8",
+    env: cleaned,
+  });
+  assert.equal(liveMissingToken.status, 1);
+  assert.match(liveMissingToken.stderr, /GITHUB_TOKEN/);
+
+  const help = spawnSync(process.execPath, [script, "--help"], { encoding: "utf8" });
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /--live/);
+  assert.match(help.stdout, /dry run/i);
+  assert.doesNotMatch(help.stdout, /npm install trustflow-sdk/);
+
+  const opened = await run(["--live", "--targets", file], tokenEnv, { octokit });
+  assert.equal(opened.exitCode, 0);
+  assert.match(opened.output, /https:\/\/github.com\/acme\/starter\/pull\/3/);
+  assert.equal(calls.some((call) => call.name.startsWith("search.")), false);
+  assert.equal(calls.some((call) => call.name === "repos.createFork"), true);
+  assert.equal(calls.some((call) => call.name === "pulls.create"), true);
+  await assert.rejects(() => octokit.rest.search.repos({ q: "langchain starter" }), /search/);
+  const pull = calls.find((call) => call.name === "pulls.create").args;
+  assert.equal(pull.owner, "acme");
+  assert.equal(pull.repo, "starter");
+  assert.doesNotMatch(pull.body, /npm install trustflow-sdk/);
 });

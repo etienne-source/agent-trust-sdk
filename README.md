@@ -18,7 +18,7 @@ The signature and fetch rules are in [SPEC.md](SPEC.md).
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` and `npx trustflow init` point at an unrelated logging package. This repository is not that package, and the `@agentic-trust` scope is not on npm. Install from GitHub: `github:etienne-source/agent-trust-sdk`.
+> **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` and `npx trustflow init` point at an unrelated logging package. This repository is not that package. npm publication of `@agentic-trust/*` is the tag workflow in [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) (Actions secret `NPM_TOKEN`). Until a tag publish succeeds, install from GitHub: `github:etienne-source/agent-trust-sdk`.
 
 ## Architecture
 
@@ -67,6 +67,10 @@ AgenticTrust code in this repository signs and checks documents. Trustflow Syste
 | `@agentic-trust/vercel-ai-middleware` | [packages/vercel-ai-middleware](packages/vercel-ai-middleware) | GitHub path install, plus the SDK path above |
 | `@agentic-trust/vercel-plugin` | [packages/vercel-plugin](packages/vercel-plugin) | GitHub path install, plus the SDK path above. Binary: `agentic-trust-vercel` |
 | Starters | [starters/](starters/README.md) | [nextjs](starters/nextjs), [v0](starters/v0), [bolt](starters/bolt). Not workspace packages. `pnpm install` inside the folder. |
+
+Publishable packages are version **1.0.0**, MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
+
+WordPress sites copy [plugins/wordpress/agentic-trust.php](plugins/wordpress/agentic-trust.php) to serve `/.well-known/did.json` and `llms.txt`. Shopify and Webflow use the header and asset-routing snippets in [docs/cms/shopify-webflow-guide.md](docs/cms/shopify-webflow-guide.md). **AgenticTrust** is the protocol. **Trustflow Systems** is the hosted registry. Do not install the unrelated `trustflow-sdk` package.
 
 ## Quickstart
 
@@ -425,10 +429,10 @@ node scripts/submit-ecosystem-prs.mjs
 # or: pnpm ecosystem-prs
 ```
 
-A real pull request needs both `--apply` and `--targets`, and `GITHUB_TOKEN` or `GH_TOKEN`. The token must be able to create a fork and open a pull request. `--apply` uses Octokit. It forks the allowlisted repository, or pushes the branch to a fork you already have of that same upstream. If the authenticated user owns the repository, it pushes the branch there instead of forking. The pull request is opened against the upstream base branch. At most five repositories are accepted. Copy [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) to `scripts/ecosystem-targets.json` (gitignored), set `"example"` to false, and list `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. `--apply` is refused for that example file, for an empty list, and when the token is missing. The command does not post to X.
+A real pull request needs `--live` and `--targets`, and `GITHUB_TOKEN` or `GH_TOKEN`. `--apply` is the same gate. The token must be able to create a fork and open a pull request. `--live` uses Octokit. It forks the allowlisted repository, or pushes the branch to a fork you already have of that same upstream. If the authenticated user owns the repository, it pushes the branch there instead of forking. The pull request is opened against the upstream base branch. At most five repositories are accepted. Copy [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) to `scripts/ecosystem-targets.json` (gitignored), set `"example"` to false, and list `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. `--live` without `--targets` is refused. `--live` is also refused for that example file, for an empty list, and when the token is missing. The command does not search GitHub and does not post to X.
 
 ```bash
-GITHUB_TOKEN=... node scripts/submit-ecosystem-prs.mjs --targets scripts/ecosystem-targets.json --apply
+GITHUB_TOKEN=... node scripts/submit-ecosystem-prs.mjs --targets scripts/ecosystem-targets.json --live
 ```
 
 ## Growth notes

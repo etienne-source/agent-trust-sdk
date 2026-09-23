@@ -385,14 +385,14 @@ export function formatDryRun(allowlist, plans) {
   if (plans.length === 0) {
     lines.push(
       "No repositories are allowlisted. Copy scripts/ecosystem-targets.example.json to scripts/ecosystem-targets.json, set \"example\" to false, and add only repositories you maintain.",
-      "--apply is refused for the example file and for an empty list. This command does not search GitHub.",
+      "--live and --apply are refused without an explicit non-example targets file. This command does not search GitHub.",
       ""
     );
     return lines.join("\n");
   }
   lines.push(
-    "Dry run only. Pass --apply and --targets <allowlist.json> to fork (or update an existing fork) and open these pull requests.",
-    "--apply requires GITHUB_TOKEN or GH_TOKEN. This command does not search GitHub.",
+    "Dry run only. Pass --live (or --apply) and --targets <allowlist.json> to fork (or update an existing fork) and open these pull requests.",
+    "--live requires GITHUB_TOKEN or GH_TOKEN. Without --targets, --live is refused. This command does not search GitHub.",
     ""
   );
   plans.forEach((plan, index) => {
@@ -419,17 +419,18 @@ export function formatDryRun(allowlist, plans) {
   return lines.join("\n");
 }
 
-export function assertApplyAllowed(allowlist, { targetsFlag = false } = {}) {
+export function assertApplyAllowed(allowlist, { targetsFlag = false, mode = "apply" } = {}) {
+  const flag = mode === "live" ? "--live" : "--apply";
   if (!targetsFlag) {
-    throw new Error("Pass --targets <allowlist.json>. --apply does not use the example file.");
+    throw new Error(`Pass --targets <allowlist.json>. ${flag} does not use the example file and does not search GitHub.`);
   }
   if (path.basename(allowlist.sourceName) === EXAMPLE_FILENAME || allowlist.example) {
     throw new Error(
-      "Refusing --apply for the example allowlist. Copy it, set \"example\" to false, and list repositories you maintain."
+      `Refusing ${flag} for the example allowlist. Copy it, set "example" to false, and list repositories you maintain.`
     );
   }
   if (allowlist.targets.length === 0) {
-    throw new Error("Refusing --apply because the allowlist has no targets.");
+    throw new Error(`Refusing ${flag} because the allowlist has no targets.`);
   }
 }
 
@@ -475,9 +476,10 @@ export function sealOctokit(octokit) {
   return octokit;
 }
 
-export function createOctokitClient({ token, OctokitImpl = Octokit } = {}) {
+export function createOctokitClient({ token, OctokitImpl = Octokit, mode = "apply" } = {}) {
+  const flag = mode === "live" ? "--live" : "--apply";
   const trimmed = typeof token === "string" ? token.trim() : "";
-  if (!trimmed) throw new Error("GITHUB_TOKEN or GH_TOKEN is required for --apply.");
+  if (!trimmed) throw new Error(`GITHUB_TOKEN or GH_TOKEN is required for ${flag}.`);
   const octokit = new OctokitImpl({
     auth: trimmed,
     userAgent: "agentic-trust-ecosystem-prs",

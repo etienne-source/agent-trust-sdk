@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Plan pull requests that add AgenticTrust SDK or fail-closed middleware to
- * AI agent framework starters. Dry-run unless --apply and --targets.
+ * AI agent framework starters. Dry-run unless --live (or --apply) and --targets.
  *
  * Does not search GitHub. The example allowlist has no targets.
  * Does not post to X.
@@ -16,14 +16,16 @@ import {
   formatDryRun,
   loadAllowlist,
   planAllowlist,
+  sealOctokit,
 } from "./lib/ecosystem-prs.mjs";
 import { repoRoot } from "./lib/starter-prs.mjs";
 
 function parseArgs(argv) {
-  const args = { apply: false, help: false, targets: undefined };
+  const args = { apply: false, live: false, help: false, targets: undefined };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--apply") args.apply = true;
+    else if (arg === "--live") args.live = true;
     else if (arg === "--help" || arg === "-h") args.help = true;
     else if (arg === "--targets") {
       const value = argv[index + 1];
@@ -41,14 +43,19 @@ function parseArgs(argv) {
 
 function helpText() {
   return [
-    "Usage: node scripts/submit-ecosystem-prs.mjs [--targets <allowlist.json>] [--apply]",
+    "Usage: node scripts/submit-ecosystem-prs.mjs [--targets <allowlist.json>] [--live | --apply]",
     "",
     "Default is a dry run. It prints the pull request title, body, and files.",
-    "A real GitHub pull request is opened only when --apply and --targets are both set,",
-    "the file is not scripts/ecosystem-targets.example.json, example is not true,",
-    "and targets is a non-empty allowlist of repositories you maintain.",
-    "--apply forks the repository (or pushes to your existing fork) with Octokit.",
-    "It requires GITHUB_TOKEN or GH_TOKEN with permission to create that fork and pull request.",
+    "It does not call GitHub and it does not search for repositories.",
+    "",
+    "A real GitHub pull request is opened only with --live (or --apply) plus --targets,",
+    "when the file is not scripts/ecosystem-targets.example.json, example is not true,",
+    "targets is a non-empty allowlist of repositories you maintain, and GITHUB_TOKEN",
+    "or GH_TOKEN can create the fork and the pull request.",
+    "--live without --targets is refused. The example file is refused.",
+    "--live forks the repository (or pushes to your existing fork) with Octokit.",
+    "It does not search GitHub and it does not open a pull request for a repository",
+    "that is not listed in the targets file.",
     "",
     "Copy scripts/ecosystem-targets.example.json to scripts/ecosystem-targets.json.",
     "That copy is gitignored. Leave targets empty until you mean to open a pull request.",
@@ -60,9 +67,19 @@ function helpText() {
   ].join("\n");
 }
 
-export async function run(argv, env = process.env) {
+export async function run(argv, env = process.env, options = {}) {
   const args = parseArgs(argv);
   if (args.help) return { exitCode: 0, output: helpText() };
+
+  const live = Boolean(args.live || args.apply);
+  const mode = args.live ? "live" : "apply";
+  const flag = mode === "live" ? "--live" : "--apply";
+
+  if (live && !args.targets) {
+    throw new Error(
+      `Pass --targets <allowlist.json>. ${flag} does not use the example file and does not search GitHub.`
+    );
+  }
 
   const source = args.targets
     ? path.resolve(args.targets)
@@ -70,14 +87,16 @@ export async function run(argv, env = process.env) {
   const allowlist = loadAllowlist(readFileSync(source, "utf8"), source);
   const plans = planAllowlist(allowlist);
 
-  if (!args.apply) {
+  if (!live) {
     return { exitCode: 0, output: formatDryRun(allowlist, plans) };
   }
 
-  assertApplyAllowed(allowlist, { targetsFlag: Boolean(args.targets) });
-  const octokit = createOctokitClient({
-    token: env.GITHUB_TOKEN || env.GH_TOKEN || "",
-  });
+  assertApplyAllowed(allowlist, { targetsFlag: Boolean(args.targets), mode });
+  const token = (env.GITHUB_TOKEN || env.GH_TOKEN || "").trim();
+  if (!token) {
+    throw new Error(`GITHUB_TOKEN or GH_TOKEN is required for ${flag}.`);
+  }
+  const octokit = options.octokit ? sealOctokit(options.octokit) : createOctokitClient({ token, mode });
   const urls = [];
   for (const plan of plans) {
     const opened = await applyEcosystemPlan(plan, octokit);
