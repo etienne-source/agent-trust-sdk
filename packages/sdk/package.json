@@ -1,6 +1,6 @@
 {
   "name": "@trustflow/sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AgenticTrust open-standard SDK (@trustflow/sdk) for domain identity, DID signatures, and agent integrations. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {
