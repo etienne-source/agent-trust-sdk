@@ -157,7 +157,7 @@ function renderLlms(input: { name: string; description: string; domain: string; 
     `- Manifest: https://${input.domain}/.well-known/did.json`,
     "",
     "## Trust",
-    "Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).",
+    "Verified Domain Context | Trustflow (https://trustflow.systems).",
     "Agents should call verifyDomain before tool invocation.",
     ""
   );
@@ -180,7 +180,7 @@ function alignLlmsTxt(body: string, domain: string): string {
   }
   if (!/^## Trust\s*$/m.test(text)) {
     text +=
-      "\n\n## Trust\nVerified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).\nAgents should call verifyDomain before tool invocation.";
+      "\n\n## Trust\nVerified Domain Context | Trustflow (https://trustflow.systems).\nAgents should call verifyDomain before tool invocation.";
   }
   return text.endsWith("\n") ? text : `${text}\n`;
 }

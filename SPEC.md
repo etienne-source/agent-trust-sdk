@@ -1,16 +1,16 @@
-# AgenticTrust specification
+# Trustflow specification
 
 This document describes the behavior implemented in this repository (`packages/sdk`, and the CLI that calls it) and, by reference, the domain-proof fetch used by the hosted Trustflow Systems API. It does not add routes, functions, or options that those packages do not export.
 
-**AgenticTrust** is the open protocol, the SDK, the CLI, the MCP server, the Next.js plugin, and the framework middleware in this repository.
+**Trustflow** is the open protocol, the SDK, the CLI, the MCP server, the Next.js plugin, and the framework middleware in this repository.
 
 **Trustflow Systems** is the hosted registry. The site is [https://trustflow.systems](https://trustflow.systems). The API origin is `https://api.trustflow.systems`. The site paths `https://trustflow.systems/api` and `https://trustflow.systems/api/register` (and the `www` host of those paths) are aliases of that API origin in `@trustflow/cli`. They are not a second server.
 
-Badge text, when a badge is shown, is `Verified by AgenticTrust | trustflow.systems`. The link target the CLI generates is `https://trustflow.systems/verify/<domain>`.
+Badge text, when a badge is shown, is `Verified Domain Context | Trustflow`. The link target the CLI generates is `https://trustflow.systems/verify/<domain>`.
 
 ## 1. W3C `did:web` identity
 
-AgenticTrust identifies a domain with the [W3C `did:web` method](https://w3c-ccg.github.io/did-method-web/) in the hostname form only.
+Trustflow identifies a domain with the [W3C `did:web` method](https://w3c-ccg.github.io/did-method-web/) in the hostname form only.
 
 | Input | Result |
 |-------|--------|
@@ -153,7 +153,7 @@ The SDK timeouts in section 4.1 are client deadlines. They are not this registry
 | `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), or the registry is unreachable or returns a non-status payload. |
 | `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg`), or the endpoint is not HTTPS. |
 
-`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. `@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode (`mode: "audit"`). Unsigned or tampered `llms.txt` does not throw. The middleware logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and emits that same string as an in-process telemetry event. It does not parse the unverified body. `{ strict: true }`, `{ mode: "strict" }`, or `{ failClosed: true }` is fail-closed and throws `UnverifiedDomainContextError` before the body is read. That error message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
+`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. `@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode (`mode: "audit"`). Unsigned or tampered `llms.txt` does not throw. The middleware logs `[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and emits that same string as an in-process telemetry event. It does not parse the unverified body. `{ strict: true }`, `{ mode: "strict" }`, or `{ failClosed: true }` is fail-closed and throws `UnverifiedDomainContextError` before the body is read. That error message is `[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
 
 ## 6. Registry HTTP the clients call
 

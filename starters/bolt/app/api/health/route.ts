@@ -2,7 +2,7 @@ export function GET() {
   return Response.json({
     ok: true,
     identity: "REPLACE_ME",
-    protocol: "AgenticTrust",
+    protocol: "Trustflow",
     registry: "Trustflow Systems",
   });
 }

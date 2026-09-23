@@ -30,6 +30,9 @@ describe("trustflow init", () => {
     expect(text).toContain("trustflow init");
     expect(text).toContain("sign-llms");
     expect(text).toContain("npx @trustflow/cli@latest init");
+    expect(text).toContain("Trustflow CLI");
+    expect(text).toContain("agentic-trust is a deprecated alias");
+    expect(text).not.toContain("AgenticTrust");
     expect(text).toContain("https://api.trustflow.systems/v1/register");
     expect(text).toContain("SSL_CHALLENGE");
     expect(text).not.toMatch(/npm install trustflow-sdk/);
@@ -58,7 +61,7 @@ describe("trustflow init", () => {
     expect(code).toBe(0);
     expect(fetch).not.toHaveBeenCalled();
     const output = lines.join("\n");
-    expect(output).toContain("Verified by AgenticTrust | trustflow.systems");
+    expect(output).toContain("Verified Domain Context | Trustflow");
     expect(output).toContain("https://trustflow.systems/verify/example.com");
     expect(output).toContain(
       "⚠️ Backup your .agentic-trust/private-key.pem! If lost, this domain's identity cannot be recovered or rotated."
@@ -151,7 +154,7 @@ describe("trustflow init", () => {
     await expect(readFile(path.join(cwd, ".well-known", "agentic-trust-challenge.txt"), "utf8")).rejects.toThrow();
     await expect(readFile(path.join(cwd, "llms.txt"), "utf8")).rejects.toThrow();
     const output = lines.join("\n");
-    expect(output).toContain("Verified by AgenticTrust | trustflow.systems");
+    expect(output).toContain("Verified Domain Context | Trustflow");
     expect(output).toContain("https://trustflow.systems/verify/kept.example");
     expect(output).toContain("Registration confirmed.");
   });

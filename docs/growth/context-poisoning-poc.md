@@ -1,8 +1,8 @@
 # Context poisoning, and the check that blocks it
 
-This note is for builders adding AgenticTrust to an agent. It describes how unsigned domain context can influence a model, then shows `@trustflow/vercel-ai-middleware` refusing that context. It is security education. It is not an attack procedure, and it does not include a hostile manifest or steps for publishing one.
+This note is for builders adding Trustflow to an agent. It describes how unsigned domain context can influence a model, then shows `@trustflow/vercel-ai-middleware` refusing that context. It is security education. It is not an attack procedure, and it does not include a hostile manifest or steps for publishing one.
 
-**AgenticTrust** is the protocol and the middleware. **Trustflow Systems** is the hosted registry at [trustflow.systems](https://trustflow.systems).
+**Trustflow** is the protocol and the middleware. **Trustflow Systems** is the hosted registry at [trustflow.systems](https://trustflow.systems).
 
 ## Threat model
 
@@ -10,7 +10,7 @@ Agents often load text from a hostname before they answer: `llms.txt`, a tool de
 
 Two situations fall out of that:
 
-- **Unverified.** The domain has no usable AgenticTrust signature. `verifyDomain` does not return `VERIFIED`. The file may be empty, missing, or simply unsigned. The agent still must not parse it as trusted context.
+- **Unverified.** The domain has no usable Trustflow signature. `verifyDomain` does not return `VERIFIED`. The file may be empty, missing, or simply unsigned. The agent still must not parse it as trusted context.
 - **Tampered.** A signature was published, but the bytes no longer match the Ed25519 or P-256 JWS. The SDK reports `RISK`. A failed signature is not a softer form of success.
 
 In both cases the influence is the same class of problem as running an unsigned script: the content arrives with the authority of a domain name, and the domain was never authenticated. Context signing is the TLS check for that fetch. Authenticate the host, then read the file.
@@ -19,12 +19,12 @@ This document stops there. It does not show how to write a misleading `llms.txt`
 
 ## What the middleware blocks
 
-`@trustflow/vercel-ai-middleware` defaults to audit mode. `loadLlmsFromUrl`, `fetch` of an `llms.txt` URL, and `wrapGenerate` / `wrapStream` call the verifier first. Unverified or tampered context does not throw. It logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and does not parse `llms.txt`. `{ strict: true }` throws `UnverifiedDomainContextError` before the response body is downloaded and before `llms.txt` is parsed. The model call does not start.
+`@trustflow/vercel-ai-middleware` defaults to audit mode. `loadLlmsFromUrl`, `fetch` of an `llms.txt` URL, and `wrapGenerate` / `wrapStream` call the verifier first. Unverified or tampered context does not throw. It logs `[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and does not parse `llms.txt`. `{ strict: true }` throws `UnverifiedDomainContextError` before the response body is downloaded and before `llms.txt` is parsed. The model call does not start.
 
-The error message is the AgenticTrust Security Error:
+The error message is the Trustflow Security Error:
 
 ```text
-[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked.
+[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked.
 ```
 
 `status` is `UNVERIFIED` or `RISK`. The default mode is `audit`. Set `strict: true` when the agent must stop.
@@ -43,7 +43,7 @@ const trust = agenticTrustVercelAiMiddleware({
     securityWarning: true,
     domain: "unsigned.example",
     status: "UNVERIFIED",
-    warning: "Domain is not verified or has no AgenticTrust signature",
+    warning: "Domain is not verified or has no Trustflow signature",
   }),
 });
 
@@ -55,7 +55,7 @@ try {
 }
 ```
 
-That catch prints `UnverifiedDomainContextError` and the AgenticTrust Security Error above. `contextFetch` is not called, so the body is never read.
+That catch prints `UnverifiedDomainContextError` and the Trustflow Security Error above. `contextFetch` is not called, so the body is never read.
 
 A tampered document is the same call with the double returning `status: "RISK"` (the JWS did not verify). The throw still happens before the file is parsed. Production code omits `verify`. The middleware then uses `agenticTrustMiddleware` from `@trustflow/sdk`, which checks `https://<domain>/.well-known/did.json` and, when the local proof is not authoritative, `GET https://api.trustflow.systems/v1/verify?domain=`.
 

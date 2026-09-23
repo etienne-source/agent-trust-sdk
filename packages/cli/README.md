@@ -1,12 +1,12 @@
 # @trustflow/cli
 
-Command-line scaffold for **AgenticTrust** domain identity and **Trustflow Systems** registration.
+Command-line scaffold for **Trustflow** domain identity and **Trustflow Systems** registration.
 
-Binary: `trustflow` (`agentic-trust` is an alias of the same program)
+Binary: `trustflow` (`agentic-trust` is a deprecated alias of the same program)
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. The CLI command is `npx @trustflow/cli@latest init`. `npx trustflow init` and `npx agentic-trust init` are aliases.
+> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. The CLI command is `npx @trustflow/cli@latest init`. `npx trustflow init` is an alias. `npx agentic-trust init` is a deprecated alias.
 
 ## Install
 
@@ -14,7 +14,7 @@ Binary: `trustflow` (`agentic-trust` is an alias of the same program)
 npx @trustflow/cli@latest init
 ```
 
-`trustflow` and `agentic-trust` are the same binary from `@trustflow/cli`.
+`trustflow` is the binary from `@trustflow/cli`. `agentic-trust` is a deprecated alias of that binary.
 
 ### Contributors
 
@@ -52,7 +52,7 @@ npx @trustflow/cli@latest init
 5. Registers the domain: `POST https://api.trustflow.systems/v1/register` with `domain`, `businessName`, `verificationType` (`SSL_CHALLENGE` by default, or `DNS_TXT`), and the SPKI `publicKeyPem`. Passing `--api-url https://trustflow.systems/api/register` uses the same API. The site path is not a separate server.
 6. For `SSL_CHALLENGE`, writes `<public>/.well-known/agentic-trust-challenge.txt` (exact token, no trailing newline). Projects with `public/` do not also get a root copy. There is no manual token paste step.
 7. Auto-confirms. The CLI polls `https://<domain>/.well-known/did.json` and the challenge URL in parallel (200ms interval, 8s budget). Confirm runs only after the live DID's `publicKeyPem` matches the registered key and the challenge body matches the token. `DNS_TXT` polls the TXT record instead of the challenge file. Then it `POST`s `https://api.trustflow.systems/v1/register/confirm` and prints the verify URL plus the badge. `--no-auto-confirm` (or `AGENTIC_TRUST_AUTO_CONFIRM=false`) skips that POST. `--skip-register` only writes local files.
-8. Prints embeddable HTML/SVG: `Verified by AgenticTrust | trustflow.systems`, linking to `https://trustflow.systems/verify/[domain]`.
+8. Prints embeddable HTML/SVG: `Verified Domain Context | Trustflow`, linking to `https://trustflow.systems/verify/[domain]`.
 9. Writes IDE rules at `.cursorrules` and `.cursor/rules/agentic-trust.mdc` for the detected public directory. Pass `--no-ide-rules` to skip both files.
 
 API assumption: the live registry still issues a challenge token and, for SSL, expects `/.well-known/agentic-trust-challenge.txt`. A reachable `did.json` is not treated as a substitute for that file. The CLI does not confirm when it has not observed the live proof. If the proof window closes first, deploy the public directory and run `trustflow confirm`.

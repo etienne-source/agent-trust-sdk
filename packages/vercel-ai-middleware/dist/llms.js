@@ -80,7 +80,7 @@ export function parseLlmsTxt(raw) {
     };
 }
 export function formatVerifiedLlms(parsed, meta) {
-    const lines = ["Verified by AgenticTrust | trustflow.systems", `domain: ${meta.domain}`];
+    const lines = ["Verified Domain Context | Trustflow", `domain: ${meta.domain}`];
     if (meta.did)
         lines.push(`did: ${meta.did}`);
     if (meta.trustScore !== undefined)

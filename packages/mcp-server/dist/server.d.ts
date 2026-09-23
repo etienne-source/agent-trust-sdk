@@ -4,7 +4,7 @@ export interface AgenticTrustMcpServerOptions {
     fetch?: typeof fetch;
 }
 /**
- * Stdio MCP server for AgenticTrust.
+ * Stdio MCP server for Trustflow.
  * Hosted audits go to Trustflow Systems (`https://api.trustflow.systems`).
  */
 export declare function createAgenticTrustMcpServer(options?: AgenticTrustMcpServerOptions): McpServer;

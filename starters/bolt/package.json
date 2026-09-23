@@ -1,8 +1,8 @@
 {
-  "name": "agentic-trust-starter-bolt",
+  "name": "trustflow-starter-bolt",
   "private": true,
   "version": "0.1.0",
-  "description": "Bolt.new-style Next.js starter with AgenticTrust did:web, llms.txt, and @trustflow/next-plugin. Not on npm.",
+  "description": "Bolt.new-style Next.js starter with Trustflow did:web, llms.txt, and @trustflow/next-plugin. Not on npm.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

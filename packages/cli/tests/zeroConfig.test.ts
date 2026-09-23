@@ -396,7 +396,7 @@ describe("auto-confirm", () => {
     const output = lines.join("\n");
     expect(output).toContain("Registration confirmed.");
     expect(output).toContain("https://trustflow.systems/verify/example.com");
-    expect(output).toContain("Verified by AgenticTrust | trustflow.systems");
+    expect(output).toContain("Verified Domain Context | Trustflow");
     expect(output).not.toContain("live-token");
     expect(output).not.toContain("Paste live-token");
     expect(calls.filter((call) => call.startsWith("POST") && call.includes("/v1/register/confirm"))).toHaveLength(1);

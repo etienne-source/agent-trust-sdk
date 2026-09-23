@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Plan pull requests that add AgenticTrust SDK or fail-closed middleware to
+ * Plan pull requests that add Trustflow SDK or fail-closed middleware to
  * AI agent framework starters. Dry-run unless --live (or --apply) and --targets.
  *
  * Does not search GitHub. The example allowlist has no targets.

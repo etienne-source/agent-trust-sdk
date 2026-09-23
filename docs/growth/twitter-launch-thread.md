@@ -2,7 +2,7 @@
 
 Ten-part educational draft about `did:web`, Ed25519 JWS, and context signing as TLS for AI. Copy only. No script in this repository posts it. Sharing on X is a separate explicit step.
 
-**AgenticTrust** is the open protocol. **Trustflow Systems** is the hosted registry at trustflow.systems.
+**Trustflow** is the open protocol. **Trustflow Systems** is the hosted registry at trustflow.systems.
 
 ---
 
@@ -12,7 +12,7 @@ Agents fetch llms.txt the way browsers fetch pages. If that file is unsigned, th
 
 2/10
 
-did:web is a W3C DID for a domain. AgenticTrust uses the hostname form: did:web:example.com is the document at https://example.com/.well-known/did.json. The path form is not what this SDK issues.
+did:web is a W3C DID for a domain. Trustflow uses the hostname form: did:web:example.com is the document at https://example.com/.well-known/did.json. The path form is not what this SDK issues.
 
 3/10
 
@@ -24,19 +24,19 @@ Algorithm pinning happens before the signature is trusted. alg none is rejected.
 
 5/10
 
-That check is TLS for AI context. TLS authenticates the server, then the client reads the bytes. AgenticTrust authenticates the domain's did:web key, then the middleware may parse llms.txt. Unsigned instructions are not the site speaking.
+That check is TLS for AI context. TLS authenticates the server, then the client reads the bytes. Trustflow authenticates the domain's did:web key, then the middleware may parse llms.txt. Unsigned instructions are not the site speaking.
 
 6/10
 
-@trustflow/vercel-ai-middleware and @trustflow/langchain-middleware fail closed by default. Unverified or tampered llms.txt throws the AgenticTrust Security Error, and the model call does not start.
+@trustflow/vercel-ai-middleware and @trustflow/langchain-middleware fail closed by default. Unverified or tampered llms.txt throws the Trustflow Security Error, and the model call does not start.
 
 7/10
 
-The error text is: [AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.
+The error text is: [Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.
 
 8/10
 
-Trustflow Systems hosts the registry (trustflow.systems, api.trustflow.systems). AgenticTrust is the protocol, the SDK, and the middleware. A placeholder did.json whose proof.jws is REPLACE_ME is not a signature and does not make a domain VERIFIED.
+Trustflow Systems hosts the registry (trustflow.systems, api.trustflow.systems). Trustflow is the protocol, the SDK, and the middleware. A placeholder did.json whose proof.jws is REPLACE_ME is not a signature and does not make a domain VERIFIED.
 
 9/10
 

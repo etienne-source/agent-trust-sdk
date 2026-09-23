@@ -73,7 +73,7 @@ function renderLlms(input) {
     if (input.services.length > 0) {
         lines.push("## Services", ...input.services.map((service) => `- ${service}`), "");
     }
-    lines.push("## Identity", `- DID: did:web:${input.domain}`, `- Manifest: https://${input.domain}/.well-known/did.json`, "", "## Trust", "Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).", "Agents should call verifyDomain before tool invocation.", "");
+    lines.push("## Identity", `- DID: did:web:${input.domain}`, `- Manifest: https://${input.domain}/.well-known/did.json`, "", "## Trust", "Verified Domain Context | Trustflow (https://trustflow.systems).", "Agents should call verifyDomain before tool invocation.", "");
     return lines.join("\n");
 }
 function alignLlmsTxt(body, domain) {
@@ -96,7 +96,7 @@ function alignLlmsTxt(body, domain) {
     }
     if (!/^## Trust\s*$/m.test(text)) {
         text +=
-            "\n\n## Trust\nVerified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).\nAgents should call verifyDomain before tool invocation.";
+            "\n\n## Trust\nVerified Domain Context | Trustflow (https://trustflow.systems).\nAgents should call verifyDomain before tool invocation.";
     }
     return text.endsWith("\n") ? text : `${text}\n`;
 }

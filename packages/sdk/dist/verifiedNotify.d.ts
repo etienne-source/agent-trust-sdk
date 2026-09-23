@@ -27,7 +27,12 @@ export interface NotifyVerifiedDomainOptions {
     timeoutMs?: number;
 }
 export interface VerifiedNotifyPayload {
+    /** Stable event id. Not a display name. */
     event: "agentic_trust.domain.verified";
+    /**
+     * Wire discriminator already emitted to customer webhooks.
+     * Display copy says Trustflow; this field stays so receivers keep matching.
+     */
     protocol: "AgenticTrust";
     registry: "Trustflow Systems";
     domain: string;

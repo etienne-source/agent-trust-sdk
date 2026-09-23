@@ -27,7 +27,7 @@ function toolPayload(result: { content?: Array<{ type: string; text?: string }>;
 }
 
 describe("MCP server", () => {
-  it("lists the three AgenticTrust tools", async () => {
+  it("lists the three Trustflow tools", async () => {
     const { client, server } = await connectedClient();
     const listed = await client.listTools();
     expect(listed.tools.map((tool) => tool.name).sort()).toEqual([

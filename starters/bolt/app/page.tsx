@@ -1,7 +1,7 @@
 export default function HomePage() {
   return (
     <main>
-      <p>AgenticTrust · Bolt.new starter</p>
+      <p>Trustflow · Bolt.new starter</p>
       <h1>Placeholder did:web identity</h1>
       <p>
         This Next.js app is shaped so it can be dropped into a Bolt.new template.{" "}
@@ -10,9 +10,9 @@ export default function HomePage() {
       </p>
       <p>
         <code>public/llms.txt</code> and <code>public/.well-known/did.json</code> contain <code>REPLACE_ME</code>.
-        Run <code>npx trustflow init</code> before you publish the project as a template.
+        Run <code>npx @trustflow/cli@latest init</code> before you publish the project as a template.
       </p>
-      <p>Protocol: AgenticTrust. Hosted registry: Trustflow Systems.</p>
+      <p>Protocol: Trustflow. Hosted registry: Trustflow Systems.</p>
     </main>
   );
 }

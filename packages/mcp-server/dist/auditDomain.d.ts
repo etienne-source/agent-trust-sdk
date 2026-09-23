@@ -1,4 +1,4 @@
-/** Hosted Trustflow Systems verification API. The protocol is AgenticTrust. */
+/** Hosted Trustflow Systems verification API. The protocol is Trustflow. */
 export declare const DEFAULT_TRUSTFLOW_API_BASE = "https://api.trustflow.systems";
 export interface AuditFactor {
     id?: string;

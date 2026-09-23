@@ -1,7 +1,7 @@
 import { type DidDocument } from "@trustflow/sdk";
 export type DidKeyAlgorithm = "Ed25519" | "ES256";
 /** Shown next to `privateKeyPem` in every tool result. */
-export declare const PRIVATE_KEY_SECRET_WARNING = "SECRET \u2014 AgenticTrust did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json. This tool does not write the key unless privateKeyPath is set.";
+export declare const PRIVATE_KEY_SECRET_WARNING = "SECRET \u2014 Trustflow did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json. This tool does not write the key unless privateKeyPath is set.";
 export interface GenerateDidKeysInput {
     domain: string;
     /** Ed25519 (default) or ES256 (P-256). */

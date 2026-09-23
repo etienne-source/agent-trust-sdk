@@ -1,10 +1,10 @@
-# AgenticTrust v0 starter
+# Trustflow v0 starter
 
 Next.js App Router scaffold shaped like a [v0](https://v0.app) community template: `app/page.tsx` is the page to edit, `components/` holds UI, Tailwind CSS v4 is wired through PostCSS, and `components.json` is the shadcn slot v0 exports usually include.
 
 It also ships a placeholder `did:web` identity, `llms.txt`, Cursor rules, and [`@trustflow/next-plugin`](../../packages/next-plugin/README.md).
 
-**AgenticTrust** is the protocol, the SDK, the CLI, and this plugin (`did:web` signatures, `llms.txt`). **Trustflow Systems** is the hosted registry (`https://trustflow.systems`, API `https://api.trustflow.systems`). Say AgenticTrust when you mean the identity files or the plugin.
+**Trustflow** is the protocol and the product (`did:web` signatures, `llms.txt`, and this plugin). The registry is hosted at `https://trustflow.systems` (API `https://api.trustflow.systems`).
 
 > Do not install `trustflow-sdk`. That npm package is unrelated. `@trustflow/next-plugin` is not on npm yet. This starter depends on `github:etienne-source/agent-trust-sdk#path:/packages/next-plugin`.
 
@@ -31,7 +31,7 @@ pnpm dev
 If either file is missing or invalid, the terminal prints:
 
 ```text
-[AgenticTrust Warning] Domain identity unverified. Run 'npx trustflow init' to generate did:web identity.
+[Trustflow Warning] Domain identity unverified. Run 'npx @trustflow/cli@latest init' to generate did:web identity.
 ```
 
 The warning does not stop `pnpm dev` or `pnpm build`. Production builds stay quiet. The committed placeholders pass that file check. They are not a signed identity.
@@ -69,7 +69,7 @@ npx @trustflow/cli@latest init \
   --description "What this site offers agents"
 ```
 
-`npx trustflow init` and `npx agentic-trust init` are aliases of `@trustflow/cli`.
+`npx trustflow init` is an alias of `@trustflow/cli`. `npx agentic-trust init` is a deprecated alias.
 
 `--skip-register` writes the local files and skips `POST /v1/register`. Omit it when you want Trustflow Systems to issue a challenge.
 
@@ -88,7 +88,7 @@ node ../../packages/cli/dist/cli.js init \
   --skip-register
 ```
 
-`init` refreshes `.cursorrules` and `.cursor/rules/agentic-trust.mdc`. Those rules already match the AgenticTrust `did:web` and signed `llms.txt` instructions for `public/`.
+`init` refreshes `.cursorrules` and `.cursor/rules/agentic-trust.mdc`. Those rules already match the Trustflow `did:web` and signed `llms.txt` instructions for `public/`.
 
 ## Layout
 

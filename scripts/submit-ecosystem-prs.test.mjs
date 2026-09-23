@@ -88,7 +88,7 @@ test("plans middleware files for agent frameworks", () => {
     assert.match(plan.body, /does not post to X/);
     const byPath = Object.fromEntries(plan.files.map((file) => [file.path, file.content]));
     assert.match(byPath["llms.txt"], /did:web:REPLACE_ME\.example/);
-    assert.match(byPath[".well-known/llms.txt"], /Trustflow Systems/);
+    assert.match(byPath[".well-known/llms.txt"], /Verified Domain Context \| Trustflow/);
     assert.match(byPath[".well-known/did.json"], /"jws": "REPLACE_ME"/);
     assert.match(byPath[".well-known/did.json"], /"publicKeyPem": "REPLACE_ME"/);
   }
@@ -315,7 +315,7 @@ test("cli dry-run smoke", () => {
   writeFileSync(file, JSON.stringify({ example: false, targets: [target({ repo: "acme/dry-run", framework: "mastra" })] }));
   const planned = spawnSync(process.execPath, [script, "--targets", file], { encoding: "utf8" });
   assert.equal(planned.status, 0, planned.stderr);
-  assert.match(planned.stdout, /title: Add AgenticTrust fail-closed middleware/);
+  assert.match(planned.stdout, /title: Add Trustflow fail-closed middleware/);
   assert.match(planned.stdout, /src\/agentic-trust-mastra.ts/);
   assert.match(planned.stdout, /Dry run only/);
   assert.doesNotMatch(planned.stdout, /npm install trustflow-sdk/);

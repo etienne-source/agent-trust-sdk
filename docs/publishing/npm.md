@@ -1,6 +1,6 @@
 # Publishing `@trustflow` packages
 
-**AgenticTrust** is the open protocol. These packages publish under the npm scope `@trustflow` because `@agentic-trust` is registered to an unrelated maintainer. **Trustflow Systems** is the hosted registry at https://trustflow.systems.
+**Trustflow** is the open protocol. These packages publish under the npm scope `@trustflow` because `@agentic-trust` is registered to an unrelated maintainer. **Trustflow Systems** is the hosted registry at https://trustflow.systems.
 
 These workspace packages are version **1.0.1**, MIT licensed, and ready to publish. Their `repository` URL is `git+https://github.com/etienne-source/agent-trust-sdk.git`. Each has `"publishConfig": { "access": "public" }`.
 
@@ -57,6 +57,6 @@ pnpm add @trustflow/vercel-ai-middleware
 pnpm add @trustflow/vercel-plugin
 ```
 
-The CLI binary is `trustflow`. `agentic-trust` is an alias of the same program. Until the tag workflow has succeeded, install from GitHub: `github:etienne-source/agent-trust-sdk`.
+The CLI binary is `trustflow`. `agentic-trust` is a deprecated alias of the same program. Until the tag workflow has succeeded, install from GitHub: `github:etienne-source/agent-trust-sdk`.
 
-Do not install the unrelated package named `trustflow-sdk`. That name is not AgenticTrust.
+Do not install the unrelated package named `trustflow-sdk`. That name is not Trustflow.

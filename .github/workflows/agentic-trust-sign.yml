@@ -1,4 +1,4 @@
-# Reference workflow for AgenticTrust signing.
+# Reference workflow for Trustflow signing.
 #
 # Push to main runs this action. POST https://api.trustflow.systems/v1/register
 # runs when repository variable AGENTIC_TRUST_DOMAIN is set and secret
@@ -6,7 +6,7 @@
 # unconfigured repository sign locally and do not call the API.
 # Public did.json and llms.txt are rotated only when both the domain and the
 # key secret are set. commit stays false here so this workflow does not push.
-name: AgenticTrust sign
+name: Trustflow sign
 
 on:
   push:

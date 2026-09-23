@@ -1,6 +1,6 @@
 # @trustflow/next-plugin
 
-Next.js config wrapper for **AgenticTrust** domain identity.
+Next.js config wrapper for **Trustflow** domain identity.
 
 In development (`NODE_ENV=development`) it checks:
 
@@ -12,12 +12,12 @@ In development (`NODE_ENV=development`) it checks:
 If either file is missing or invalid, the plugin prints:
 
 ```text
-[AgenticTrust Warning] Domain identity unverified. Run 'npx trustflow init' to generate did:web identity.
+[Trustflow Warning] Domain identity unverified. Run 'npx @trustflow/cli@latest init' to generate did:web identity.
 ```
 
 The warning does not fail `next dev` or `next build`. Production builds (`NODE_ENV` other than `development`) stay quiet.
 
-**AgenticTrust** is the protocol and this plugin. **Trustflow Systems** is the hosted registry that `npx trustflow init` registers with. This package does not call the registry.
+**Trustflow** is the protocol and this plugin. **Trustflow Systems** is the hosted registry that `npx trustflow init` registers with. This package does not call the registry.
 
 **License:** MIT
 
@@ -48,7 +48,7 @@ A Next.js app on Vercel can publish the identity files during the build. Install
 
 Deploy from the Vercel dashboard or a git push. The hook writes `public/llms.txt` and `public/.well-known/did.json`. It does not prompt, and it does not commit the private key. That is the path that does not need a terminal.
 
-The AgenticTrust CLI (`npx @trustflow/cli@latest init`) is the local alternative. This plugin only warns in development; it does not sign.
+The Trustflow CLI (`npx @trustflow/cli@latest init`) is the local alternative. This plugin only warns in development; it does not sign.
 
 Publish `public/llms.txt` and `public/.well-known/did.json` with the Next.js app. `public/` is served from the site root, which is where clients fetch `/.well-known/did.json`.
 

@@ -1,7 +1,7 @@
 {
   "name": "@trustflow/next-plugin",
   "version": "1.0.1",
-  "description": "AgenticTrust Next.js config wrapper. Warns in development when public/llms.txt or public/.well-known/did.json is missing or invalid. Scaffold with npx @trustflow/cli@latest init.",
+  "description": "Trustflow Next.js config wrapper. Warns in development when public/llms.txt or public/.well-known/did.json is missing or invalid. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,7 +26,11 @@
       "require": "./dist/cjs/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node ./scripts/mark-cjs.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -43,8 +47,7 @@
     "node": ">=20"
   },
   "keywords": [
-    "agentictrust",
-    "agentic-trust",
+    "trustflow",
     "next",
     "nextjs",
     "did",

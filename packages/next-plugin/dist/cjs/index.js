@@ -9,10 +9,10 @@ exports.withAgenticTrust = withAgenticTrust;
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 /**
- * Printed when a development server loads a project whose AgenticTrust
+ * Printed when a development server loads a project whose Trustflow
  * domain identity files are missing or invalid. The Next.js build is not failed.
  */
-exports.AGENTIC_TRUST_DEV_WARNING = "[AgenticTrust Warning] Domain identity unverified. Run 'npx trustflow init' to generate did:web identity.";
+exports.AGENTIC_TRUST_DEV_WARNING = "[Trustflow Warning] Domain identity unverified. Run 'npx @trustflow/cli@latest init' to generate did:web identity.";
 const LLMS_RELATIVE = node_path_1.default.join("public", "llms.txt");
 const DID_RELATIVE = node_path_1.default.join("public", ".well-known", "did.json");
 function readTextFile(filePath) {

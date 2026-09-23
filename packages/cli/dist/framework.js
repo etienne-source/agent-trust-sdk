@@ -7,7 +7,7 @@ const VITE_CONFIGS = ["vite.config.ts", "vite.config.mts", "vite.config.mjs", "v
 const NUXT_CONFIGS = ["nuxt.config.ts", "nuxt.config.mts", "nuxt.config.mjs", "nuxt.config.js"];
 /**
  * Static folder this repo already uses for public files.
- * Prefers `public/`, then `static/`. Otherwise the AgenticTrust default `public`.
+ * Prefers `public/`, then `static/`. Otherwise the Trustflow default `public`.
  */
 export async function detectPublicDir(cwd) {
     for (const name of PUBLIC_DIR_CANDIDATES) {
@@ -65,7 +65,7 @@ export async function detectProjectLayout(cwd) {
     if (existing) {
         return { framework: "unknown", publicDir: existing, reason: `existing ${existing}/ directory` };
     }
-    return { framework: "unknown", publicDir: "public", reason: "AgenticTrust default public/" };
+    return { framework: "unknown", publicDir: "public", reason: "Trustflow default public/" };
 }
 /** Major version from a package.json range, when one is present. */
 export function nuxtMajor(version) {

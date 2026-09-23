@@ -6,7 +6,7 @@ describe("badge", () => {
     const html = renderBadge("example.com");
     expect(verifyPageUrl("example.com")).toBe("https://trustflow.systems/verify/example.com");
     expect(html).toContain('href="https://trustflow.systems/verify/example.com"');
-    expect(html).toContain("Verified by AgenticTrust | trustflow.systems");
+    expect(html).toContain("Verified Domain Context | Trustflow");
     expect(html).toContain("<svg");
     expect(html).toContain("</a>");
   });

@@ -1,10 +1,10 @@
 /**
- * **AgenticTrust** open-standard SDK (`@trustflow/sdk`).
+ * **Trustflow** open-standard SDK (`@trustflow/sdk`).
  *
  * Cryptographic protocol for domain identity: DID signatures (`did:web` + compact JWS).
  * The CLI package is `@trustflow/cli`
  * (`npx @trustflow/cli@latest init`), which registers domains with Trustflow Systems.
- * `npx trustflow init` and `npx agentic-trust init` are aliases.
+ * `npx trustflow init` is an alias. `npx agentic-trust init` is a deprecated alias.
  *
  * ```bash
  * npm install @trustflow/sdk

@@ -9,7 +9,7 @@ export interface ProjectLayout {
 }
 /**
  * Static folder this repo already uses for public files.
- * Prefers `public/`, then `static/`. Otherwise the AgenticTrust default `public`.
+ * Prefers `public/`, then `static/`. Otherwise the Trustflow default `public`.
  */
 export declare function detectPublicDir(cwd: string): Promise<string>;
 /**

@@ -1,8 +1,8 @@
 # @trustflow/mcp-server
 
-Stdio [Model Context Protocol](https://modelcontextprotocol.io) server for **AgenticTrust** domain identity. Cursor, Windsurf, and Claude Desktop can call it as a local MCP server.
+Stdio [Model Context Protocol](https://modelcontextprotocol.io) server for **Trustflow** domain identity. Cursor, Windsurf, and Claude Desktop can call it as a local MCP server.
 
-**AgenticTrust** is the protocol and the SDK (`@trustflow/sdk`). **Trustflow Systems** is the hosted registry (`https://api.trustflow.systems`).
+**Trustflow** is the protocol and the SDK (`@trustflow/sdk`). **Trustflow Systems** is the hosted registry (`https://api.trustflow.systems`).
 
 | Tool | What it does |
 |------|----------------|
@@ -106,7 +106,7 @@ The result includes `didJson` (public, suitable for `.well-known/did.json`) and 
 
 Arguments: `domain`, `privateKeyPem`, and `llmsTxt` or `llmsTxtPath`. Optional `outputDir`.
 
-The SDK signs a `did:web` document whose `LinkedDomains` service endpoint is `https://<domain>/.well-known/llms.txt`. That document is the AgenticTrust signature for the manifest, matching `@trustflow/cli`. The returned `llms.txt` keeps the caller's prose and names the same `did:web`.
+The SDK signs a `did:web` document whose `LinkedDomains` service endpoint is `https://<domain>/.well-known/llms.txt`. That document is the Trustflow signature for the manifest, matching `@trustflow/cli`. The returned `llms.txt` keeps the caller's prose and names the same `did:web`.
 
 `outputDir` writes only public files: `llms.txt`, `.well-known/llms.txt`, and `.well-known/did.json`. The private key is never written.
 

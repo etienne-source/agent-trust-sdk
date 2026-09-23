@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * Printed when a development server loads a project whose AgenticTrust
+ * Printed when a development server loads a project whose Trustflow
  * domain identity files are missing or invalid. The Next.js build is not failed.
  */
 export const AGENTIC_TRUST_DEV_WARNING =
-  "[AgenticTrust Warning] Domain identity unverified. Run 'npx trustflow init' to generate did:web identity.";
+  "[Trustflow Warning] Domain identity unverified. Run 'npx @trustflow/cli@latest init' to generate did:web identity.";
 
 const LLMS_RELATIVE = path.join("public", "llms.txt");
 const DID_RELATIVE = path.join("public", ".well-known", "did.json");
@@ -130,7 +130,7 @@ function attachDevIdentityCheck<T extends AgenticTrustNextConfig>(
 }
 
 /**
- * Wrap a Next.js config and attach a development-time AgenticTrust identity check.
+ * Wrap a Next.js config and attach a development-time Trustflow identity check.
  *
  * When `NODE_ENV` is `development`, the wrapper checks `public/llms.txt` and
  * `public/.well-known/did.json`. Missing, empty, unreadable, or non-JSON

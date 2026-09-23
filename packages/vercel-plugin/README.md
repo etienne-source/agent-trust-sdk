@@ -1,8 +1,8 @@
 # @trustflow/vercel-plugin
 
-Vercel and Next.js build hook for **AgenticTrust**. On deploy it writes `llms.txt` and a signed `.well-known/did.json` from environment variables. Nobody has to open a terminal or run `trustflow init`.
+Vercel and Next.js build hook for **Trustflow**. On deploy it writes `llms.txt` and a signed `.well-known/did.json` from environment variables. Nobody has to open a terminal or run `trustflow init`.
 
-**AgenticTrust** is the protocol and this package. **Trustflow Systems** is the hosted registry (`https://trustflow.systems`).
+**Trustflow** is the protocol and this package. **Trustflow Systems** is the hosted registry (`https://trustflow.systems`).
 
 **License:** MIT
 

@@ -30,7 +30,7 @@ const listeners = new Set<(event: AgenticTrustSecurityEvent) => void>();
 
 /** Exact console and telemetry text for an unsigned or tampered context payload. */
 export function unverifiedContextAlert(domain: string): string {
-  return `[AgenticTrust Security Alert] Unverified context payload detected for ${domain}. Enable strict mode to block.`;
+  return `[Trustflow Security Alert] Unverified context payload detected for ${domain}. Enable strict mode to block.`;
 }
 
 export function securityAlertEvent(domain: string, status: string): AgenticTrustSecurityEvent {

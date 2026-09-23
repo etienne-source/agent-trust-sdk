@@ -108,8 +108,8 @@ for (const starter of starters) {
   const llmsWellKnown = read(starter.name, "public/.well-known/llms.txt");
   if (llms !== llmsWellKnown) fail(`${starter.name}: llms.txt copies differ`);
   if (!llms.includes("REPLACE_ME.example")) fail(`${starter.name}: llms.txt domain placeholder missing`);
-  if (!llms.includes("AgenticTrust") || !llms.includes("Trustflow Systems")) {
-    fail(`${starter.name}: llms.txt missing dual-brand lines`);
+  if (!llms.includes("Verified Domain Context | Trustflow") || !llms.includes("https://trustflow.systems")) {
+    fail(`${starter.name}: llms.txt missing Trustflow badge line`);
   }
 
   const rules = read(starter.name, ".cursorrules");
@@ -137,11 +137,11 @@ for (const starter of starters) {
   if (pkg.scripts?.dev !== "next dev") fail(`${starter.name}: dev script should be next dev`);
 
   const readme = read(starter.name, "README.md");
-  if (!readme.includes("npx trustflow init")) {
-    fail(`${starter.name}: README does not document npx trustflow init`);
+  if (!readme.includes("npx @trustflow/cli@latest init")) {
+    fail(`${starter.name}: README does not lead with npx @trustflow/cli@latest init`);
   }
-  if (!readme.includes("Trustflow Systems") || !readme.includes("AgenticTrust")) {
-    fail(`${starter.name}: README missing dual-brand note`);
+  if (!readme.includes("Trustflow")) {
+    fail(`${starter.name}: README missing Trustflow`);
   }
   if (readme.includes("npm install trustflow-sdk") && !readme.includes("Do not install `trustflow-sdk`")) {
     fail(`${starter.name}: README documents installing trustflow-sdk`);

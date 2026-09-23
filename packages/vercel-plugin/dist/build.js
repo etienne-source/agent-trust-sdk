@@ -99,7 +99,7 @@ async function ensureGitignore(cwd) {
         return;
     const prefix = current.length === 0 ? "" : current.endsWith("\n") ? current : `${current}\n`;
     const block = [
-        "# AgenticTrust private keys stay in the host environment. Never commit them.",
+        "# Trustflow private keys stay in the host environment. Never commit them.",
         ...missing,
         "",
     ].join("\n");

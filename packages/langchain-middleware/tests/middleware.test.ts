@@ -31,7 +31,7 @@ function verified(domain: string, trustScore = 90): AgenticTrustMetadata {
 function blocked(
   domain: string,
   status: AgenticTrustMetadata["status"] = "UNVERIFIED",
-  warning = "Domain is not verified or has no AgenticTrust signature"
+  warning = "Domain is not verified or has no Trustflow signature"
 ): AgenticTrustMetadata {
   return {
     verified: false,
@@ -73,7 +73,7 @@ describe("agenticTrustLangChainMiddleware", () => {
       title: "Guide",
       url: "https://example.com/guide",
     });
-    expect(context.text).toContain("Verified by AgenticTrust | trustflow.systems");
+    expect(context.text).toContain("Verified Domain Context | Trustflow");
     expect(context.agenticTrust.trustScore).toBe(90);
   });
 
@@ -81,7 +81,7 @@ describe("agenticTrustLangChainMiddleware", () => {
     const read = vi.fn(body("unsigned.example"));
     const trust = agenticTrustLangChainMiddleware({
       strict: true,
-      verify: async () => blocked("unsigned.example", "UNVERIFIED", "No AgenticTrust signature"),
+      verify: async () => blocked("unsigned.example", "UNVERIFIED", "No Trustflow signature"),
     });
 
     await expect(
@@ -293,7 +293,7 @@ describe("agenticTrustLangChainMiddleware", () => {
     const events: string[] = [];
     const read = vi.fn(body("unsigned.example"));
     const alert =
-      "[AgenticTrust Security Alert] Unverified context payload detected for unsigned.example. Enable strict mode to block.";
+      "[Trustflow Security Alert] Unverified context payload detected for unsigned.example. Enable strict mode to block.";
     const audit = agenticTrustLangChainMiddleware({
       verify: async () => blocked("unsigned.example", "RISK", "tampered signature"),
       onAudit: (event) => events.push(event.message),
@@ -329,7 +329,7 @@ describe("agenticTrustLangChainMiddleware", () => {
         content: read,
       })
     ).rejects.toThrow(
-      "[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
+      "[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for unsigned.example. Execution blocked."
     );
     expect(read).not.toHaveBeenCalled();
     warn.mockRestore();

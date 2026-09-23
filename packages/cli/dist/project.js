@@ -3,7 +3,7 @@ import path from "node:path";
 import { assertPublicDir } from "./framework.js";
 export const SECRETS_DIR = ".agentic-trust";
 const GITIGNORE_BLOCK = [
-    "# AgenticTrust local secrets (did:web private key). Safe to commit .well-known/did.json.",
+    "# Trustflow local secrets (did:web private key). Safe to commit .well-known/did.json.",
     ".agentic-trust/",
     "",
 ].join("\n");

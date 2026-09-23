@@ -1,4 +1,4 @@
-name: AgenticTrust sign
+name: Trustflow sign
 description: >
   On build, rotate did.json and sign public llms.txt with @trustflow/sdk,
   then POST https://api.trustflow.systems/v1/register. Updated public signatures
@@ -63,7 +63,7 @@ inputs:
   commit-message:
     description: Commit message used when commit is true.
     required: false
-    default: "Refresh AgenticTrust did:web signatures"
+    default: "Refresh Trustflow did:web signatures"
   dry-run:
     description: Sign locally and skip POST /v1/register.
     required: false

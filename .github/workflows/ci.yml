@@ -1,5 +1,5 @@
 # Test, typecheck, and build on pull requests and pushes to main.
-# The AgenticTrust sign workflow is separate and is not replaced by this job.
+# The Trustflow sign workflow is separate and is not replaced by this job.
 name: CI
 
 on:

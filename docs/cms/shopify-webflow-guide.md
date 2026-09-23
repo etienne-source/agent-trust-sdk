@@ -1,6 +1,6 @@
 # Host a signed `did.json` on Shopify and Webflow
 
-**AgenticTrust** is the protocol (`did:web`, `llms.txt`, `@trustflow/sdk`). **Trustflow Systems** is the hosted registry at https://trustflow.systems and `https://api.trustflow.systems`.
+**Trustflow** is the protocol (`did:web`, `llms.txt`, `@trustflow/sdk`). **Trustflow Systems** is the hosted registry at https://trustflow.systems and `https://api.trustflow.systems`.
 
 Shopify and Webflow can inject a discovery link in the page head. They do not serve `https://<domain>/.well-known/did.json` from a theme asset or a CDN file URL. `did:web` fetches that exact path on the hostname. Use the header snippet for discovery and the asset-routing snippet so the path exists.
 
@@ -65,7 +65,7 @@ Domain: example.com
 - Manifest: https://example.com/.well-known/did.json
 
 ## Trust
-Verified by AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).
+Verified Domain Context | Trustflow (https://trustflow.systems).
 Agents should call verifyDomain before tool invocation.
 ```
 
