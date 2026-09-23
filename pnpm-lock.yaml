@@ -14,7 +14,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@agentic-trust/sdk':
+      '@trustflow/sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:
@@ -30,7 +30,7 @@ importers:
 
   packages/langchain-middleware:
     dependencies:
-      '@agentic-trust/sdk':
+      '@trustflow/sdk':
         specifier: workspace:*
         version: link:../sdk
       langchain:
@@ -49,7 +49,7 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@agentic-trust/sdk':
+      '@trustflow/sdk':
         specifier: workspace:*
         version: link:../sdk
       '@modelcontextprotocol/sdk':
@@ -102,7 +102,7 @@ importers:
 
   packages/vercel-ai-middleware:
     dependencies:
-      '@agentic-trust/sdk':
+      '@trustflow/sdk':
         specifier: workspace:*
         version: link:../sdk
       ai:
@@ -121,7 +121,7 @@ importers:
 
   packages/vercel-plugin:
     dependencies:
-      '@agentic-trust/sdk':
+      '@trustflow/sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:

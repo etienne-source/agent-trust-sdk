@@ -1,4 +1,4 @@
-# Publish @agentic-trust packages to npm.
+# Publish @trustflow packages to npm.
 #
 # Triggers on version tags (v1.* and v*). Pull requests and branch pushes do
 # not publish.
@@ -7,7 +7,7 @@
 #   Repository: etienne-source/agent-trust-sdk
 #   Settings → Secrets and variables → Actions → New repository secret
 #   Name: NPM_TOKEN
-#   Value: an npm access token that can publish the @agentic-trust scope
+#   Value: an npm access token that can publish the @trustflow scope
 #   The workflow passes it to npm as NODE_AUTH_TOKEN. Do not commit the token.
 #
 # pnpm recursive publish rewrites workspace:* dependencies to the version in
@@ -48,7 +48,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "${NPM_TOKEN}" ]; then
-            echo "GitHub secret NPM_TOKEN is required to publish @agentic-trust packages."
+            echo "GitHub secret NPM_TOKEN is required to publish @trustflow packages."
             exit 1
           fi
 
@@ -59,7 +59,7 @@ jobs:
         run: pnpm test
 
       - name: Edge bundle
-        run: pnpm --filter @agentic-trust/sdk bundle:edge
+        run: pnpm --filter @trustflow/sdk bundle:edge
 
       - name: Build
         run: pnpm build
@@ -67,4 +67,4 @@ jobs:
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter "@agentic-trust/*" --fail-if-no-match publish -r --access public --no-git-checks
+        run: pnpm --filter "@trustflow/*" --fail-if-no-match publish -r --access public --no-git-checks

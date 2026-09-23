@@ -44,7 +44,7 @@ describe("IDE rule generator", () => {
       expect(text).toContain("did:web");
       expect(text).toContain("public/.well-known/did.json");
       expect(text).toContain("public/llms.txt");
-      expect(text).toContain("@agentic-trust/sdk");
+      expect(text).toContain("@trustflow/sdk");
       expect(text).toContain("createSignedDidDocument");
       expect(text).toMatch(/MUST/);
     }
@@ -115,7 +115,7 @@ describe("IDE rule generator", () => {
   });
 });
 
-describe("agentic-trust init IDE rules", () => {
+describe("trustflow init IDE rules", () => {
   it("writes both rule files on a successful init", async () => {
     const cwd = await tempProject();
     const { lines, log } = capture();
@@ -130,7 +130,7 @@ describe("agentic-trust init IDE rules", () => {
     expect(cursorrules).toContain("did:web");
     expect(cursorrules).toContain("public/.well-known/did.json");
     expect(cursorrules).toContain("public/llms.txt");
-    expect(cursorrules).toContain("@agentic-trust/sdk");
+    expect(cursorrules).toContain("@trustflow/sdk");
     expect(mdc).toContain("createSignedDidDocument");
     expect(mdc).toContain("public/.well-known/did.json");
   });

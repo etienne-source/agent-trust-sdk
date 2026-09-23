@@ -1,4 +1,4 @@
-import type { AgenticTrustMetadata } from "@agentic-trust/sdk";
+import type { AgenticTrustMetadata } from "@trustflow/sdk";
 
 const TARGET_KEYS = ["target", "url", "domain", "source", "href", "pageUrl"] as const;
 const BODY_KEYS = ["llmsTxt", "llms_txt", "llms"] as const;

@@ -1,5 +1,5 @@
 export { detectPublicDir } from "./framework.js";
-/** Project-root files `agentic-trust init` writes for coding agents. */
+/** Project-root files `trustflow init` writes for coding agents. */
 export declare const CURSORRULES_RELATIVE = ".cursorrules";
 export declare const CURSOR_MDC_RELATIVE = ".cursor/rules/agentic-trust.mdc";
 export interface IdeRulePaths {

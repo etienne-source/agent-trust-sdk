@@ -2,7 +2,7 @@
   "name": "agentic-trust-starter-bolt",
   "private": true,
   "version": "0.1.0",
-  "description": "Bolt.new-style Next.js starter with AgenticTrust did:web, llms.txt, and @agentic-trust/next-plugin. Not on npm.",
+  "description": "Bolt.new-style Next.js starter with AgenticTrust did:web, llms.txt, and @trustflow/next-plugin. Not on npm.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +12,7 @@
     "next": "^16.3.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@agentic-trust/next-plugin": "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin"
+    "@trustflow/next-plugin": "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

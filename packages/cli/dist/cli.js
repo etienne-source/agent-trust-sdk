@@ -6,15 +6,17 @@ import { parseArgs } from "node:util";
 import { runConfirm } from "./confirm.js";
 import { runInit } from "./init.js";
 import { runGithubSign } from "./sign.js";
-const HELP = `AgenticTrust CLI (@agentic-trust/cli)
+const HELP = `AgenticTrust CLI (@trustflow/cli)
 
 Protocol and SDK: AgenticTrust. Hosted registry: Trustflow Systems (trustflow.systems).
 
 Usage:
-  agentic-trust init [options]
-  agentic-trust sign [options]
-  agentic-trust confirm [options]
-  agentic-trust --help
+  trustflow init [options]
+  trustflow sign [options]
+  trustflow confirm [options]
+  trustflow --help
+
+The npm binary is trustflow. agentic-trust is an alias of the same CLI.
 
 init
   Detect Next.js, Vite, or Nuxt (or an existing public/ or static/ folder) and
@@ -37,7 +39,7 @@ init
 sign
   CI entry used by the AgenticTrust GitHub Action. Checks root llms.txt, writes
   the standard template when it is missing, signs a did:web document with
-  @agentic-trust/sdk, and POSTs /v1/register. The private key is read from
+  @trustflow/sdk, and POSTs /v1/register. The private key is read from
   AGENTIC_TRUST_PRIVATE_KEY and is never printed.
 
 confirm
@@ -68,11 +70,11 @@ AGENTIC_TRUST_DRY_RUN=true matches --dry-run.
 Secrets are written to .agentic-trust/ and that directory is added to
 .gitignore. Do not commit private-key.pem.
 
-Install from Git until the @agentic-trust npm scope exists (clone so the
-workspace dependency on @agentic-trust/sdk resolves):
+Install from Git until the @trustflow npm scope exists (clone so the
+workspace dependency on @trustflow/sdk resolves):
   git clone https://github.com/etienne-source/agent-trust-sdk.git
   cd agent-trust-sdk && pnpm install
-  pnpm --filter @agentic-trust/cli exec agentic-trust init
+  pnpm --filter @trustflow/cli exec trustflow init
 
 The SDK package alone can be added with:
   pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk

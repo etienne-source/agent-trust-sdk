@@ -2,7 +2,7 @@
  * Printed when a development server loads a project whose AgenticTrust
  * domain identity files are missing or invalid. The Next.js build is not failed.
  */
-export declare const AGENTIC_TRUST_DEV_WARNING = "[AgenticTrust Warning] Domain identity unverified. Run 'npx agentic-trust init' to generate did:web identity.";
+export declare const AGENTIC_TRUST_DEV_WARNING = "[AgenticTrust Warning] Domain identity unverified. Run 'npx trustflow init' to generate did:web identity.";
 export interface WithAgenticTrustOptions {
     /**
      * Project root that contains `public/`.

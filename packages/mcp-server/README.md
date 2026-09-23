@@ -1,8 +1,8 @@
-# @agentic-trust/mcp-server
+# @trustflow/mcp-server
 
 Stdio [Model Context Protocol](https://modelcontextprotocol.io) server for **AgenticTrust** domain identity. Cursor, Windsurf, and Claude Desktop can call it as a local MCP server.
 
-**AgenticTrust** is the protocol and the SDK (`@agentic-trust/sdk`). **Trustflow Systems** is the hosted registry (`https://api.trustflow.systems`).
+**AgenticTrust** is the protocol and the SDK (`@trustflow/sdk`). **Trustflow Systems** is the hosted registry (`https://api.trustflow.systems`).
 
 | Tool | What it does |
 |------|----------------|
@@ -10,17 +10,17 @@ Stdio [Model Context Protocol](https://modelcontextprotocol.io) server for **Age
 | `generate_did_keys` | Ed25519 (default) or ES256 (P-256) key pair and a signed W3C `did:web` document |
 | `sign_llms_txt` | Sign an `llms.txt` manifest with the domain private key |
 
-Signing uses `@agentic-trust/sdk` `createSignedDidDocument` (EdDSA or ES256 compact JWS). This package does not invent a second proof format.
+Signing uses `@trustflow/sdk` `createSignedDidDocument` (EdDSA or ES256 compact JWS). This package does not invent a second proof format.
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** That name is an unrelated logging package. `@agentic-trust/mcp-server` is not on npm yet.
+> **Do not install `trustflow-sdk`.** That name is an unrelated logging package. `@trustflow/mcp-server` is not on npm yet.
 
 ## Install
 
 Git only, from this repository: `github:etienne-source/agent-trust-sdk`.
 
-`@agentic-trust/mcp-server` depends on `@agentic-trust/sdk` with `workspace:*`. That link resolves inside a clone. It does not resolve from `pnpm add` of this directory alone, and `npm install github:etienne-source/agent-trust-sdk` installs the private workspace root.
+`@trustflow/mcp-server` depends on `@trustflow/sdk` with `workspace:*`. That link resolves inside a clone. It does not resolve from `pnpm add` of this directory alone, and `npm install github:etienne-source/agent-trust-sdk` installs the private workspace root.
 
 ```bash
 git clone https://github.com/etienne-source/agent-trust-sdk.git
@@ -28,11 +28,11 @@ cd agent-trust-sdk
 pnpm install
 ```
 
-`dist/` is committed, so the binary runs after `pnpm install` links the SDK. Rebuild with `pnpm --filter @agentic-trust/mcp-server build` after source changes.
+`dist/` is committed, so the binary runs after `pnpm install` links the SDK. Rebuild with `pnpm --filter @trustflow/mcp-server build` after source changes.
 
 Binary: `agentic-trust-mcp` → `packages/mcp-server/dist/index.js`.
 
-`npx @agentic-trust/mcp-server` is the command to use **after** the package is published to npm. Until then it will not resolve. Use the `node` snippet below.
+`npx @trustflow/mcp-server` is the command to use **after** the package is published to npm. Until then it will not resolve. Use the `node` snippet below.
 
 ## MCP client config
 
@@ -64,18 +64,18 @@ Same shape for Cursor and Claude Desktop. The server speaks MCP over stdio.
 }
 ```
 
-From a clone you can also run `pnpm --filter @agentic-trust/mcp-server exec agentic-trust-mcp`.
+From a clone you can also run `pnpm --filter @trustflow/mcp-server exec trustflow-mcp`.
 
 ### After the npm scope exists
 
-Not available today. When `@agentic-trust/mcp-server` is published, this is the same server:
+Not available today. When `@trustflow/mcp-server` is published, this is the same server:
 
 ```json
 {
   "mcpServers": {
     "agentic-trust": {
       "command": "npx",
-      "args": ["-y", "@agentic-trust/mcp-server"]
+      "args": ["-y", "@trustflow/mcp-server"]
     }
   }
 }
@@ -106,8 +106,8 @@ The result includes `didJson` (public, suitable for `.well-known/did.json`) and 
 
 Arguments: `domain`, `privateKeyPem`, and `llmsTxt` or `llmsTxtPath`. Optional `outputDir`.
 
-The SDK signs a `did:web` document whose `LinkedDomains` service endpoint is `https://<domain>/.well-known/llms.txt`. That document is the AgenticTrust signature for the manifest, matching `@agentic-trust/cli`. The returned `llms.txt` keeps the caller's prose and names the same `did:web`.
+The SDK signs a `did:web` document whose `LinkedDomains` service endpoint is `https://<domain>/.well-known/llms.txt`. That document is the AgenticTrust signature for the manifest, matching `@trustflow/cli`. The returned `llms.txt` keeps the caller's prose and names the same `did:web`.
 
 `outputDir` writes only public files: `llms.txt`, `.well-known/llms.txt`, and `.well-known/did.json`. The private key is never written.
 
-Publish those files, then register with Trustflow Systems (`POST https://api.trustflow.systems/v1/register`) via `agentic-trust init` or `agentic-trust sign`.
+Publish those files, then register with Trustflow Systems (`POST https://api.trustflow.systems/v1/register`) via `trustflow init` or `trustflow sign`.

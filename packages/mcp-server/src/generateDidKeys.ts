@@ -1,7 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { mkdir, writeFile, chmod } from "node:fs/promises";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain, type DidDocument } from "@agentic-trust/sdk";
+import { createSignedDidDocument, normalizeDomain, type DidDocument } from "@trustflow/sdk";
 
 export type DidKeyAlgorithm = "Ed25519" | "ES256";
 
@@ -53,7 +53,7 @@ export function parseDidKeyAlgorithm(value: string | undefined): DidKeyAlgorithm
 
 /**
  * Generate a did:web key and a signed W3C document.
- * Ed25519 keys come from `@agentic-trust/sdk` `createSignedDidDocument`.
+ * Ed25519 keys come from `@trustflow/sdk` `createSignedDidDocument`.
  * ES256 uses a P-256 PKCS#8 key passed into that same signer — the DID proof is not built here.
  */
 export async function generateDidKeys(input: GenerateDidKeysInput): Promise<GenerateDidKeysResult> {

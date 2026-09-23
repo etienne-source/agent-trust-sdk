@@ -21,8 +21,8 @@ function run(args, cwd) {
 }
 
 const help = run(["--help"]);
-if (!help.includes("agentic-trust init")) {
-  throw new Error("help is missing agentic-trust init");
+if (!help.includes("trustflow init")) {
+  throw new Error("help is missing trustflow init");
 }
 if (!help.includes("https://api.trustflow.systems/v1/register")) {
   throw new Error("help is missing the live register URL");

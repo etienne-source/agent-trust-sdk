@@ -10,7 +10,7 @@ export default function HomePage() {
       </p>
       <p>
         <code>public/llms.txt</code> and <code>public/.well-known/did.json</code> contain <code>REPLACE_ME</code>.
-        Run <code>npx agentic-trust init</code> before you publish the project as a template.
+        Run <code>npx trustflow init</code> before you publish the project as a template.
       </p>
       <p>Protocol: AgenticTrust. Hosted registry: Trustflow Systems.</p>
     </main>

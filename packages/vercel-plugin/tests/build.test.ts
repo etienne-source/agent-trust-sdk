@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createSignedDidDocument } from "@agentic-trust/sdk";
+import { createSignedDidDocument } from "@trustflow/sdk";
 import { describe, expect, it } from "vitest";
 import {
   agenticTrustBuildCommand,

@@ -7,13 +7,13 @@ import { repoRoot } from "./lib/starter-prs.mjs";
 const root = repoRoot();
 
 const publishable = [
-  ["@agentic-trust/sdk", "packages/sdk/package.json", "packages/sdk"],
-  ["@agentic-trust/cli", "packages/cli/package.json", "packages/cli"],
-  ["@agentic-trust/mcp-server", "packages/mcp-server/package.json", "packages/mcp-server"],
-  ["@agentic-trust/next-plugin", "packages/next-plugin/package.json", "packages/next-plugin"],
-  ["@agentic-trust/langchain-middleware", "packages/langchain-middleware/package.json", "packages/langchain-middleware"],
-  ["@agentic-trust/vercel-ai-middleware", "packages/vercel-ai-middleware/package.json", "packages/vercel-ai-middleware"],
-  ["@agentic-trust/vercel-plugin", "packages/vercel-plugin/package.json", "packages/vercel-plugin"],
+  ["@trustflow/sdk", "packages/sdk/package.json", "packages/sdk"],
+  ["@trustflow/cli", "packages/cli/package.json", "packages/cli"],
+  ["@trustflow/mcp-server", "packages/mcp-server/package.json", "packages/mcp-server"],
+  ["@trustflow/next-plugin", "packages/next-plugin/package.json", "packages/next-plugin"],
+  ["@trustflow/langchain-middleware", "packages/langchain-middleware/package.json", "packages/langchain-middleware"],
+  ["@trustflow/vercel-ai-middleware", "packages/vercel-ai-middleware/package.json", "packages/vercel-ai-middleware"],
+  ["@trustflow/vercel-plugin", "packages/vercel-plugin/package.json", "packages/vercel-plugin"],
 ];
 
 function read(relativePath) {
@@ -46,11 +46,11 @@ test("npm publish workflow documents NPM_TOKEN and does not publish on pull requ
   assert.match(workflow, /tags:/);
   assert.match(workflow, /"v1\.\*"/);
   assert.match(workflow, /"v\*"/);
-  assert.match(workflow, /pnpm --filter "@agentic-trust\/\*" --fail-if-no-match publish -r --access public --no-git-checks/);
+  assert.match(workflow, /pnpm --filter "@trustflow\/\*" --fail-if-no-match publish -r --access public --no-git-checks/);
   assert.match(workflow, /bundle:edge/);
   assert.doesNotMatch(workflow, /pull_request:/);
   assert.match(doc, /NPM_TOKEN/);
-  assert.match(doc, /@agentic-trust\/sdk/);
+  assert.match(doc, /@trustflow\/sdk/);
   assert.match(doc, /Trustflow Systems/);
   assert.doesNotMatch(doc, /npm install trustflow-sdk/);
   assert.doesNotMatch(workflow, /npm install trustflow-sdk/);

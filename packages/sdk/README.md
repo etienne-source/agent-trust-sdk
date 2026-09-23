@@ -1,8 +1,8 @@
-# @agentic-trust/sdk
+# @trustflow/sdk
 
 AgenticTrust open-standard TypeScript client. It verifies domain identity with DID signatures (`did:web` + JWS) before an AI agent executes a tool or MCP endpoint.
 
-The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustflow.systems)). Scaffold a domain with the CLI package `@agentic-trust/cli` (`npx agentic-trust init`).
+The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustflow.systems)). Scaffold a domain with the CLI package `@trustflow/cli` (`npx trustflow init`).
 
 **License:** MIT · **Install:** GitHub only, until the npm scope exists
 
@@ -14,15 +14,15 @@ The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustf
 pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
 ```
 
-Until then, clone the repository and use the workspace package `@agentic-trust/sdk`. npm cannot install this workspace path from a git URL.
+Until then, clone the repository and use the workspace package `@trustflow/sdk`. npm cannot install this workspace path from a git URL.
 
 ## Migration
 
 | Previous | Current |
 |----------|---------|
-| `agent-trust-sdk` | `@agentic-trust/sdk` |
-| `@trustflow/sdk` | `@agentic-trust/sdk` |
-| `npx trustflow init` | `npx agentic-trust init` |
+| `agent-trust-sdk` | `@trustflow/sdk` |
+| `@agentic-trust/sdk` | `@trustflow/sdk` |
+| `npx agentic-trust init` | `npx trustflow init` |
 
 ## Quick start
 
@@ -31,7 +31,7 @@ import {
   verifyDomain,
   inspectEndpointBeforeExecution,
   clearVerifyCache,
-} from "@agentic-trust/sdk";
+} from "@trustflow/sdk";
 
 const result = await verifyDomain("example.com");
 // result.status: "VERIFIED" | "UNVERIFIED" | "RISK"
@@ -51,7 +51,7 @@ if (!gate.allowed) {
 `agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It verifies local `did:web` (JWS on `/.well-known/did.json`) or calls `GET {base}/v1/verify` (default `https://api.trustflow.systems`). Verified results append `{ verified: true, trustScore }`. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
 
 ```ts
-import { agenticTrustMiddleware } from "@agentic-trust/sdk";
+import { agenticTrustMiddleware } from "@trustflow/sdk";
 
 const trust = agenticTrustMiddleware();
 const context = await trust.annotateContext({ snippet }, "https://example.com");
@@ -59,7 +59,7 @@ const response = await trust.fetch("https://example.com/data.json");
 const tool = trust.wrapTool(existingTool);
 ```
 
-`@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` default to audit mode. Unsigned or tampered `llms.txt` does not throw. They warn with `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` with `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` The SDK helper above still annotates and does not throw.
+`@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode. Unsigned or tampered `llms.txt` does not throw. They warn with `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` with `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` The SDK helper above still annotates and does not throw.
 
 ## Verify cache
 
@@ -67,12 +67,12 @@ const tool = trust.wrapTool(existingTool);
 
 ## Edge bundle
 
-`@agentic-trust/sdk/edge` exports domain helpers only (`normalizeDomain`, `didWebId`, `wellKnownDidUrl`, `wellKnownLlmsUrl`, `assertHttpsEndpoint`). It does not import `jose` or Node crypto. The package sets `"sideEffects": false` so bundlers can drop unused main-entry modules.
+`@trustflow/sdk/edge` exports domain helpers only (`normalizeDomain`, `didWebId`, `wellKnownDidUrl`, `wellKnownLlmsUrl`, `assertHttpsEndpoint`). It does not import `jose` or Node crypto. The package sets `"sideEffects": false` so bundlers can drop unused main-entry modules.
 
 Measure the minified browser bundle with esbuild (10KB means 10240 bytes of minified ESM, not gzip):
 
 ```bash
-pnpm --filter @agentic-trust/sdk bundle:edge
+pnpm --filter @trustflow/sdk bundle:edge
 ```
 
 `packages/sdk/scripts/measure-edge.mjs` bundles `src/edge.ts` and a client file that imports those helpers. Both results must be under 10KB.
@@ -82,12 +82,12 @@ pnpm --filter @agentic-trust/sdk bundle:edge
 `signBuildArtifacts` and `renewBuildSignatures` re-sign `did.json` from `AGENTIC_TRUST_PRIVATE_KEY` during a Vercel or Netlify build. They call `createSignedDidDocument`. The private key is not written, not returned, and not printed.
 
 ```ts
-import { renewBuildSignatures } from "@agentic-trust/sdk";
+import { renewBuildSignatures } from "@trustflow/sdk";
 
 await renewBuildSignatures();
 ```
 
-Vercel can keep using `@agentic-trust/vercel-plugin` (`agentic-trust-vercel`), which calls `signBuildArtifacts`. Netlify can call `renewBuildSignatures({ outDir: "dist" })` from the build command. The GitHub composite action `.github/actions/agentic-trust-sign` rotates `public/.well-known/did.json` and `public/llms.txt` and can commit those public files when `commit` is true. It refuses a diff that contains a private key.
+Vercel can keep using `@trustflow/vercel-plugin` (`agentic-trust-vercel`), which calls `signBuildArtifacts`. Netlify can call `renewBuildSignatures({ outDir: "dist" })` from the build command. The GitHub composite action `.github/actions/agentic-trust-sign` rotates `public/.well-known/did.json` and `public/llms.txt` and can commit those public files when `commit` is true. It refuses a diff that contains a private key.
 
 Point the fallback registry at Trustflow Systems:
 
@@ -102,7 +102,7 @@ That calls `GET /v1/verify?domain=`. The SDK only performs HTTPS fetches. It has
 `notifyVerifiedDomain` fires only when the caller reports **100/100 VERIFIED** (`status` `VERIFIED`, `score` `100`, `maxScore` `100` or omitted). It POSTs to `VERIFIED_NOTIFY_WEBHOOK`. It does not query Trustflow and it does not post to X. Sharing on X is a separate explicit step.
 
 ```ts
-import { notifyVerifiedDomain } from "@agentic-trust/sdk";
+import { notifyVerifiedDomain } from "@trustflow/sdk";
 
 const result = await notifyVerifiedDomain({
   domain: "example.com",

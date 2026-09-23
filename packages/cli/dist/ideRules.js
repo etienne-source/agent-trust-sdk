@@ -3,7 +3,7 @@ import path from "node:path";
 import { assertPublicDir, detectProjectLayout } from "./framework.js";
 import { writeProjectFile } from "./project.js";
 export { detectPublicDir } from "./framework.js";
-/** Project-root files `agentic-trust init` writes for coding agents. */
+/** Project-root files `trustflow init` writes for coding agents. */
 export const CURSORRULES_RELATIVE = ".cursorrules";
 export const CURSOR_MDC_RELATIVE = ".cursor/rules/agentic-trust.mdc";
 const RULE_START = "<!-- agentic-trust:ide-rules -->";
@@ -31,7 +31,7 @@ export function renderIdeRuleBody(publicDir) {
 
 These rules bind AI coding agents (Cursor, Windsurf, GitHub Copilot, and others) working in this repository.
 
-Protocol, SDK, and CLI: **AgenticTrust** (\`@agentic-trust/sdk\`, \`@agentic-trust/cli\`, command \`agentic-trust\`).
+Protocol, SDK, and CLI: **AgenticTrust** (\`@trustflow/sdk\`, \`@trustflow/cli\`, command \`trustflow\`).
 Hosted registry: Trustflow Systems (\`https://trustflow.systems\`, API \`https://api.trustflow.systems\`).
 When enforcing \`did:web\` or \`llms.txt\`, say AgenticTrust. Do not install or import \`trustflow-sdk\`.
 
@@ -54,10 +54,10 @@ You MUST publish a W3C \`did:web\` document at \`${paths.did}\`.
 
 - \`id\` MUST be \`did:web:<domain>\` (lowercase hostname, no scheme, path, or port).
 - \`@context\` MUST include \`https://www.w3.org/ns/did/v1\`.
-- Sign it with \`@agentic-trust/sdk\` \`createSignedDidDocument\`. Do not hand-write the proof.
+- Sign it with \`@trustflow/sdk\` \`createSignedDidDocument\`. Do not hand-write the proof.
 
 \`\`\`ts
-import { createSignedDidDocument } from "@agentic-trust/sdk";
+import { createSignedDidDocument } from "@trustflow/sdk";
 
 const identity = await createSignedDidDocument({
   domain, // hostname only, for example "example.com"
@@ -70,7 +70,7 @@ const identity = await createSignedDidDocument({
 - The proof is a compact JWS (\`proof.type\` \`JsonWebSignature2020\`, \`proof.jws\`) using \`EdDSA\` (Ed25519) or \`ES256\` (P-256). Reject \`alg: "none"\` and \`HS*\`.
 - Include a \`service\` entry of type \`LinkedDomains\` whose \`serviceEndpoint\` is \`https://<domain>/.well-known/llms.txt\`.
 - Re-sign when the domain or key changes. Never commit or print \`.agentic-trust/private-key.pem\`.
-- \`agentic-trust init\` and \`agentic-trust sign\` call \`createSignedDidDocument\` and write the document. Prefer that over a one-off script. If those commands also wrote a root \`.well-known/did.json\`, keep it byte-aligned with \`${paths.did}\`.
+- \`trustflow init\` and \`trustflow sign\` call \`createSignedDidDocument\` and write the document. Prefer that over a one-off script. If those commands also wrote a root \`.well-known/did.json\`, keep it byte-aligned with \`${paths.did}\`.
 
 ## 2. Signed \`${paths.llms}\`
 
@@ -78,7 +78,7 @@ You MUST keep a signed \`${paths.llms}\` next to the DID. Copy the same body to 
 
 Signed means the \`did:web\` document from step 1 is the AgenticTrust signature for this manifest: its \`serviceEndpoint\` points at \`/.well-known/llms.txt\`, and \`${paths.llms}\` names the same \`did:web:<domain>\`. Refresh the manifest and the DID together when public routes or APIs change.
 
-Required body (the \`renderLlms\` template \`agentic-trust init\` writes):
+Required body (the \`renderLlms\` template \`trustflow init\` writes):
 
 \`\`\`
 # <site name>
@@ -101,10 +101,10 @@ Agents should call verifyDomain before tool invocation.
 After editing public routes, APIs, or docs, add those surfaces under \`## Services\` (or a routes section) in \`${paths.llms}\`, then re-sign:
 
 \`\`\`bash
-agentic-trust init --non-interactive --domain <domain> --name "<site name>" --description "<description>"
+trustflow init --non-interactive --domain <domain> --name "<site name>" --description "<description>"
 \`\`\`
 
-In CI, \`agentic-trust sign\` reads \`AGENTIC_TRUST_PRIVATE_KEY\` from the environment. Do not pass the private key as an argument.
+In CI, \`trustflow sign\` reads \`AGENTIC_TRUST_PRIVATE_KEY\` from the environment. Do not pass the private key as an argument.
 `;
 }
 export function renderCursorRulesFile(publicDir) {

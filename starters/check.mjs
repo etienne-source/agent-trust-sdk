@@ -127,7 +127,7 @@ for (const starter of starters) {
   }
 
   const pkg = JSON.parse(read(starter.name, "package.json"));
-  const spec = pkg.dependencies?.["@agentic-trust/next-plugin"];
+  const spec = pkg.dependencies?.["@trustflow/next-plugin"];
   if (spec !== "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin") {
     fail(`${starter.name}: plugin dependency is ${spec}`);
   }
@@ -137,8 +137,8 @@ for (const starter of starters) {
   if (pkg.scripts?.dev !== "next dev") fail(`${starter.name}: dev script should be next dev`);
 
   const readme = read(starter.name, "README.md");
-  if (!readme.includes("npx agentic-trust init")) {
-    fail(`${starter.name}: README does not document npx agentic-trust init`);
+  if (!readme.includes("npx trustflow init")) {
+    fail(`${starter.name}: README does not document npx trustflow init`);
   }
   if (!readme.includes("Trustflow Systems") || !readme.includes("AgenticTrust")) {
     fail(`${starter.name}: README missing dual-brand note`);

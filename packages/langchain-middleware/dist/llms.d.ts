@@ -1,4 +1,4 @@
-import type { AgenticTrustMetadata } from "@agentic-trust/sdk";
+import type { AgenticTrustMetadata } from "@trustflow/sdk";
 export interface ParsedLlmsSection {
     heading: string;
     links: Array<{

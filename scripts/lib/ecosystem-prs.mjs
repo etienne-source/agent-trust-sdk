@@ -45,7 +45,7 @@ function securityThrow() {
 }
 
 function langchainFile() {
-  return `import { agenticTrustLangChainMiddleware } from "@agentic-trust/langchain-middleware";
+  return `import { agenticTrustLangChainMiddleware } from "@trustflow/langchain-middleware";
 
 /**
  * AgenticTrust middleware for LangChain.js. Audit mode is the default.
@@ -59,7 +59,7 @@ export const agenticTrust = agenticTrustLangChainMiddleware({
 }
 
 function langgraphFile() {
-  return `import { agenticTrustLangChainMiddleware } from "@agentic-trust/langchain-middleware";
+  return `import { agenticTrustLangChainMiddleware } from "@trustflow/langchain-middleware";
 
 /**
  * AgenticTrust middleware for LangGraph. Audit mode is the default.
@@ -74,7 +74,7 @@ export const agenticTrust = agenticTrustLangChainMiddleware({
 }
 
 function vercelAiFile() {
-  return `import { agenticTrustVercelAiMiddleware } from "@agentic-trust/vercel-ai-middleware";
+  return `import { agenticTrustVercelAiMiddleware } from "@trustflow/vercel-ai-middleware";
 
 /**
  * AgenticTrust middleware for the Vercel AI SDK. Audit mode is the default.
@@ -89,7 +89,7 @@ export const agenticTrust = agenticTrustVercelAiMiddleware({
 }
 
 function openaiFile() {
-  return `import { verifyDomain } from "@agentic-trust/sdk";
+  return `import { verifyDomain } from "@trustflow/sdk";
 
 /**
  * AgenticTrust check for OpenAI Agents tool URLs.
@@ -110,7 +110,7 @@ export async function assertToolDomain(url: string) {
 }
 
 function llamaindexFile() {
-  return `import { verifyDomain } from "@agentic-trust/sdk";
+  return `import { verifyDomain } from "@trustflow/sdk";
 
 /**
  * AgenticTrust check for LlamaIndex source domains.
@@ -130,7 +130,7 @@ export async function assertSourceDomain(domain: string) {
 }
 
 function mastraFile() {
-  return `import { agenticTrustVercelAiMiddleware } from "@agentic-trust/vercel-ai-middleware";
+  return `import { agenticTrustVercelAiMiddleware } from "@trustflow/vercel-ai-middleware";
 
 /**
  * AgenticTrust middleware for Mastra agents that use the Vercel AI SDK.
@@ -154,14 +154,14 @@ const FRAMEWORK_FILES = {
 };
 
 function sdkOnly() {
-  return { "@agentic-trust/sdk": SDK_SPEC };
+  return { "@trustflow/sdk": SDK_SPEC };
 }
 
 function sdkAnd(spec) {
   const name = spec.includes("langchain")
-    ? "@agentic-trust/langchain-middleware"
-    : "@agentic-trust/vercel-ai-middleware";
-  return { "@agentic-trust/sdk": SDK_SPEC, [name]: spec };
+    ? "@trustflow/langchain-middleware"
+    : "@trustflow/vercel-ai-middleware";
+  return { "@trustflow/sdk": SDK_SPEC, [name]: spec };
 }
 
 const ALLOWED_EXACT = new Set([
@@ -314,7 +314,7 @@ function pullRequestBody(target) {
     "",
     "`.well-known/did.json` and `llms.txt` in this change are unsigned placeholders (`proof.jws` is `REPLACE_ME`).",
     `They do not make \`${target.domain}\` VERIFIED.`,
-    "Replace them with `npx agentic-trust init` from `@agentic-trust/cli`. Do not commit a private key or `.agentic-trust/`.",
+    "Replace them with `npx trustflow init` from `@trustflow/cli`. Do not commit a private key or `.agentic-trust/`.",
     "",
     "### Install",
     "",

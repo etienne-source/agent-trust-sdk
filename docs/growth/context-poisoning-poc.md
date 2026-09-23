@@ -1,6 +1,6 @@
 # Context poisoning, and the check that blocks it
 
-This note is for builders adding AgenticTrust to an agent. It describes how unsigned domain context can influence a model, then shows `@agentic-trust/vercel-ai-middleware` refusing that context. It is security education. It is not an attack procedure, and it does not include a hostile manifest or steps for publishing one.
+This note is for builders adding AgenticTrust to an agent. It describes how unsigned domain context can influence a model, then shows `@trustflow/vercel-ai-middleware` refusing that context. It is security education. It is not an attack procedure, and it does not include a hostile manifest or steps for publishing one.
 
 **AgenticTrust** is the protocol and the middleware. **Trustflow Systems** is the hosted registry at [trustflow.systems](https://trustflow.systems).
 
@@ -19,7 +19,7 @@ This document stops there. It does not show how to write a misleading `llms.txt`
 
 ## What the middleware blocks
 
-`@agentic-trust/vercel-ai-middleware` defaults to audit mode. `loadLlmsFromUrl`, `fetch` of an `llms.txt` URL, and `wrapGenerate` / `wrapStream` call the verifier first. Unverified or tampered context does not throw. It logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and does not parse `llms.txt`. `{ strict: true }` throws `UnverifiedDomainContextError` before the response body is downloaded and before `llms.txt` is parsed. The model call does not start.
+`@trustflow/vercel-ai-middleware` defaults to audit mode. `loadLlmsFromUrl`, `fetch` of an `llms.txt` URL, and `wrapGenerate` / `wrapStream` call the verifier first. Unverified or tampered context does not throw. It logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and does not parse `llms.txt`. `{ strict: true }` throws `UnverifiedDomainContextError` before the response body is downloaded and before `llms.txt` is parsed. The model call does not start.
 
 The error message is the AgenticTrust Security Error:
 
@@ -31,10 +31,10 @@ The error message is the AgenticTrust Security Error:
 
 ## Example: the block
 
-The `verify` function below is a test double. It stands in for `@agentic-trust/sdk` reporting that the domain is not verified. It does not contact a remote host, and it does not supply file contents.
+The `verify` function below is a test double. It stands in for `@trustflow/sdk` reporting that the domain is not verified. It does not contact a remote host, and it does not supply file contents.
 
 ```ts
-import { agenticTrustVercelAiMiddleware } from "@agentic-trust/vercel-ai-middleware";
+import { agenticTrustVercelAiMiddleware } from "@trustflow/vercel-ai-middleware";
 
 const trust = agenticTrustVercelAiMiddleware({
   strict: true,
@@ -57,7 +57,7 @@ try {
 
 That catch prints `UnverifiedDomainContextError` and the AgenticTrust Security Error above. `contextFetch` is not called, so the body is never read.
 
-A tampered document is the same call with the double returning `status: "RISK"` (the JWS did not verify). The throw still happens before the file is parsed. Production code omits `verify`. The middleware then uses `agenticTrustMiddleware` from `@agentic-trust/sdk`, which checks `https://<domain>/.well-known/did.json` and, when the local proof is not authoritative, `GET https://api.trustflow.systems/v1/verify?domain=`.
+A tampered document is the same call with the double returning `status: "RISK"` (the JWS did not verify). The throw still happens before the file is parsed. Production code omits `verify`. The middleware then uses `agenticTrustMiddleware` from `@trustflow/sdk`, which checks `https://<domain>/.well-known/did.json` and, when the local proof is not authoritative, `GET https://api.trustflow.systems/v1/verify?domain=`.
 
 Install from GitHub until the npm scope exists:
 
@@ -69,7 +69,7 @@ Do not install the unrelated `trustflow-sdk` package.
 
 ## What to ship instead
 
-- Publish a real `did:web` document with `npx agentic-trust init` from `@agentic-trust/cli`. A file whose `proof.jws` is `REPLACE_ME` is a placeholder, not a signature, and it does not make a domain `VERIFIED`.
+- Publish a real `did:web` document with `npx trustflow init` from `@trustflow/cli`. A file whose `proof.jws` is `REPLACE_ME` is a placeholder, not a signature, and it does not make a domain `VERIFIED`.
 - Keep the private key in `.agentic-trust/` (mode `0600`, gitignored). Do not put it in the pull request or in `did.json`.
 - Use `{ strict: true }` when unsigned context must throw. The package default is audit mode.
 - Treat `RISK` as a block, including a disallowed JWS `alg` (`none`, any `HS*`). See [SPEC.md](../../SPEC.md).

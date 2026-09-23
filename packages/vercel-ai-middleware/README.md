@@ -1,8 +1,8 @@
-# @agentic-trust/vercel-ai-middleware
+# @trustflow/vercel-ai-middleware
 
 Fetch and language-model middleware for the Vercel AI SDK. The default mode is audit. Unverified, unsigned, or tampered **AgenticTrust** domain context does not throw. The middleware logs a security alert, emits a telemetry event, and does not parse `llms.txt`. `{ strict: true }` or `{ mode: "strict" }` rejects that context before a response stream starts and before `llms.txt` is parsed.
 
-Verification and signing stay in `@agentic-trust/sdk` (`agenticTrustMiddleware`). The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
+Verification and signing stay in `@trustflow/sdk` (`agenticTrustMiddleware`). The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
 
 **License:** MIT · **Install:** GitHub only, until the npm scope exists
 
@@ -10,7 +10,7 @@ Verification and signing stay in `@agentic-trust/sdk` (`agenticTrustMiddleware`)
 
 ## Install
 
-`@agentic-trust/vercel-ai-middleware` depends on `@agentic-trust/sdk` with `workspace:*`, same as the CLI. Add the SDK from GitHub as well. Inside a clone of this repository, `pnpm install` links the workspace package.
+`@trustflow/vercel-ai-middleware` depends on `@trustflow/sdk` with `workspace:*`, same as the CLI. Add the SDK from GitHub as well. Inside a clone of this repository, `pnpm install` links the workspace package.
 
 ```bash
 pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne-source/agent-trust-sdk#path:/packages/vercel-ai-middleware
@@ -23,7 +23,7 @@ pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne
 ```ts
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, streamText, wrapLanguageModel } from "ai";
-import { agenticTrustVercelAiMiddleware } from "@agentic-trust/vercel-ai-middleware";
+import { agenticTrustVercelAiMiddleware } from "@trustflow/vercel-ai-middleware";
 
 const trust = agenticTrustVercelAiMiddleware({
   verificationApiUrl: "https://api.trustflow.systems",
@@ -54,7 +54,7 @@ const llms = await trust.loadLlmsFromUrl("https://example.com/llms.txt");
 `trust.fetch` forwards ordinary provider URLs (for example `api.openai.com`) without a domain check. A request is domain context when the path ends in `llms.txt`, or when the request sets `x-agentic-trust-context: llms.txt` or `x-agentic-trust-context: domain`. Those requests call the SDK first. In audit mode the fetch continues, the trust header is not set, and the alert below is logged. In strict mode `UnverifiedDomainContextError` is thrown before `contextFetch` runs, so the response body is never read.
 
 ```ts
-import { UnverifiedDomainContextError } from "@agentic-trust/vercel-ai-middleware";
+import { UnverifiedDomainContextError } from "@trustflow/vercel-ai-middleware";
 
 try {
   await trust.loadLlmsFromUrl("https://unsigned.example/llms.txt");
@@ -84,4 +84,4 @@ Pass `onAudit` to receive that event. There is no network call. `{ strict: true 
 [AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.
 ```
 
-Signing the files those checks read, without a local terminal, is `@agentic-trust/vercel-plugin`: set `AGENTIC_TRUST_PRIVATE_KEY` and `AGENTIC_TRUST_DOMAIN` in the Vercel project environment and use `buildCommand` `agentic-trust-vercel && next build`. The private key is not committed. See [packages/vercel-plugin](../vercel-plugin/README.md).
+Signing the files those checks read, without a local terminal, is `@trustflow/vercel-plugin`: set `AGENTIC_TRUST_PRIVATE_KEY` and `AGENTIC_TRUST_DOMAIN` in the Vercel project environment and use `buildCommand` `agentic-trust-vercel && next build`. The private key is not committed. See [packages/vercel-plugin](../vercel-plugin/README.md).

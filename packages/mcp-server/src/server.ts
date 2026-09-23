@@ -53,7 +53,7 @@ export function createAgenticTrustMcpServer(options: AgenticTrustMcpServerOption
     {
       title: "Generate did:web keys",
       description:
-        "Generate an Ed25519 (default) or ES256 (P-256) key pair and a signed W3C did:web document for /.well-known/did.json. Signing uses @agentic-trust/sdk createSignedDidDocument. Returns did.json plus privateKeyPem, labeled SECRET. The private key is not written unless privateKeyPath is set.",
+        "Generate an Ed25519 (default) or ES256 (P-256) key pair and a signed W3C did:web document for /.well-known/did.json. Signing uses @trustflow/sdk createSignedDidDocument. Returns did.json plus privateKeyPem, labeled SECRET. The private key is not written unless privateKeyPath is set.",
       inputSchema: {
         domain: z.string().describe("Hostname for did:web, for example example.com"),
         algorithm: z
@@ -83,7 +83,7 @@ export function createAgenticTrustMcpServer(options: AgenticTrustMcpServerOption
     {
       title: "Sign llms.txt",
       description:
-        "Sign an llms.txt manifest with the domain private key using @agentic-trust/sdk createSignedDidDocument (the same flow as @agentic-trust/cli). Input: domain, privateKeyPem, and llmsTxt or llmsTxtPath. Returns the signed did.json, the llms.txt body aligned to that did:web, and publish guidance. Does not write the private key. outputDir writes only the public artifacts.",
+        "Sign an llms.txt manifest with the domain private key using @trustflow/sdk createSignedDidDocument (the same flow as @trustflow/cli). Input: domain, privateKeyPem, and llmsTxt or llmsTxtPath. Returns the signed did.json, the llms.txt body aligned to that did:web, and publish guidance. Does not write the private key. outputDir writes only the public artifacts.",
       inputSchema: {
         domain: z.string().describe("Hostname the manifest belongs to"),
         privateKeyPem: z

@@ -6,7 +6,7 @@ export async function runConfirm(options) {
     const domain = options.domain?.trim() || stored?.domain;
     const challengeToken = options.token?.trim() || stored?.challengeToken;
     if (!domain || !challengeToken) {
-        throw new Error("domain and challengeToken are required. Run agentic-trust init first, or pass --domain and --token.");
+        throw new Error("domain and challengeToken are required. Run trustflow init first, or pass --domain and --token.");
     }
     const apiBase = resolveTrustflowApiBase(options.apiUrl ?? options.envApiUrl ?? stored?.apiBase);
     options.log(`Trustflow API: POST ${apiBase}/v1/register/confirm`);

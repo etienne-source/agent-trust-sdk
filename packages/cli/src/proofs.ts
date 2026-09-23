@@ -234,11 +234,11 @@ function proofSignal(): AbortSignal | undefined {
 function proofTimeoutMessage(input: AutoConfirmInput): string {
   if (input.verificationType === "DNS_TXT") {
     const name = input.dnsRecord?.name || `_agentic-trust.${input.domain}`;
-    return `DNS TXT ${name} was not visible within the proof window. Publish it, then run agentic-trust confirm.`;
+    return `DNS TXT ${name} was not visible within the proof window. Publish it, then run trustflow confirm.`;
   }
   const didUrl = `https://${input.domain}/.well-known/did.json`;
   const challenge = input.challengeUrl || `https://${input.domain}/.well-known/agentic-trust-challenge.txt`;
-  return `HTTPS proofs were not reachable within the proof window (${didUrl}, ${challenge}). Deploy the public directory, then run agentic-trust confirm.`;
+  return `HTTPS proofs were not reachable within the proof window (${didUrl}, ${challenge}). Deploy the public directory, then run trustflow confirm.`;
 }
 
 function delay(ms: number): Promise<void> {

@@ -22,7 +22,7 @@ pnpm add github:etienne-source/agent-trust-sdk#path:/packages/next-plugin
 
 Leave `.agentic-trust/` and every private key out of the pull request. Do not document `npm install trustflow-sdk`.
 
-In the template README, name **AgenticTrust** as the protocol and **Trustflow Systems** as the hosted registry, and point identity setup at `npx agentic-trust init` (from a clone of `github:etienne-source/agent-trust-sdk` until npm publish). After `init`, copy `.well-known/did.json` to `public/.well-known/did.json`, because Next.js serves `public/`.
+In the template README, name **AgenticTrust** as the protocol and **Trustflow Systems** as the hosted registry, and point identity setup at `npx trustflow init` (from a clone of `github:etienne-source/agent-trust-sdk` until npm publish). After `init`, copy `.well-known/did.json` to `public/.well-known/did.json`, because Next.js serves `public/`.
 
 ## Suggested targets
 
@@ -58,6 +58,6 @@ v0 community templates are published in the product ([v0.app templates](https://
 
 - `pnpm dev` or `npm run dev` loads `withAgenticTrust`.
 - `public/llms.txt` is non-empty and `public/.well-known/did.json` is JSON.
-- Placeholders still say `REPLACE_ME`, or the maintainer replaced them with `npx agentic-trust init` and copied the signed DID into `public/`.
+- Placeholders still say `REPLACE_ME`, or the maintainer replaced them with `npx trustflow init` and copied the signed DID into `public/`.
 - The diff contains no `PRIVATE KEY` block and no `.agentic-trust/private-key.pem`.
 - Install instructions use `github:etienne-source/agent-trust-sdk`, not `trustflow-sdk`.

@@ -99,7 +99,7 @@ test("plans Next.js and LangChain files from the starters", () => {
   assert.match(snippet, /withAgenticTrust/);
   assert.match(snippet, /turbopack/);
   assert.match(next.files.find((file) => file.path === ".cursorrules").content, /public\/llms\.txt/);
-  assert.equal(next.packageDependencies["@agentic-trust/next-plugin"], "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin");
+  assert.equal(next.packageDependencies["@trustflow/next-plugin"], "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin");
 
   const chain = plans[1];
   assert.ok(chain.files.some((file) => file.path === "llms.txt"));
@@ -107,7 +107,7 @@ test("plans Next.js and LangChain files from the starters", () => {
   assert.equal(chain.files.some((file) => file.path.startsWith("public/")), false);
   const wiring = chain.files.find((file) => file.path === "src/agentic-trust.ts").content;
   assert.match(wiring, /agenticTrustLangChainMiddleware/);
-  assert.match(wiring, /@agentic-trust\/sdk/);
+  assert.match(wiring, /@trustflow\/sdk/);
   assert.match(wiring, /github:etienne-source\/agent-trust-sdk#path:\/packages\/langchain-middleware/);
   assert.match(chain.files.find((file) => file.path === ".cursorrules").content, /repository root/);
   assert.doesNotMatch(chain.files.find((file) => file.path === ".cursorrules").content, /public\/llms\.txt/);
@@ -143,7 +143,7 @@ test("wraps a simple Next config and merges a dependency without replacing the f
     "next.config.ts"
   );
   assert.equal(wrapped.wrapped, true);
-  assert.match(wrapped.content, /import \{ withAgenticTrust \} from "@agentic-trust\/next-plugin"/);
+  assert.match(wrapped.content, /import \{ withAgenticTrust \} from "@trustflow\/next-plugin"/);
   assert.match(wrapped.content, /turbopack: \{\}/);
   assert.match(wrapped.content, /export default withAgenticTrust\(nextConfig\)/);
   assert.match(wrapped.content, /reactStrictMode: true/);
@@ -152,7 +152,7 @@ test("wraps a simple Next config and merges a dependency without replacing the f
     "const nextConfig = {\n  reactStrictMode: true,\n};\nmodule.exports = nextConfig;\n",
     "next.config.js"
   );
-  assert.match(cjs.content, /require\("@agentic-trust\/next-plugin"\)/);
+  assert.match(cjs.content, /require\("@trustflow\/next-plugin"\)/);
   assert.match(cjs.content, /module\.exports = withAgenticTrust\(nextConfig\)/);
 
   const skipped = wrapNextConfig('export default withAgenticTrust(nextConfig);\n', "next.config.mjs");
@@ -162,17 +162,17 @@ test("wraps a simple Next config and merges a dependency without replacing the f
 
   const merged = mergePackageDependency(
     '{\n  "name": "widgets",\n  "dependencies": {\n    "next": "^16.0.0"\n  }\n}\n',
-    { "@agentic-trust/next-plugin": "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin" }
+    { "@trustflow/next-plugin": "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin" }
   );
   const pkg = JSON.parse(merged);
   assert.equal(pkg.dependencies.next, "^16.0.0");
   assert.equal(
-    pkg.dependencies["@agentic-trust/next-plugin"],
+    pkg.dependencies["@trustflow/next-plugin"],
     "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin"
   );
   assert.equal(
     mergePackageDependency(merged, {
-      "@agentic-trust/next-plugin": "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin",
+      "@trustflow/next-plugin": "github:etienne-source/agent-trust-sdk#path:/packages/next-plugin",
     }),
     null
   );

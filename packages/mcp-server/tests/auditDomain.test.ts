@@ -127,7 +127,7 @@ describe("package README", () => {
   it("documents the stdio config and the GitHub install path", async () => {
     const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
     expect(readme).toContain("github:etienne-source/agent-trust-sdk");
-    expect(readme).toContain("@agentic-trust/mcp-server");
+    expect(readme).toContain("@trustflow/mcp-server");
     expect(readme).toContain("npx");
     expect(readme).toContain("claude_desktop_config.json");
     expect(readme).toContain("cursor.json");

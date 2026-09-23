@@ -1,9 +1,9 @@
-import { type AgenticTrustEnforcementMode, type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions, type AgenticTrustSecurityEvent } from "@agentic-trust/sdk";
+import { type AgenticTrustEnforcementMode, type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions, type AgenticTrustSecurityEvent } from "@trustflow/sdk";
 import { type ParsedLlmsTxt } from "./llms.js";
 export interface AgenticTrustLangChainOptions extends AgenticTrustMiddlewareOptions {
     /**
      * Domain check. When omitted, the package calls `agenticTrustMiddleware`
-     * from `@agentic-trust/sdk` (the verify/sign implementation).
+     * from `@trustflow/sdk` (the verify/sign implementation).
      */
     verify?: (target: string) => Promise<AgenticTrustMetadata>;
     /**

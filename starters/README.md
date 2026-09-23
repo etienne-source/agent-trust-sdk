@@ -1,6 +1,6 @@
 # AgenticTrust starters
 
-Drop-in Next.js App Router boilerplates for community templates. Each one includes a placeholder `did:web` document, `llms.txt`, Cursor rules, and `withAgenticTrust` from `@agentic-trust/next-plugin`.
+Drop-in Next.js App Router boilerplates for community templates. Each one includes a placeholder `did:web` document, `llms.txt`, Cursor rules, and `withAgenticTrust` from `@trustflow/next-plugin`.
 
 | Folder | Intended upstream | Next config |
 |--------|-------------------|-------------|

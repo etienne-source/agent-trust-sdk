@@ -6,7 +6,7 @@ import {
   normalizeDomain,
   wellKnownLlmsUrl,
   type DidDocument,
-} from "@agentic-trust/sdk";
+} from "@trustflow/sdk";
 import type { DidKeyAlgorithm } from "./generateDidKeys.js";
 
 export interface SignLlmsTxtInput {
@@ -46,7 +46,7 @@ export interface SignLlmsTxtResult {
 }
 
 /**
- * Sign a domain's llms.txt the way `@agentic-trust/cli` does:
+ * Sign a domain's llms.txt the way `@trustflow/cli` does:
  * `createSignedDidDocument` produces the did:web JWS whose service endpoint is
  * `/.well-known/llms.txt`. The manifest is updated so it names that same DID.
  * The private key is an input only.
@@ -78,12 +78,12 @@ export async function signLlmsTxt(input: SignLlmsTxtInput): Promise<SignLlmsTxtR
   }
 
   const guidance = [
-    `Signed did:web for ${domain} with @agentic-trust/sdk createSignedDidDocument (${algorithm}).`,
+    `Signed did:web for ${domain} with @trustflow/sdk createSignedDidDocument (${algorithm}).`,
     "The did:web JWS is the AgenticTrust signature for this llms.txt. Its service endpoint is /.well-known/llms.txt.",
     "Publish llms.txt at the site root and the same body at /.well-known/llms.txt.",
     `Publish did.json at /.well-known/did.json (${identity.did.id}). It contains the public key only.`,
     "The private key was used to sign and was not written.",
-    "Register the domain with Trustflow Systems: POST https://api.trustflow.systems/v1/register (agentic-trust init or agentic-trust sign).",
+    "Register the domain with Trustflow Systems: POST https://api.trustflow.systems/v1/register (trustflow init or trustflow sign).",
   ];
 
   const result: SignLlmsTxtResult = {

@@ -1,9 +1,9 @@
 import { createPrivateKey } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain, wellKnownLlmsUrl, } from "@agentic-trust/sdk";
+import { createSignedDidDocument, normalizeDomain, wellKnownLlmsUrl, } from "@trustflow/sdk";
 /**
- * Sign a domain's llms.txt the way `@agentic-trust/cli` does:
+ * Sign a domain's llms.txt the way `@trustflow/cli` does:
  * `createSignedDidDocument` produces the did:web JWS whose service endpoint is
  * `/.well-known/llms.txt`. The manifest is updated so it names that same DID.
  * The private key is an input only.
@@ -33,12 +33,12 @@ export async function signLlmsTxt(input) {
         throw new Error("Refusing to return signed artifacts that contain a private key");
     }
     const guidance = [
-        `Signed did:web for ${domain} with @agentic-trust/sdk createSignedDidDocument (${algorithm}).`,
+        `Signed did:web for ${domain} with @trustflow/sdk createSignedDidDocument (${algorithm}).`,
         "The did:web JWS is the AgenticTrust signature for this llms.txt. Its service endpoint is /.well-known/llms.txt.",
         "Publish llms.txt at the site root and the same body at /.well-known/llms.txt.",
         `Publish did.json at /.well-known/did.json (${identity.did.id}). It contains the public key only.`,
         "The private key was used to sign and was not written.",
-        "Register the domain with Trustflow Systems: POST https://api.trustflow.systems/v1/register (agentic-trust init or agentic-trust sign).",
+        "Register the domain with Trustflow Systems: POST https://api.trustflow.systems/v1/register (trustflow init or trustflow sign).",
     ];
     const result = {
         domain,

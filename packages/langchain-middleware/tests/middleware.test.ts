@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearVerifyCache, type AgenticTrustMetadata } from "@agentic-trust/sdk";
+import { clearVerifyCache, type AgenticTrustMetadata } from "@trustflow/sdk";
 import {
   agenticTrustLangChainMiddleware,
   contextPoisoningErrorMessage,

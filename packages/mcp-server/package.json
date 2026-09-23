@@ -1,7 +1,7 @@
 {
-  "name": "@agentic-trust/mcp-server",
+  "name": "@trustflow/mcp-server",
   "version": "1.0.0",
-  "description": "AgenticTrust MCP server. Stdio tools for Trustflow Systems domain audits, did:web keys, and signed llms.txt. Binary: agentic-trust-mcp. Not on npm yet — install from github:etienne-source/agent-trust-sdk.",
+  "description": "AgenticTrust MCP server. Stdio tools for Trustflow Systems domain audits, did:web keys, and signed llms.txt. Binary: trustflow-mcp. Not on npm yet — install from github:etienne-source/agent-trust-sdk.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,7 +36,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agentic-trust/sdk": "workspace:*",
+    "@trustflow/sdk": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^3.25.76"
   },

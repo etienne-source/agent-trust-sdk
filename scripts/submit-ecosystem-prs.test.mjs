@@ -75,7 +75,7 @@ test("plans middleware files for agent frameworks", () => {
   assert.match(byRepo["acme/openai"].files[0].content, /verifyDomain/);
   assert.match(byRepo["acme/llama"].files[0].content, /assertSourceDomain/);
   assert.equal(
-    byRepo["acme/ai"].packageDependencies["@agentic-trust/vercel-ai-middleware"],
+    byRepo["acme/ai"].packageDependencies["@trustflow/vercel-ai-middleware"],
     "github:etienne-source/agent-trust-sdk#path:/packages/vercel-ai-middleware"
   );
   for (const plan of plans) {
@@ -240,8 +240,8 @@ test("apply forks with Octokit, then opens one pull request", async () => {
   assert.ok(tree.includes(".gitignore"));
   const pkg = state.tree.find((entry) => entry.path === "package.json").content;
   const did = state.tree.find((entry) => entry.path === ".well-known/did.json").content;
-  assert.match(pkg, /@agentic-trust\/sdk/);
-  assert.match(pkg, /@agentic-trust\/vercel-ai-middleware/);
+  assert.match(pkg, /@trustflow\/sdk/);
+  assert.match(pkg, /@trustflow\/vercel-ai-middleware/);
   assert.doesNotMatch(pkg, /trustflow-sdk/);
   assert.match(did, /REPLACE_ME/);
   assert.doesNotMatch(did, /BEGIN PRIVATE KEY/);

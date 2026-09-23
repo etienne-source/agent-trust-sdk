@@ -3,7 +3,7 @@
     "https://www.w3.org/ns/did/v1"
   ],
   "id": "did:web:REPLACE_ME.example",
-  "placeholder": "REPLACE_ME — unsigned example for scaffolding. proof.jws is not a signature. Run `npx agentic-trust init`, then copy .well-known/did.json to public/.well-known/did.json. Do not commit a private key.",
+  "placeholder": "REPLACE_ME — unsigned example for scaffolding. proof.jws is not a signature. Run `npx trustflow init`, then copy .well-known/did.json to public/.well-known/did.json. Do not commit a private key.",
   "verificationMethod": [
     {
       "id": "did:web:REPLACE_ME.example#key-1",

@@ -1,5 +1,5 @@
 {
-  "name": "@agentic-trust/vercel-ai-middleware",
+  "name": "@trustflow/vercel-ai-middleware",
   "version": "1.0.0",
   "description": "Vercel AI SDK fetch and stream middleware that rejects unverified AgenticTrust domain context.",
   "license": "MIT",
@@ -33,7 +33,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agentic-trust/sdk": "workspace:*"
+    "@trustflow/sdk": "workspace:*"
   },
   "peerDependencies": {
     "ai": ">=4.0.0"

@@ -20,7 +20,7 @@ export async function runConfirm(options: ConfirmOptions): Promise<number> {
   const challengeToken = options.token?.trim() || stored?.challengeToken;
   if (!domain || !challengeToken) {
     throw new Error(
-      "domain and challengeToken are required. Run agentic-trust init first, or pass --domain and --token."
+      "domain and challengeToken are required. Run trustflow init first, or pass --domain and --token."
     );
   }
   const apiBase = resolveTrustflowApiBase(options.apiUrl ?? options.envApiUrl ?? stored?.apiBase);

@@ -1,5 +1,5 @@
 {
-  "name": "@agentic-trust/next-plugin",
+  "name": "@trustflow/next-plugin",
   "version": "1.0.0",
   "description": "AgenticTrust Next.js config wrapper. Warns in development when public/llms.txt or public/.well-known/did.json is missing or invalid. Not on npm yet — install from github:etienne-source/agent-trust-sdk.",
   "license": "MIT",

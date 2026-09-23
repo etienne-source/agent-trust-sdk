@@ -1,7 +1,7 @@
 import { createPrivateKey } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { normalizeDomain, signBuildArtifacts, wellKnownLlmsUrl } from "@agentic-trust/sdk";
+import { normalizeDomain, signBuildArtifacts, wellKnownLlmsUrl } from "@trustflow/sdk";
 import { alignLlmsTxt, findLlmsFile, headingName, parseServiceList, renderLlms } from "./llms.js";
 export const AGENTIC_TRUST_VERCEL_BIN = "agentic-trust-vercel";
 const NEXT_CONFIGS = [

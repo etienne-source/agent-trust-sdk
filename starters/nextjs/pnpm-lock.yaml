@@ -8,7 +8,7 @@ importers:
 
   .:
     dependencies:
-      '@agentic-trust/next-plugin':
+      '@trustflow/next-plugin':
         specifier: github:etienne-source/agent-trust-sdk#path:/packages/next-plugin
         version: https://codeload.github.com/etienne-source/agent-trust-sdk/tar.gz/5133d506fdb2aa049776077fa13b61f73eabaf1f#path:/packages/next-plugin
       next:
@@ -36,7 +36,7 @@ importers:
 
 packages:
 
-  '@agentic-trust/next-plugin@https://codeload.github.com/etienne-source/agent-trust-sdk/tar.gz/5133d506fdb2aa049776077fa13b61f73eabaf1f#path:/packages/next-plugin':
+  '@trustflow/next-plugin@https://codeload.github.com/etienne-source/agent-trust-sdk/tar.gz/5133d506fdb2aa049776077fa13b61f73eabaf1f#path:/packages/next-plugin':
     resolution: {path: /packages/next-plugin, tarball: https://codeload.github.com/etienne-source/agent-trust-sdk/tar.gz/5133d506fdb2aa049776077fa13b61f73eabaf1f}
     version: 0.1.0
     engines: {node: '>=20'}
@@ -382,7 +382,7 @@ packages:
 
 snapshots:
 
-  '@agentic-trust/next-plugin@https://codeload.github.com/etienne-source/agent-trust-sdk/tar.gz/5133d506fdb2aa049776077fa13b61f73eabaf1f#path:/packages/next-plugin': {}
+  '@trustflow/next-plugin@https://codeload.github.com/etienne-source/agent-trust-sdk/tar.gz/5133d506fdb2aa049776077fa13b61f73eabaf1f#path:/packages/next-plugin': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:

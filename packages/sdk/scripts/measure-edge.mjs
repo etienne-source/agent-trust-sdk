@@ -1,12 +1,12 @@
 /**
- * Measure the edge/client bundle for `@agentic-trust/sdk/edge`.
+ * Measure the edge/client bundle for `@trustflow/sdk/edge`.
  *
  * Method: esbuild bundles the TypeScript entry as one minified ESM file for
  * the browser, with no external packages. The byte length of that file is the
  * bundle size. Gzip size is reported beside it. The limit is 10KB (10240 bytes)
  * of minified source, not gzip.
  *
- *   pnpm --filter @agentic-trust/sdk bundle:edge
+ *   pnpm --filter @trustflow/sdk bundle:edge
  */
 import esbuild from "esbuild";
 import { gzipSync } from "node:zlib";
@@ -18,7 +18,7 @@ const limitBytes = 10 * 1024;
 
 const builds = [
   {
-    name: "@agentic-trust/sdk/edge",
+    name: "@trustflow/sdk/edge",
     entryPoints: [path.join(root, "src/edge.ts")],
   },
   {

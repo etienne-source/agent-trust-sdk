@@ -28,7 +28,7 @@ That check is TLS for AI context. TLS authenticates the server, then the client 
 
 6/10
 
-@agentic-trust/vercel-ai-middleware and @agentic-trust/langchain-middleware fail closed by default. Unverified or tampered llms.txt throws the AgenticTrust Security Error, and the model call does not start.
+@trustflow/vercel-ai-middleware and @trustflow/langchain-middleware fail closed by default. Unverified or tampered llms.txt throws the AgenticTrust Security Error, and the model call does not start.
 
 7/10
 
@@ -40,7 +40,7 @@ Trustflow Systems hosts the registry (trustflow.systems, api.trustflow.systems).
 
 9/10
 
-Do not npm install trustflow-sdk. That name is an unrelated package. Install from GitHub: github:etienne-source/agent-trust-sdk. Run npx agentic-trust init, and keep the private key out of git.
+Do not npm install trustflow-sdk. That name is an unrelated package. Install from GitHub: github:etienne-source/agent-trust-sdk. Run npx trustflow init, and keep the private key out of git.
 
 10/10
 

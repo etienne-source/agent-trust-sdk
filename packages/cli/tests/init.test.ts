@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { importPublicKey, verifyDidJws, type DidDocument } from "@agentic-trust/sdk";
+import { importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
 import { main } from "../src/cli.js";
 
 async function tempProject(): Promise<string> {
@@ -21,13 +21,13 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-describe("agentic-trust init", () => {
+describe("trustflow init", () => {
   it("prints help", async () => {
     const { lines, log } = capture();
     const code = await main(["--help"], { log, stdinIsTTY: false });
     expect(code).toBe(0);
     const text = lines.join("\n");
-    expect(text).toContain("agentic-trust init");
+    expect(text).toContain("trustflow init");
     expect(text).toContain("https://api.trustflow.systems/v1/register");
     expect(text).toContain("SSL_CHALLENGE");
     expect(text).not.toMatch(/npm install trustflow-sdk/);

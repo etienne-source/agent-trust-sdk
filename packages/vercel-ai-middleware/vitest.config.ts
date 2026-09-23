@@ -11,7 +11,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@agentic-trust/sdk": path.resolve(root, "../sdk/src/index.ts"),
+      "@trustflow/sdk": path.resolve(root, "../sdk/src/index.ts"),
     },
   },
 });

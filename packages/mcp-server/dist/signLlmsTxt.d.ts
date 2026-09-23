@@ -1,4 +1,4 @@
-import { type DidDocument } from "@agentic-trust/sdk";
+import { type DidDocument } from "@trustflow/sdk";
 import type { DidKeyAlgorithm } from "./generateDidKeys.js";
 export interface SignLlmsTxtInput {
     domain: string;
@@ -35,7 +35,7 @@ export interface SignLlmsTxtResult {
     written?: string[];
 }
 /**
- * Sign a domain's llms.txt the way `@agentic-trust/cli` does:
+ * Sign a domain's llms.txt the way `@trustflow/cli` does:
  * `createSignedDidDocument` produces the did:web JWS whose service endpoint is
  * `/.well-known/llms.txt`. The manifest is updated so it names that same DID.
  * The private key is an input only.

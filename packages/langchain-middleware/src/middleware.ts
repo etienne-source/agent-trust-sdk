@@ -7,7 +7,7 @@ import {
   type AgenticTrustMetadata,
   type AgenticTrustMiddlewareOptions,
   type AgenticTrustSecurityEvent,
-} from "@agentic-trust/sdk";
+} from "@trustflow/sdk";
 import { UnverifiedDomainContextError } from "./error.js";
 import {
   cloneValue,
@@ -23,7 +23,7 @@ import {
 export interface AgenticTrustLangChainOptions extends AgenticTrustMiddlewareOptions {
   /**
    * Domain check. When omitted, the package calls `agenticTrustMiddleware`
-   * from `@agentic-trust/sdk` (the verify/sign implementation).
+   * from `@trustflow/sdk` (the verify/sign implementation).
    */
   verify?: (target: string) => Promise<AgenticTrustMetadata>;
   /**

@@ -1,6 +1,6 @@
 name: AgenticTrust sign
 description: >
-  On build, rotate did.json and sign public llms.txt with @agentic-trust/sdk,
+  On build, rotate did.json and sign public llms.txt with @trustflow/sdk,
   then POST https://api.trustflow.systems/v1/register. Updated public signatures
   can be committed. The private key is never printed.
 
@@ -124,7 +124,7 @@ runs:
         corepack enable
         corepack prepare pnpm@10.33.3 --activate
         pnpm install --frozen-lockfile
-        pnpm --filter @agentic-trust/sdk build
+        pnpm --filter @trustflow/sdk build
         cd "${GITHUB_WORKSPACE}"
         node "${ACTION_REPO}/packages/sdk/dist/renewCli.js"
 
@@ -150,8 +150,8 @@ runs:
         corepack enable
         corepack prepare pnpm@10.33.3 --activate
         pnpm install --frozen-lockfile
-        pnpm --filter @agentic-trust/sdk build
-        pnpm --filter @agentic-trust/cli build
+        pnpm --filter @trustflow/sdk build
+        pnpm --filter @trustflow/cli build
         cd "${GITHUB_WORKSPACE}"
         node "${ACTION_REPO}/packages/cli/dist/cli.js" sign
 

@@ -1,7 +1,7 @@
 import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@agentic-trust/sdk";
+import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
 import { describe, expect, it } from "vitest";
 import { generateDidKeys } from "../src/generateDidKeys.js";
 import { alignLlmsTxt, signLlmsTxt } from "../src/signLlmsTxt.js";
