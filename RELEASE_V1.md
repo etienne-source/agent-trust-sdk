@@ -1,6 +1,6 @@
 # AgenticTrust 0.1.0
 
-First public release of the AgenticTrust monorepo. Every package in this repository is version **0.1.0**. This is the open-source launch of the protocol libraries. It is not an npm publish: the `@agentic-trust` scope is not on npm. Install from GitHub, `github:etienne-source/agent-trust-sdk`.
+First public release of the AgenticTrust monorepo. The feature list below is that open-source tree. Publishable packages are now version **1.0.0** in `package.json`. npm publication is [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) on `v1.*` and `v*` tags and needs the `NPM_TOKEN` secret ([docs/publishing/npm.md](docs/publishing/npm.md)). Merging the workflow does not publish. Until a tag publish succeeds, install from GitHub, `github:etienne-source/agent-trust-sdk`.
 
 **AgenticTrust** is the protocol, SDK, CLI, MCP server, Next.js plugin, and framework middleware. **Trustflow Systems** is the hosted registry at https://trustflow.systems and https://api.trustflow.systems.
 
