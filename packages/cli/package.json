@@ -1,6 +1,6 @@
 {
   "name": "@trustflow/cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Trustflow CLI. Scaffold llms.txt, sign a did:web key, and register the domain with Trustflow Systems. Binary: trustflow (deprecated alias: agentic-trust).",
   "license": "MIT",
   "repository": {
