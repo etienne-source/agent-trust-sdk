@@ -277,7 +277,7 @@ Live contract (not a guessed path):
 
 `POST /v1/register` requires `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`). Send the SPKI `publicKeyPem` as well: the live API stores that PEM and sets `publicKeyHash` from it (a hash sent on its own is not stored). The response includes `challengeToken`, `instructions`, and either `challengePath` (HTTPS file `/.well-known/agentic-trust-challenge.txt`, token body, no extra newline required) or `dnsRecord` (`_agentic-trust.<domain>` TXT `agentic-trust-verification=<token>`). Confirm with `domain` and `challengeToken` at `POST /v1/register/confirm`. No API token is required.
 
-`trustflow init` still uses that contract. It writes the challenge file, waits until `did.json` (matching public key) and the challenge URL or DNS TXT are live, then confirms. It does not assume the registry accepts `did.json` without the challenge.
+`trustflow init` writes the challenge file and registers the domain. It does not wait for those files to become reachable. Run `trustflow confirm` after `did.json` and the challenge URL or DNS TXT are on HTTPS. `--confirm` probes once during init. Confirm still requires the challenge. The registry does not accept `did.json` alone.
 
 ## GitHub Action
 

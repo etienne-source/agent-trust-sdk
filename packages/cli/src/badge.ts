@@ -57,7 +57,7 @@ export async function embedBadge(cwd: string, domain: string): Promise<BadgeEmbe
   return { status: "absent" };
 }
 
-/** Write the badge when a known layout exists. Exit 1 when that file has no slot. */
+/** Log a badge write. A layout with no footer or body does not fail the command. */
 export async function applyBadge(
   cwd: string,
   domain: string,
@@ -68,7 +68,6 @@ export async function applyBadge(
   else if (embed.status === "present") log("Trustflow badge is already in the page.");
   else if (embed.status === "rejected") {
     log(`Badge was not written. Expected </footer> or </body> in ${embed.file}.`);
-    return 1;
   }
   return 0;
 }

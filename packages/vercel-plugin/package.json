@@ -1,6 +1,6 @@
 {
   "name": "@trustflow/vercel-plugin",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Trustflow Vercel build hook. Signs did:web and llms.txt from environment secrets during deploy, with no interactive CLI. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {

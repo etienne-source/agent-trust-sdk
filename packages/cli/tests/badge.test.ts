@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { embedBadge, renderBadge, verifyPageUrl } from "../src/badge.js";
+import { applyBadge, embedBadge, renderBadge, verifyPageUrl } from "../src/badge.js";
 
 describe("badge", () => {
   it("links to the Trustflow verify page with the required label", () => {
@@ -25,5 +25,16 @@ describe("badge", () => {
     expect(html).toContain("https://trustflow.systems/verify/example.com");
     expect(html).toContain("</footer>");
     expect(await embedBadge(cwd, "example.com")).toEqual({ status: "present", file: "src/app/layout.tsx" });
+  });
+
+  it("logs a layout with no footer or body and still exits 0", async () => {
+    const cwd = await mkdtemp(path.join(tmpdir(), "agentic-trust-badge-"));
+    const layout = path.join(cwd, "src", "app", "layout.tsx");
+    await mkdir(path.dirname(layout), { recursive: true });
+    await writeFile(layout, "export default function Layout(){ return <main>Ready</main> }\n");
+    const lines: string[] = [];
+    expect(await applyBadge(cwd, "example.com", (line) => lines.push(line ?? ""))).toBe(0);
+    expect(lines.join("\n")).toContain("Badge was not written");
+    expect(await readFile(layout, "utf8")).not.toContain("trustflow.systems/verify");
   });
 });
