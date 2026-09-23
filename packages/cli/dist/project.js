@@ -96,26 +96,28 @@ export async function writeDidDocument(cwd, did) {
 }
 /**
  * Paths for one site asset. The framework public directory is first.
- * The repository-root mirror stays byte-aligned for tools that still read it.
+ * `mirrorRoot` also writes the workspace-root copy. Next-like projects pass false.
  */
-export function publishedRelatives(publicDir, leaf) {
+export function publishedRelatives(publicDir, leaf, mirrorRoot = true) {
     const dir = assertPublicDir(publicDir);
     const nested = `${dir}/${leaf}`.replace(/\/{2,}/g, "/");
     if (nested === leaf)
         return [leaf];
+    if (!mirrorRoot)
+        return [nested];
     return [nested, leaf];
 }
-export async function writePublishedFile(cwd, publicDir, leaf, contents) {
+export async function writePublishedFile(cwd, publicDir, leaf, contents, mirrorRoot = true) {
     const written = [];
-    for (const relative of publishedRelatives(publicDir, leaf)) {
+    for (const relative of publishedRelatives(publicDir, leaf, mirrorRoot)) {
         written.push(await writeProjectFile(cwd, relative, contents));
     }
     return written;
 }
 /** Write `contents` only where that relative path is not already a file. */
-export async function ensurePublishedFile(cwd, publicDir, leaf, contents) {
+export async function ensurePublishedFile(cwd, publicDir, leaf, contents, mirrorRoot = true) {
     const written = [];
-    for (const relative of publishedRelatives(publicDir, leaf)) {
+    for (const relative of publishedRelatives(publicDir, leaf, mirrorRoot)) {
         const full = path.resolve(cwd, relative);
         try {
             const stat = await fs.stat(full);

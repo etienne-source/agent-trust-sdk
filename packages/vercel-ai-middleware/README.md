@@ -4,17 +4,20 @@ Fetch and language-model middleware for the Vercel AI SDK. The default mode is a
 
 Verification and signing stay in `@trustflow/sdk` (`agenticTrustMiddleware`). The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
 
-**License:** MIT · **Install:** GitHub only, until the npm scope exists
+**License:** MIT
 
-> **Do not install `trustflow-sdk`.** That name is an unrelated package. Install from GitHub: `github:etienne-source/agent-trust-sdk`.
+> **Do not install `trustflow-sdk`.** That name is an unrelated package. Scaffold a domain with `npx @trustflow/cli@latest init`.
 
 ## Install
 
-`@trustflow/vercel-ai-middleware` depends on `@trustflow/sdk` with `workspace:*`, same as the CLI. Add the SDK from GitHub as well. Inside a clone of this repository, `pnpm install` links the workspace package.
-
 ```bash
-pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne-source/agent-trust-sdk#path:/packages/vercel-ai-middleware
+npx @trustflow/cli@latest init
+npm install @trustflow/vercel-ai-middleware @trustflow/sdk
 ```
+
+### Contributors
+
+Clone and `pnpm install` apply only when changing this monorepo. They are not the product install.
 
 `ai` is an optional peer dependency. Pass `fetch` to a provider and the middleware object to `wrapLanguageModel`. This package does not import `ai`.
 

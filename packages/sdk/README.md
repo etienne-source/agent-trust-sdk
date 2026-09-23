@@ -2,19 +2,29 @@
 
 AgenticTrust open-standard TypeScript client. It verifies domain identity with DID signatures (`did:web` + JWS) before an AI agent executes a tool or MCP endpoint.
 
-The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustflow.systems)). Scaffold a domain with the CLI package `@trustflow/cli` (`npx trustflow init`).
+The hosted registry is **Trustflow Systems** ([trustflow.systems](https://trustflow.systems)). Scaffold a domain with `npx @trustflow/cli@latest init`.
 
-**License:** MIT · **Install:** GitHub only, until the npm scope exists
+**License:** MIT
 
-> **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` points at an unrelated logging package. Install this SDK from GitHub: `github:etienne-source/agent-trust-sdk`.
+> **Do not install `trustflow-sdk`.** `npm install trustflow-sdk` points at an unrelated logging package. This package is `@trustflow/sdk`.
 
 ## Install
 
+Adopt AgenticTrust in a project:
+
 ```bash
-pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
+npx @trustflow/cli@latest init
 ```
 
-Until then, clone the repository and use the workspace package `@trustflow/sdk`. npm cannot install this workspace path from a git URL.
+`npx trustflow init` and `npx agentic-trust init` are aliases. Add this library with:
+
+```bash
+npm install @trustflow/sdk
+```
+
+### Contributors
+
+Clone and `pnpm install` apply only when changing this monorepo. They are not the product install.
 
 ## Migration
 
@@ -22,7 +32,7 @@ Until then, clone the repository and use the workspace package `@trustflow/sdk`.
 |----------|---------|
 | `agent-trust-sdk` | `@trustflow/sdk` |
 | `@agentic-trust/sdk` | `@trustflow/sdk` |
-| `npx agentic-trust init` | `npx trustflow init` |
+| `npx agentic-trust init` | `npx @trustflow/cli@latest init` |
 
 ## Quick start
 

@@ -117,14 +117,37 @@ describe("zero-config init writes", () => {
     const llms = await readFile(path.join(cwd, "public", "llms.txt"), "utf8");
     expect(llms).toContain("# Example Co");
     expect(await readFile(path.join(cwd, "public", ".well-known", "llms.txt"), "utf8")).toBe(llms);
-    expect(await readFile(path.join(cwd, ".well-known", "did.json"), "utf8")).toBe(
-      await readFile(path.join(cwd, "public", ".well-known", "did.json"), "utf8")
+    await expect(readFile(path.join(cwd, ".well-known", "did.json"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(cwd, "llms.txt"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(cwd, ".well-known", "llms.txt"), "utf8")).rejects.toThrow();
+    expect(output).toContain("middleware.ts");
+    expect(output).toContain("/.well-known/");
+    expect(output).toContain("/llms.txt");
+    expect(output).toContain(
+      "⚠️ Backup your .agentic-trust/private-key.pem! If lost, this domain's identity cannot be recovered or rotated."
     );
     const rules = await readFile(path.join(cwd, ".cursorrules"), "utf8");
     expect(rules).toContain("public/.well-known/did.json");
     expect(rules).toContain("public/llms.txt");
     const mdc = await readFile(path.join(cwd, ".cursor", "rules", "agentic-trust.mdc"), "utf8");
     expect(mdc).toContain("public/.well-known/did.json");
+  });
+
+  it("writes only under public/ when that folder already exists", async () => {
+    const cwd = await tempProject();
+    await mkdir(path.join(cwd, "public"));
+    const { lines, log } = capture();
+    const code = await main(args, { cwd, log, stdinIsTTY: false });
+    expect(code).toBe(0);
+    expect(await readFile(path.join(cwd, "public", "llms.txt"), "utf8")).toContain("# Example Co");
+    expect(await readFile(path.join(cwd, "public", ".well-known", "did.json"), "utf8")).toContain("did:web:example.com");
+    expect(await readFile(path.join(cwd, "public", ".well-known", "llms.txt"), "utf8")).toContain("# Example Co");
+    await expect(readFile(path.join(cwd, "llms.txt"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(cwd, ".well-known", "did.json"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(cwd, ".well-known", "llms.txt"), "utf8")).rejects.toThrow();
+    expect(lines.join("\n")).toContain(
+      "⚠️ Backup your .agentic-trust/private-key.pem! If lost, this domain's identity cannot be recovered or rotated."
+    );
   });
 
   it("writes Vite publicDir and Nuxt 2 static files", async () => {
@@ -134,6 +157,8 @@ describe("zero-config init writes", () => {
     expect(await readFile(path.join(vite, "webroot", "llms.txt"), "utf8")).toContain("Domain: example.com");
     expect(await readFile(path.join(vite, "webroot", ".well-known", "did.json"), "utf8")).toContain("did:web:example.com");
     expect(await readFile(path.join(vite, "webroot", ".well-known", "llms.txt"), "utf8")).toContain("# Example Co");
+    await expect(readFile(path.join(vite, "llms.txt"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(vite, ".well-known", "did.json"), "utf8")).rejects.toThrow();
     const rules = await readFile(path.join(vite, ".cursorrules"), "utf8");
     expect(rules).toContain("webroot/.well-known/did.json");
 
@@ -142,6 +167,8 @@ describe("zero-config init writes", () => {
     expect(await main(args, { cwd: nuxt, log: () => undefined, stdinIsTTY: false })).toBe(0);
     expect(await readFile(path.join(nuxt, "static", ".well-known", "did.json"), "utf8")).toContain("did:web:example.com");
     expect(await readFile(path.join(nuxt, "static", "llms.txt"), "utf8")).toContain("# Example Co");
+    await expect(readFile(path.join(nuxt, "llms.txt"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(nuxt, ".well-known", "did.json"), "utf8")).rejects.toThrow();
     expect(await readFile(path.join(nuxt, ".cursor", "rules", "agentic-trust.mdc"), "utf8")).toContain(
       "static/.well-known/did.json"
     );

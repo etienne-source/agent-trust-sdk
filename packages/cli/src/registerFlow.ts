@@ -16,8 +16,13 @@ export interface RegisterAndStoreInput {
   publicKeyPem: string;
   publicKeyHash: string;
   services: string[];
-  /** When set, the challenge file is written here and mirrored at the repository root. */
+  /** When set, the challenge file is written under this directory. */
   publicDir?: string;
+  /**
+   * Also write the challenge at the workspace root.
+   * Next-like layouts pass false so the file exists only under `publicDir`.
+   */
+  mirrorRoot?: boolean;
 }
 
 export interface RegisterAndStoreResult {
@@ -68,7 +73,13 @@ export async function registerAndStore(input: RegisterAndStoreInput): Promise<Re
   if (challenge.verificationType === "SSL_CHALLENGE" || challenge.challengePath) {
     const leaf = ".well-known/agentic-trust-challenge.txt";
     if (input.publicDir) {
-      const written = await writePublishedFile(input.cwd, input.publicDir, leaf, challenge.challengeToken);
+      const written = await writePublishedFile(
+        input.cwd,
+        input.publicDir,
+        leaf,
+        challenge.challengeToken,
+        input.mirrorRoot ?? true
+      );
       challengeFile = written[0];
     } else {
       challengeFile = await writeProjectFile(input.cwd, leaf, challenge.challengeToken);

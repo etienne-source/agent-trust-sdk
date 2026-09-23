@@ -36,7 +36,7 @@ export async function registerAndStore(input) {
     if (challenge.verificationType === "SSL_CHALLENGE" || challenge.challengePath) {
         const leaf = ".well-known/agentic-trust-challenge.txt";
         if (input.publicDir) {
-            const written = await writePublishedFile(input.cwd, input.publicDir, leaf, challenge.challengeToken);
+            const written = await writePublishedFile(input.cwd, input.publicDir, leaf, challenge.challengeToken, input.mirrorRoot ?? true);
             challengeFile = written[0];
         }
         else {

@@ -4,19 +4,22 @@ Vercel and Next.js build hook for **AgenticTrust**. On deploy it writes `llms.tx
 
 **AgenticTrust** is the protocol and this package. **Trustflow Systems** is the hosted registry (`https://trustflow.systems`).
 
-**License:** MIT · **Install:** GitHub only, until the npm scope exists
+**License:** MIT
 
-> **Do not install `trustflow-sdk`.** That name is an unrelated package. Install from GitHub: `github:etienne-source/agent-trust-sdk`.
-
-The private key is `AGENTIC_TRUST_PRIVATE_KEY`. Put it in the Vercel project environment (Sensitive). This package never writes that PEM, never prints it, and never adds it to `vercel.json`.
+> **Do not install `trustflow-sdk`.** That name is an unrelated package. Scaffold a domain with `npx @trustflow/cli@latest init`.
 
 ## Install
 
-`@trustflow/vercel-plugin` depends on `@trustflow/sdk` with `workspace:*` inside this repository. From another project, add both from GitHub:
-
 ```bash
-pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne-source/agent-trust-sdk#path:/packages/vercel-plugin
+npx @trustflow/cli@latest init
+npm install @trustflow/vercel-plugin @trustflow/sdk
 ```
+
+### Contributors
+
+Clone and `pnpm install` apply only when changing this monorepo. They are not the product install.
+
+The private key is `AGENTIC_TRUST_PRIVATE_KEY`. Put it in the Vercel project environment (Sensitive). This package never writes that PEM, never prints it, and never adds it to `vercel.json`.
 
 ## Vercel without a terminal
 

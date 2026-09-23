@@ -1,7 +1,7 @@
 {
   "name": "@trustflow/sdk",
   "version": "1.0.0",
-  "description": "AgenticTrust open-standard SDK (@trustflow/sdk) for domain identity, DID signatures, and agent integrations. Install from Git (github:etienne-source/agent-trust-sdk#path:/packages/sdk) until the npm scope exists. Scaffold with npx trustflow init (@trustflow/cli).",
+  "description": "AgenticTrust open-standard SDK (@trustflow/sdk) for domain identity, DID signatures, and agent integrations. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {
     "type": "git",

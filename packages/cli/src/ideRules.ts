@@ -83,7 +83,7 @@ const identity = await createSignedDidDocument({
 - The proof is a compact JWS (\`proof.type\` \`JsonWebSignature2020\`, \`proof.jws\`) using \`EdDSA\` (Ed25519) or \`ES256\` (P-256). Reject \`alg: "none"\` and \`HS*\`.
 - Include a \`service\` entry of type \`LinkedDomains\` whose \`serviceEndpoint\` is \`https://<domain>/.well-known/llms.txt\`.
 - Re-sign when the domain or key changes. Never commit or print \`.agentic-trust/private-key.pem\`.
-- \`trustflow init\` and \`trustflow sign\` call \`createSignedDidDocument\` and write the document. Prefer that over a one-off script. If those commands also wrote a root \`.well-known/did.json\`, keep it byte-aligned with \`${paths.did}\`.
+- \`trustflow init\` and \`trustflow sign\` call \`createSignedDidDocument\` and write the document. Prefer that over a one-off script. When \`${paths.publicDir}/\` is the publish directory, write \`${paths.did}\` only there. Do not add a second copy at the repository root. \`trustflow sign-llms\` rewrites the JWS in the existing did.json and does not call \`/v1/register\`.
 
 ## 2. Signed \`${paths.llms}\`
 

@@ -28,6 +28,8 @@ describe("trustflow init", () => {
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("trustflow init");
+    expect(text).toContain("sign-llms");
+    expect(text).toContain("npx @trustflow/cli@latest init");
     expect(text).toContain("https://api.trustflow.systems/v1/register");
     expect(text).toContain("SSL_CHALLENGE");
     expect(text).not.toMatch(/npm install trustflow-sdk/);
@@ -58,6 +60,9 @@ describe("trustflow init", () => {
     const output = lines.join("\n");
     expect(output).toContain("Verified by AgenticTrust | trustflow.systems");
     expect(output).toContain("https://trustflow.systems/verify/example.com");
+    expect(output).toContain(
+      "⚠️ Backup your .agentic-trust/private-key.pem! If lost, this domain's identity cannot be recovered or rotated."
+    );
     expect(output).not.toContain("PRIVATE KEY");
 
     const llms = await readFile(path.join(cwd, "llms.txt"), "utf8");
@@ -90,7 +95,7 @@ describe("trustflow init", () => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
       if (method === "GET" && url.includes("/.well-known/did.json")) {
-        const body = await readFile(path.join(cwd, ".well-known", "did.json"), "utf8");
+        const body = await readFile(path.join(cwd, "public", ".well-known", "did.json"), "utf8");
         return new Response(body, { status: 200, headers: { "Content-Type": "application/json" } });
       }
       if (method === "GET" && url.includes("agentic-trust-challenge.txt")) {
@@ -138,8 +143,13 @@ describe("trustflow init", () => {
       domain: "kept.example",
       challengeToken: "token-from-api",
     });
-    const challenge = await readFile(path.join(cwd, ".well-known", "agentic-trust-challenge.txt"), "utf8");
+    const challenge = await readFile(
+      path.join(cwd, "public", ".well-known", "agentic-trust-challenge.txt"),
+      "utf8"
+    );
     expect(challenge).toBe("token-from-api");
+    await expect(readFile(path.join(cwd, ".well-known", "agentic-trust-challenge.txt"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(cwd, "llms.txt"), "utf8")).rejects.toThrow();
     const output = lines.join("\n");
     expect(output).toContain("Verified by AgenticTrust | trustflow.systems");
     expect(output).toContain("https://trustflow.systems/verify/kept.example");

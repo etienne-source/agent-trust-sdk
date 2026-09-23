@@ -59,31 +59,25 @@ The build writes `public/llms.txt`, `public/.well-known/llms.txt`, and `public/.
 
 `public/llms.txt` and `public/.well-known/llms.txt` use the same body. The domain line is `REPLACE_ME.example`. Edit both copies so the hostname, site name, and services match the app, and keep the two files identical.
 
-Then generate a real signature. The command you want, once `@trustflow/cli` is on npm:
+Then generate a real signature:
 
 ```bash
-npx trustflow init \
+npx @trustflow/cli@latest init \
   --non-interactive \
   --domain your.domain \
   --name "Your site" \
   --description "What this site offers agents"
 ```
 
-Until that scope is published, run the same `init` from a clone. The CLI depends on `@trustflow/sdk` with `workspace:*`, so install the repository rather than only the CLI folder:
+`npx trustflow init` and `npx agentic-trust init` are aliases of `@trustflow/cli`.
 
-```bash
-git clone https://github.com/etienne-source/agent-trust-sdk.git
-cd agent-trust-sdk
-pnpm install
-cd /path/to/this/starter
-node /path/to/agent-trust-sdk/packages/cli/dist/cli.js init \
-  --non-interactive \
-  --domain your.domain \
-  --name "Your site" \
-  --description "What this site offers agents"
-```
+`--skip-register` writes the local files and skips `POST /v1/register`. Omit it when you want Trustflow Systems to issue a challenge.
 
-Inside this monorepo, from `starters/v0`:
+`init` finds the existing `public/llms.txt` and leaves it in place. Because this project has `public/`, it writes `public/.well-known/did.json` only there (no workspace-root copy) and stores the private key in `.agentic-trust/private-key.pem` (mode `0600`, gitignored). Publish `https://your.domain/llms.txt`, `https://your.domain/.well-known/llms.txt`, and `https://your.domain/.well-known/did.json`.
+
+### Contributors
+
+From this monorepo, `starters/v0` can run the local binary. That is not the product install.
 
 ```bash
 node ../../packages/cli/dist/cli.js init \
@@ -93,16 +87,6 @@ node ../../packages/cli/dist/cli.js init \
   --description "What this site offers agents" \
   --skip-register
 ```
-
-`--skip-register` writes the local files and skips `POST /v1/register`. Omit it when you want Trustflow Systems to issue a challenge.
-
-`init` finds the existing `public/llms.txt` and leaves it in place. It writes the signed document to **`.well-known/did.json` at the project root**, and the private key to `.agentic-trust/private-key.pem` (mode `0600`, gitignored). Next.js serves `public/`, and the plugin reads `public/.well-known/did.json`, so copy the signed file:
-
-```bash
-cp .well-known/did.json public/.well-known/did.json
-```
-
-If `init` also wrote a root `llms.txt` or `.well-known/llms.txt`, copy those into `public/llms.txt` and `public/.well-known/llms.txt`. Publish `https://your.domain/llms.txt`, `https://your.domain/.well-known/llms.txt`, and `https://your.domain/.well-known/did.json`.
 
 `init` refreshes `.cursorrules` and `.cursor/rules/agentic-trust.mdc`. Those rules already match the AgenticTrust `did:web` and signed `llms.txt` instructions for `public/`.
 
