@@ -25,7 +25,7 @@ export { agenticTrustMiddleware, DEFAULT_TRUST_API_URL, DEFAULT_MIDDLEWARE_TIMEO
 export type { AgenticTrustMetadata, AgenticTrustMiddleware, AgenticTrustMiddlewareOptions, LangChainLikeDocument, } from "./agenticTrustMiddleware.js";
 export { MemoryCache, defaultCache } from "./cache.js";
 export type { MemoryCacheOptions } from "./cache.js";
-export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
+export { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, sameSiteRedirect, } from "./tls.js";
 export { importPublicKey, verifyDidJws, fingerprintPem, allowedAlgForKey, clearPublicKeyCache, ALLOWED_JWS_ALGS, } from "./jws.js";
 export type { AllowedJwsAlg } from "./jws.js";
 export { createSignedDidDocument, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";

@@ -2,9 +2,9 @@ import { defaultCache } from "./cache.js";
 import { clearPublicKeyCache } from "./jws.js";
 import { fingerprintPem } from "./jws.js";
 import { assessDidDocument, fetchDidDocument } from "./localDid.js";
-import { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, } from "./tls.js";
+import { normalizeDomain, didWebId, wellKnownDidUrl, wellKnownLlmsUrl, assertHttpsEndpoint, sameSiteRedirect, } from "./tls.js";
 const DEFAULT_API = (typeof process !== "undefined" && process.env?.VERIFICATION_API_URL) ||
-    "http://localhost:8787";
+    "https://api.trustflow.systems";
 const DEFAULT_CACHE_TTL_MS = 3_600_000; // 1h — warm in-memory hits stay under 5ms
 const LOCAL_DID_TIMEOUT_MS = 8_000;
 function getFetch(opts) {
@@ -12,6 +12,18 @@ function getFetch(opts) {
 }
 function checkedAt() {
     return new Date().toISOString();
+}
+async function followSameSite(fetchFn, url, response) {
+    if (response.status < 300 || response.status >= 400)
+        return response;
+    const next = sameSiteRedirect(url, response.headers.get("location"));
+    if (!next)
+        return response;
+    return fetchFn(next, {
+        method: "GET",
+        redirect: "manual",
+        signal: AbortSignal.timeout(5_000),
+    });
 }
 function verifyResult(domain, status, extra = {}) {
     return {
@@ -26,12 +38,13 @@ async function softFetchLlms(domain, fetchFn) {
     try {
         const res = await fetchFn(wellKnownLlmsUrl(domain), {
             method: "GET",
-            redirect: "follow",
+            redirect: "manual",
             signal: AbortSignal.timeout(5_000),
         });
-        if (!res.ok)
+        const final = await followSameSite(fetchFn, wellKnownLlmsUrl(domain), res);
+        if (!final.ok)
             return { present: false };
-        const text = await res.text();
+        const text = await final.text();
         const summary = text.slice(0, 280).replace(/\s+/g, " ").trim();
         return { present: true, summary };
     }
@@ -39,12 +52,23 @@ async function softFetchLlms(domain, fetchFn) {
         return { present: false };
     }
 }
+function isMcpService(service) {
+    if (/(^|[^a-z])mcp$/i.test(service.type))
+        return true;
+    if (service.id.toLowerCase().endsWith("#mcp"))
+        return true;
+    try {
+        return new URL(service.serviceEndpoint).pathname
+            .split("/")
+            .filter(Boolean)
+            .some((part) => part.toLowerCase() === "mcp");
+    }
+    catch {
+        return false;
+    }
+}
 function extractMcpEndpoints(did) {
-    return (did.service ?? [])
-        .filter((s) => /mcp/i.test(s.type) ||
-        /mcp/i.test(s.id) ||
-        s.serviceEndpoint.includes("mcp"))
-        .map((s) => s.serviceEndpoint);
+    return (did.service ?? []).filter(isMcpService).map((service) => service.serviceEndpoint);
 }
 function buildClaims(domain, did, llms, keyFp) {
     const services = did.service?.map((s) => ({

@@ -94,16 +94,17 @@ async function loadPublicKey(did) {
     if (!vm)
         return null;
     if (vm.publicKeyPem) {
-        try {
-            // jose's alg hint does not constrain the SPKI type; classify the key after import.
-            const key = await importSPKI(vm.publicKeyPem, "EdDSA");
-            if (!allowedAlgForKey(key))
-                return null;
-            return key;
+        for (const alg of ALLOWED_JWS_ALGS) {
+            try {
+                const key = await importSPKI(vm.publicKeyPem, alg);
+                if (allowedAlgForKey(key) === alg)
+                    return key;
+            }
+            catch {
+                continue;
+            }
         }
-        catch {
-            return null;
-        }
+        return null;
     }
     if (vm.publicKeyJwk) {
         try {
@@ -217,16 +218,34 @@ export async function verifyDidJws(did, key) {
             return rejected;
         }
         const decoded = new TextDecoder().decode(payload);
+        let parsed;
         try {
-            const parsed = JSON.parse(decoded);
-            if (parsed.id && parsed.id !== did.id) {
-                const mismatch = { ok: false, reason: "JWS payload DID id mismatch" };
-                signatureResults.set(signatureCacheKey(did, key, jws), mismatch);
-                return mismatch;
-            }
+            parsed = JSON.parse(decoded);
         }
         catch {
-            // non-JSON payload still accepted if signature verifies
+            const rejected = { ok: false, reason: "JWS payload is not JSON" };
+            signatureResults.set(signatureCacheKey(did, key, jws), rejected);
+            return rejected;
+        }
+        if (!parsed.id || parsed.id !== did.id) {
+            const mismatch = { ok: false, reason: "JWS payload DID id mismatch" };
+            signatureResults.set(signatureCacheKey(did, key, jws), mismatch);
+            return mismatch;
+        }
+        const signedVm = parsed.verificationMethod?.[0];
+        if (signedVm) {
+            const fileVm = did.verificationMethod?.[0];
+            const signedPem = normalizePem(signedVm.publicKeyPem);
+            const filePem = normalizePem(fileVm?.publicKeyPem);
+            const keyBound = Boolean(signedPem && filePem && signedPem === filePem) ||
+                Boolean(signedVm.publicKeyJwk &&
+                    fileVm?.publicKeyJwk &&
+                    JSON.stringify(signedVm.publicKeyJwk) === JSON.stringify(fileVm.publicKeyJwk));
+            if (!keyBound) {
+                const unbound = { ok: false, reason: "JWS payload key does not match document" };
+                signatureResults.set(signatureCacheKey(did, key, jws), unbound);
+                return unbound;
+            }
         }
         const ok = { ok: true };
         signatureResults.set(signatureCacheKey(did, key, jws), ok);
@@ -240,6 +259,9 @@ export async function verifyDidJws(did, key) {
         signatureResults.set(signatureCacheKey(did, key, jws), failed);
         return failed;
     }
+}
+function normalizePem(pem) {
+    return (pem ?? "").replace(/\r\n/g, "\n").trim();
 }
 export function fingerprintPem(pem) {
     let h = 0;

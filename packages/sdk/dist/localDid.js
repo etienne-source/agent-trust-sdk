@@ -1,5 +1,24 @@
 import { importPublicKey, verifyDidJws } from "./jws.js";
-import { didWebId, wellKnownDidUrl } from "./tls.js";
+import { didWebId, sameSiteRedirect, wellKnownDidUrl } from "./tls.js";
+async function fetchPinned(fetchFn, url, signal) {
+    const first = await fetchFn(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        redirect: "manual",
+        signal,
+    });
+    if (first.status < 300 || first.status >= 400)
+        return first;
+    const next = sameSiteRedirect(url, first.headers.get("location"));
+    if (!next)
+        return first;
+    return fetchFn(next, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        redirect: "manual",
+        signal,
+    });
+}
 function asDidRecord(body) {
     if (!body || typeof body !== "object" || Array.isArray(body))
         return undefined;
@@ -12,12 +31,7 @@ function asDidRecord(body) {
 export async function fetchDidDocument(domain, fetchFn, signal) {
     let response;
     try {
-        response = await fetchFn(wellKnownDidUrl(domain), {
-            method: "GET",
-            headers: { Accept: "application/json" },
-            redirect: "follow",
-            signal,
-        });
+        response = await fetchPinned(fetchFn, wellKnownDidUrl(domain), signal);
     }
     catch (error) {
         return { kind: "network", error };
@@ -46,11 +60,20 @@ export async function assessDidDocument(domain, body) {
     const did = record;
     const expected = didWebId(domain);
     const id = did.id;
-    if (id && id !== expected && !String(id).startsWith("did:web:")) {
+    if (typeof id !== "string" || !id.startsWith("did:web:")) {
         return {
             outcome: "risk",
             reason: "DID id is not did:web",
             didId: typeof id === "string" ? id : undefined,
+            did,
+            record,
+        };
+    }
+    if (id !== expected) {
+        return {
+            outcome: "risk",
+            reason: "DID id does not match domain",
+            didId: id,
             did,
             record,
         };
