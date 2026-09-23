@@ -1,4 +1,5 @@
 import { resolveTxt as defaultResolveTxt } from "node:dns/promises";
+import { sameSiteRedirect } from "@trustflow/sdk";
 import { confirmRegistration, TrustflowApiError, type VerificationType } from "./api.js";
 
 /**
@@ -212,12 +213,25 @@ async function fetchText(fetchFn: typeof fetch, url: string): Promise<string | u
   try {
     const response = await fetchFn(url, {
       method: "GET",
-      redirect: "follow",
+      redirect: "manual",
       headers: { Accept: "application/json, text/plain;q=0.9, */*;q=0.8" },
       signal: proofSignal(),
     });
-    if (!response.ok) return undefined;
-    return await response.text();
+    const final =
+      response.status >= 300 && response.status < 400
+        ? await (async () => {
+            const next = sameSiteRedirect(url, response.headers.get("location"));
+            if (!next) return response;
+            return fetchFn(next, {
+              method: "GET",
+              redirect: "manual",
+              headers: { Accept: "application/json, text/plain;q=0.9, */*;q=0.8" },
+              signal: proofSignal(),
+            });
+          })()
+        : response;
+    if (!final.ok) return undefined;
+    return await final.text();
   } catch {
     return undefined;
   }

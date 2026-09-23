@@ -217,6 +217,73 @@ describe("verifyDomain", () => {
     expect(risk.reason).toMatch(/not did:web/);
   });
 
+  it("returns RISK when did:web names a different host", async () => {
+    const { did } = await makeSignedDid("attacker.example");
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", domain: "victim.example", claims: {} } },
+    });
+    const result = await verifyDomain("victim.example", {
+      fetch: fetchFn,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toMatch(/does not match domain/);
+  });
+
+  it("does not follow a cross-host redirect of did.json", async () => {
+    const calls: string[] = [];
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.includes("victim.example/.well-known/did.json")) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://attacker.example/.well-known/did.json" },
+        });
+      }
+      return new Response(JSON.stringify({ status: "UNVERIFIED", domain: "victim.example", claims: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const result = await verifyDomain("victim.example", {
+      fetch: fetchFn as unknown as typeof fetch,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(result.status).not.toBe("VERIFIED");
+    expect(calls.some((url) => url.includes("attacker.example"))).toBe(false);
+  });
+
+  it("follows one www to apex hop when the DID still names the requested host", async () => {
+    const domain = "www.ready.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("https://www.ready.example/") && url.includes("did.json")) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://ready.example/.well-known/did.json" },
+        });
+      }
+      if (url.startsWith("https://ready.example/") && url.includes("did.json")) {
+        return new Response(JSON.stringify(did), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("missing", { status: 404 });
+    });
+    const result = await verifyDomain(domain, {
+      fetch: fetchFn as unknown as typeof fetch,
+      bypassCache: true,
+      verificationApiUrl: "http://api.test",
+    });
+    expect(result.status).toBe("VERIFIED");
+  });
+
   it("does not upgrade alg:none or HS256 proofs through the registry", async () => {
     const domain = "downgrade.example";
     const { did } = await makeSignedDid(domain);

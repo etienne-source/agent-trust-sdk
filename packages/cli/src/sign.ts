@@ -3,14 +3,14 @@ import path from "node:path";
 import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
 import { confirmRegistration, resolveTrustflowApiBase, TrustflowApiError } from "./api.js";
 import { renderBadge } from "./badge.js";
+import { detectProjectLayout, directoryExists, shouldMirrorPublishedFiles } from "./framework.js";
 import { parseLlms, parseServiceList, renderLlms } from "./llms.js";
 import {
   ensureGitignore,
   gitignoreNotice,
-  writeDidDocument,
   writePrivateKey,
-  writeProjectFile,
   writePublicKey,
+  writePublishedFile,
 } from "./project.js";
 import { maskForGitHubActions, redactSecrets } from "./redact.js";
 import { registerAndStore } from "./registerFlow.js";
@@ -67,6 +67,9 @@ async function signDomain(
   const domain = normalizeDomain(domainInput);
   const verificationType = parseVerificationType(options.verificationType);
 
+  const layout = await detectProjectLayout(options.cwd);
+  const publicDirExists = await directoryExists(options.cwd, layout.publicDir);
+  const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
   const rootLlmsPath = path.join(options.cwd, "llms.txt");
   const existingText = await readOptional(rootLlmsPath);
   const existing = existingText !== undefined ? parseLlms(existingText) : undefined;
@@ -80,10 +83,14 @@ async function signDomain(
   let llmsGenerated = false;
   if (existingText === undefined) {
     const llms = renderLlms({ name: businessName, description, domain, services });
-    await writeProjectFile(options.cwd, "llms.txt", llms);
-    await writeProjectFile(options.cwd, ".well-known/llms.txt", llms);
+    const llmsPaths = [
+      ...(await writePublishedFile(options.cwd, layout.publicDir, "llms.txt", llms, mirrorRoot)),
+      ...(await writePublishedFile(options.cwd, layout.publicDir, ".well-known/llms.txt", llms, mirrorRoot)),
+    ];
     llmsGenerated = true;
-    log("Wrote llms.txt (standard template) and .well-known/llms.txt");
+    for (const file of llmsPaths) {
+      log(`Wrote ${path.relative(options.cwd, file).split(path.sep).join("/")}`);
+    }
   } else {
     log("Found llms.txt at repository root. Left it unchanged.");
   }
@@ -112,8 +119,17 @@ async function signDomain(
   log(gitignoreNotice(gitignore));
   await writePrivateKey(options.cwd, identity.privateKeyPem);
   await writePublicKey(options.cwd, identity.publicKeyPem);
-  const didPath = await writeDidDocument(options.cwd, identity.did);
-  log(`Wrote ${didPath}`);
+  const didBody = `${JSON.stringify(identity.did, null, 2)}\n`;
+  const didPaths = await writePublishedFile(
+    options.cwd,
+    layout.publicDir,
+    ".well-known/did.json",
+    didBody,
+    mirrorRoot
+  );
+  for (const file of didPaths) {
+    log(`Wrote ${path.relative(options.cwd, file).split(path.sep).join("/")}`);
+  }
   log(`DID: ${identity.did.id}`);
   log(`publicKeyHash: ${identity.publicKeyHash}`);
 

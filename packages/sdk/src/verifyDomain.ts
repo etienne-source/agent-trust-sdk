@@ -8,6 +8,7 @@ import {
   wellKnownDidUrl,
   wellKnownLlmsUrl,
   assertHttpsEndpoint,
+  sameSiteRedirect,
 } from "./tls.js";
 import type {
   DidDocument,
@@ -20,7 +21,7 @@ import type {
 
 const DEFAULT_API =
   (typeof process !== "undefined" && process.env?.VERIFICATION_API_URL) ||
-  "http://localhost:8787";
+  "https://api.trustflow.systems";
 
 const DEFAULT_CACHE_TTL_MS = 3_600_000; // 1h — warm in-memory hits stay under 5ms
 const LOCAL_DID_TIMEOUT_MS = 8_000;
@@ -31,6 +32,21 @@ function getFetch(opts?: VerifyDomainOptions): typeof fetch {
 
 function checkedAt(): string {
   return new Date().toISOString();
+}
+
+async function followSameSite(
+  fetchFn: typeof fetch,
+  url: string,
+  response: Response
+): Promise<Response> {
+  if (response.status < 300 || response.status >= 400) return response;
+  const next = sameSiteRedirect(url, response.headers.get("location"));
+  if (!next) return response;
+  return fetchFn(next, {
+    method: "GET",
+    redirect: "manual",
+    signal: AbortSignal.timeout(5_000),
+  });
 }
 
 function verifyResult(
@@ -54,11 +70,12 @@ async function softFetchLlms(
   try {
     const res = await fetchFn(wellKnownLlmsUrl(domain), {
       method: "GET",
-      redirect: "follow",
+      redirect: "manual",
       signal: AbortSignal.timeout(5_000),
     });
-    if (!res.ok) return { present: false };
-    const text = await res.text();
+    const final = await followSameSite(fetchFn, wellKnownLlmsUrl(domain), res);
+    if (!final.ok) return { present: false };
+    const text = await final.text();
     const summary = text.slice(0, 280).replace(/\s+/g, " ").trim();
     return { present: true, summary };
   } catch {
@@ -66,15 +83,21 @@ async function softFetchLlms(
   }
 }
 
+function isMcpService(service: { id: string; type: string; serviceEndpoint: string }): boolean {
+  if (/(^|[^a-z])mcp$/i.test(service.type)) return true;
+  if (service.id.toLowerCase().endsWith("#mcp")) return true;
+  try {
+    return new URL(service.serviceEndpoint).pathname
+      .split("/")
+      .filter(Boolean)
+      .some((part) => part.toLowerCase() === "mcp");
+  } catch {
+    return false;
+  }
+}
+
 function extractMcpEndpoints(did: DidDocument): string[] {
-  return (did.service ?? [])
-    .filter(
-      (s) =>
-        /mcp/i.test(s.type) ||
-        /mcp/i.test(s.id) ||
-        s.serviceEndpoint.includes("mcp")
-    )
-    .map((s) => s.serviceEndpoint);
+  return (did.service ?? []).filter(isMcpService).map((service) => service.serviceEndpoint);
 }
 
 function buildClaims(

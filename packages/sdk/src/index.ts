@@ -41,6 +41,7 @@ export {
   wellKnownDidUrl,
   wellKnownLlmsUrl,
   assertHttpsEndpoint,
+  sameSiteRedirect,
 } from "./tls.js";
 export {
   importPublicKey,

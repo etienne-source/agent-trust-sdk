@@ -83,7 +83,8 @@ describe("trustflow init", () => {
     const privateKey = await readFile(path.join(cwd, ".agentic-trust", "private-key.pem"), "utf8");
     expect(privateKey).toContain("PRIVATE KEY");
     const mode = (await stat(path.join(cwd, ".agentic-trust", "private-key.pem"))).mode & 0o777;
-    expect(mode).toBe(0o600);
+    if (process.platform === "win32") expect(mode & 0o200).toBeTruthy();
+    else expect(mode).toBe(0o600);
     expect(JSON.stringify(did)).not.toContain("PRIVATE KEY");
   });
 
