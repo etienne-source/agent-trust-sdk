@@ -2,7 +2,7 @@
 
 **Trustflow** is the open protocol. These packages publish under the npm scope `@trustflow` because `@agentic-trust` is registered to an unrelated maintainer. **Trustflow Systems** is the hosted registry at https://trustflow.systems.
 
-These workspace packages are version **1.0.5**, MIT licensed, and ready to publish. Their `repository` URL is `git+https://github.com/etienne-source/agent-trust-sdk.git`. Each has `"publishConfig": { "access": "public" }`.
+These workspace packages share one version, MIT licensed, and ready to publish. Their `repository` URL is `git+https://github.com/etienne-source/agent-trust-sdk.git`. Each has `"publishConfig": { "access": "public" }`.
 
 | Package | Path |
 |---------|------|
@@ -10,11 +10,9 @@ These workspace packages are version **1.0.5**, MIT licensed, and ready to publi
 | `@trustflow/cli` | `packages/cli` |
 | `@trustflow/mcp-server` | `packages/mcp-server` |
 | `@trustflow/next-plugin` | `packages/next-plugin` |
-| `@trustflow/langchain-middleware` | `packages/langchain-middleware` |
-| `@trustflow/vercel-ai-middleware` | `packages/vercel-ai-middleware` |
 | `@trustflow/vercel-plugin` | `packages/vercel-plugin` |
 
-The root `package.json` is `"private": true` and is not published. Starters under `starters/` are not workspace packages.
+The root `package.json` is `"private": true` and is not published.
 
 ## Required GitHub secret
 
@@ -28,7 +26,7 @@ Create the token on npm (Automation token, or a granular token limited to `@trus
 
 ## When the workflow runs
 
-Push a tag that matches `v1.*` or `v*` (for example `v1.0.0`). The job installs with the frozen lockfile, runs tests, checks that the `@trustflow/sdk` edge bundle stays under 10KB, builds `dist/`, then publishes.
+Push a tag that matches `v1.*` or `v*` (for example `v1.0.6`). The job installs with the frozen lockfile, checks that the `@trustflow/sdk` edge bundle stays under 10KB, builds `dist/`, then publishes. Tests run in CI on the commit before the tag.
 
 ```bash
 git tag v1.0.0
@@ -52,11 +50,9 @@ pnpm add @trustflow/sdk
 pnpm add @trustflow/cli
 pnpm add @trustflow/mcp-server
 pnpm add @trustflow/next-plugin
-pnpm add @trustflow/langchain-middleware
-pnpm add @trustflow/vercel-ai-middleware
 pnpm add @trustflow/vercel-plugin
 ```
 
-The CLI binary is `trustflow`. `agentic-trust` is a deprecated alias of the same program. Until the tag workflow has succeeded, install from GitHub: `github:etienne-source/agent-trust-sdk`.
+The CLI binary is `trustflow`. Until the tag workflow has succeeded, install from GitHub: `github:etienne-source/agent-trust-sdk`.
 
 Do not install the unrelated package named `trustflow-sdk`. That name is not Trustflow.

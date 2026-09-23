@@ -1,18 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { repoRoot } from "./lib/starter-prs.mjs";
 
-const root = repoRoot();
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const publishable = [
   ["@trustflow/sdk", "packages/sdk/package.json", "packages/sdk"],
   ["@trustflow/cli", "packages/cli/package.json", "packages/cli"],
   ["@trustflow/mcp-server", "packages/mcp-server/package.json", "packages/mcp-server"],
   ["@trustflow/next-plugin", "packages/next-plugin/package.json", "packages/next-plugin"],
-  ["@trustflow/langchain-middleware", "packages/langchain-middleware/package.json", "packages/langchain-middleware"],
-  ["@trustflow/vercel-ai-middleware", "packages/vercel-ai-middleware/package.json", "packages/vercel-ai-middleware"],
   ["@trustflow/vercel-plugin", "packages/vercel-plugin/package.json", "packages/vercel-plugin"],
 ];
 
@@ -20,11 +18,12 @@ function read(relativePath) {
   return readFileSync(path.join(root, relativePath), "utf8");
 }
 
-test("publishable packages are 1.0.5 public MIT packages of this repository", () => {
+test("publishable packages share the sdk version and stay public MIT packages of this repository", () => {
+  const sdkVersion = JSON.parse(read("packages/sdk/package.json")).version;
   for (const [name, relativePath, directory] of publishable) {
     const pkg = JSON.parse(read(relativePath));
     assert.equal(pkg.name, name);
-    assert.equal(pkg.version, "1.0.5");
+    assert.equal(pkg.version, sdkVersion);
     assert.equal(pkg.license, "MIT");
     assert.equal(pkg.private, undefined);
     assert.equal(pkg.repository.type, "git");

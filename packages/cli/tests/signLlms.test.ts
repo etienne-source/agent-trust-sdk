@@ -61,9 +61,6 @@ describe("trustflow sign-llms", () => {
     expect(fetch).not.toHaveBeenCalled();
     const output = lines.join("\n");
     expect(output).toContain("Did not call POST /v1/register");
-    expect(output).toContain("middleware.ts");
-    expect(output).toContain("/.well-known/");
-    expect(output).toContain("/llms.txt");
     expect(output).not.toContain("/v1/register/confirm");
     expect(output).not.toContain("PRIVATE KEY");
 

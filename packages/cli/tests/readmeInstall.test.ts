@@ -28,8 +28,6 @@ describe("README install path", () => {
       path.join(repoRoot, "packages/sdk/README.md"),
       path.join(repoRoot, "packages/mcp-server/README.md"),
       path.join(repoRoot, "packages/next-plugin/README.md"),
-      path.join(repoRoot, "packages/langchain-middleware/README.md"),
-      path.join(repoRoot, "packages/vercel-ai-middleware/README.md"),
       path.join(repoRoot, "packages/vercel-plugin/README.md"),
     ];
     for (const file of required) {

@@ -133,20 +133,30 @@ export function shouldMirrorPublishedFiles(framework: ProjectFramework, publicDi
   return !publicDirExists;
 }
 
-/** Terminal snippet for Next.js apps whose middleware would swallow identity routes. */
-export function nextMiddlewareNotice(): string {
-  return [
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "Next.js middleware.ts",
-    "Exclude /.well-known/ and /llms.txt so those routes are not swallowed.",
-    "",
-    "export const config = {",
-    "  matcher: [",
-    '    "/((?!\\.well-known|llms\\.txt).*)",',
-    "  ],",
-    "};",
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-  ].join("\n");
+/** Patch Next.js middleware so identity routes are served as files. */
+export async function ensureNextIdentityRoutes(cwd: string): Promise<string | undefined> {
+  const matcher = `"/((?!\\.well-known|llms\\.txt).*)"`;
+  const config = `export const config = {\n  matcher: [\n    ${matcher},\n  ],\n};\n`;
+  for (const relative of ["middleware.ts", "src/middleware.ts", "middleware.js", "src/middleware.js"]) {
+    const file = path.join(cwd, relative);
+    let text: string;
+    try {
+      text = await fs.readFile(file, "utf8");
+    } catch {
+      continue;
+    }
+    if (text.includes(".well-known") && text.includes("llms.txt")) return undefined;
+    if (/matcher\s*:/.test(text)) {
+      const next = text.replace(/matcher\s*:\s*\[[\s\S]*?\]/, `matcher: [${matcher}]`);
+      if (next !== text) {
+        await fs.writeFile(file, next, "utf8");
+        return relative;
+      }
+    }
+    await fs.writeFile(file, `${text.replace(/\s*$/, "")}\n\n${config}`, "utf8");
+    return relative;
+  }
+  return undefined;
 }
 
 export async function directoryExists(cwd: string, name: string): Promise<boolean> {

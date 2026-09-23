@@ -20,8 +20,7 @@ Usage:
   trustflow confirm [options]
   trustflow --help
 
-The npm binary is trustflow. agentic-trust is a deprecated name for that same installed command.
-There is no unscoped trustflow package, so npx trustflow does not install this CLI.
+The npm binary is trustflow. There is no unscoped trustflow package, so npx trustflow does not install this CLI.
 
 init
   Detect Next.js, Vite, or Nuxt (or an existing public/ or static/ folder) and
@@ -30,16 +29,14 @@ init
   and public/llms.txt. When the project is Next.js, Vite, Nuxt, or already
   has that folder (public/ or static/), files are written only there — not
   also at the workspace root. Generate a did:web keypair and register the domain.
-  IDE rules land in .cursorrules and .cursor/rules/agentic-trust.mdc.
-  Pass --no-ide-rules to skip those two files.
 
   POST https://api.trustflow.systems/v1/register
   Body: domain, businessName, verificationType (SSL_CHALLENGE | DNS_TXT),
   and the SPKI publicKeyPem from the did:web key.
-  The CLI writes the SSL challenge file itself. When that file and did.json are
-  already on HTTPS (or appear within about 90 seconds), it POSTs /v1/register/confirm.
-  Pass --no-auto-confirm to register without that confirm call. The did.json
-  public key must still match the key sent at registration.
+  The CLI writes the SSL challenge file itself. It does not wait for a deploy.
+  Run trustflow confirm after did.json and the challenge file are on HTTPS.
+  Pass --confirm to probe once and POST /v1/register/confirm during init.
+  The did.json public key must still match the key sent at registration.
 
   https://trustflow.systems/api/register is an alias of the API origin above.
 
@@ -66,12 +63,11 @@ Options:
   --verification-type <type>      SSL_CHALLENGE (default) or DNS_TXT
   --api-url <url>                 API base (or set TRUSTFLOW_API_URL)
   --token <token>                 Challenge token for confirm
-  --confirm                       Force POST /v1/register/confirm (init does this by default)
+  --confirm                       Probe once and POST /v1/register/confirm during init
   --no-auto-confirm               Register during init, but do not POST /v1/register/confirm
   --dry-run                       Sign locally and skip POST /v1/register
   --skip-register                 Write local files only
   --force-keys                    Rotate the did:web keypair
-  --no-ide-rules                  Do not write .cursorrules or .cursor/rules/agentic-trust.mdc
   --non-interactive               Do not prompt (CI)
   -h, --help                      Show this help
 
@@ -108,7 +104,6 @@ interface Parsed {
   dryRun: boolean;
   skipRegister: boolean;
   forceKeys: boolean;
-  noIdeRules: boolean;
   nonInteractive: boolean;
 }
 
@@ -128,7 +123,6 @@ function parse(argv: string[]): Parsed {
       "dry-run": { type: "boolean", default: false },
       "skip-register": { type: "boolean", default: false },
       "force-keys": { type: "boolean", default: false },
-      "no-ide-rules": { type: "boolean", default: false },
       "non-interactive": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -159,7 +153,6 @@ function parse(argv: string[]): Parsed {
     dryRun: values["dry-run"],
     skipRegister: values["skip-register"],
     forceKeys: values["force-keys"],
-    noIdeRules: values["no-ide-rules"],
     nonInteractive: values["non-interactive"],
   };
 }
@@ -234,7 +227,6 @@ export async function main(argv: string[], io?: {
         proofBudgetMs: positiveMilliseconds(env.AGENTIC_TRUST_PROOF_BUDGET_MS),
         proofIntervalMs: positiveMilliseconds(env.AGENTIC_TRUST_PROOF_INTERVAL_MS),
         forceKeys: parsed.forceKeys,
-        ideRules: !parsed.noIdeRules,
         fetch: fetchFn,
         prompt,
         log,
@@ -258,7 +250,7 @@ export async function main(argv: string[], io?: {
 function resolveAutoConfirm(parsed: Parsed, env: NodeJS.ProcessEnv): boolean {
   if (parsed.noAutoConfirm) return false;
   if (parsed.confirm) return true;
-  return envFlag(env.AGENTIC_TRUST_AUTO_CONFIRM, true);
+  return envFlag(env.AGENTIC_TRUST_AUTO_CONFIRM, false);
 }
 
 function positiveMilliseconds(value: string | undefined): number | undefined {

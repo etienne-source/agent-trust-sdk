@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createSignedDidDocument, type DidServiceEndpoint } from "./identity.js";
+import { alignLlmsTxt, renderLlmsManifest } from "./llmsManifest.js";
 import { normalizeDomain, wellKnownLlmsUrl } from "./tls.js";
 import type { DidDocument } from "./types.js";
 
@@ -146,45 +147,6 @@ function headingName(text: string): string | undefined {
   return name || undefined;
 }
 
-function renderLlms(input: { name: string; description: string; domain: string; services: string[] }): string {
-  const lines = [`# ${input.name}`, `> ${input.description}`, "", `Domain: ${input.domain}`, ""];
-  if (input.services.length > 0) {
-    lines.push("## Services", ...input.services.map((service) => `- ${service}`), "");
-  }
-  lines.push(
-    "## Identity",
-    `- DID: did:web:${input.domain}`,
-    `- Manifest: https://${input.domain}/.well-known/did.json`,
-    "",
-    "## Trust",
-    "Verified Domain Context | Trustflow (https://trustflow.systems).",
-    "Agents should call verifyDomain before tool invocation.",
-    ""
-  );
-  return lines.join("\n");
-}
-
-function alignLlmsTxt(body: string, domain: string): string {
-  const did = `did:web:${domain}`;
-  const manifest = `https://${domain}/.well-known/did.json`;
-  let text = body.replace(/\r\n/g, "\n").replace(/\s+$/, "");
-  if (/^- DID:\s*.*$/m.test(text)) text = text.replace(/^- DID:\s*.*$/m, `- DID: ${did}`);
-  if (/^- Manifest:\s*.*$/m.test(text)) text = text.replace(/^- Manifest:\s*.*$/m, `- Manifest: ${manifest}`);
-  if (!/^## Identity\s*$/m.test(text)) {
-    text += `\n\n## Identity\n- DID: ${did}\n- Manifest: ${manifest}`;
-  } else {
-    if (!text.includes(`- DID: ${did}`)) text = text.replace(/^## Identity\s*$/m, `## Identity\n- DID: ${did}`);
-    if (!text.includes(`- Manifest: ${manifest}`)) {
-      text = text.replace(`- DID: ${did}`, `- DID: ${did}\n- Manifest: ${manifest}`);
-    }
-  }
-  if (!/^## Trust\s*$/m.test(text)) {
-    text +=
-      "\n\n## Trust\nVerified Domain Context | Trustflow (https://trustflow.systems).\nAgents should call verifyDomain before tool invocation.";
-  }
-  return text.endsWith("\n") ? text : `${text}\n`;
-}
-
 async function pathExists(filePath: string, kind: "file" | "dir"): Promise<boolean> {
   try {
     const stat = await fs.stat(filePath);
@@ -278,7 +240,7 @@ export async function renewBuildSignatures(
   const llmsGenerated = existingLlms === undefined;
   const llmsTxt = existingLlms
     ? alignLlmsTxt(existingLlms, domain)
-    : renderLlms({ name: businessName, description, domain, services });
+    : renderLlmsManifest({ name: businessName, description, domain, services });
 
   const keepDid = rotate === false && existingDid !== undefined;
   let didJson = existingDid;

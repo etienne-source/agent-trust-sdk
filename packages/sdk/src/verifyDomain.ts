@@ -1,6 +1,5 @@
 import { defaultCache, type MemoryCache } from "./cache.js";
-import { clearPublicKeyCache } from "./jws.js";
-import { fingerprintPem } from "./jws.js";
+import { hashPublicKeyPem } from "./identity.js";
 import { hashLlmsTxt } from "./identity.js";
 import { assessDidDocument, fetchDidDocument } from "./localDid.js";
 import {
@@ -151,7 +150,7 @@ async function verifyLocalDid(
   }
 
   const pem = assessment.did.verificationMethod?.[0]?.publicKeyPem;
-  const keyFp = typeof pem === "string" ? fingerprintPem(pem) : undefined;
+  const keyFp = typeof pem === "string" ? hashPublicKeyPem(pem) : undefined;
   const llms = await softFetchLlms(domain, fetchFn);
   const claims = buildClaims(domain, assessment.did, llms, keyFp);
 
@@ -354,5 +353,4 @@ export async function inspectEndpointBeforeExecution(
 
 export function clearVerifyCache(): void {
   defaultCache.clear();
-  clearPublicKeyCache();
 }

@@ -1,3 +1,4 @@
+import { renderLlmsManifest } from "@trustflow/sdk";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -85,27 +86,7 @@ export function renderLlms(input: {
   domain: string;
   services: string[];
 }): string {
-  const lines = [
-    `# ${input.name}`,
-    `> ${input.description}`,
-    "",
-    `Domain: ${input.domain}`,
-    "",
-  ];
-  if (input.services.length > 0) {
-    lines.push("## Services", ...input.services.map((service) => `- ${service}`), "");
-  }
-  lines.push(
-    "## Identity",
-    `- DID: did:web:${input.domain}`,
-    `- Manifest: https://${input.domain}/.well-known/did.json`,
-    "",
-    "## Trust",
-    "Verified Domain Context | Trustflow (https://trustflow.systems).",
-    "Agents should call verifyDomain before tool invocation.",
-    ""
-  );
-  return lines.join("\n");
+  return renderLlmsManifest(input);
 }
 
 export function parseServiceList(value: string | undefined): string[] {

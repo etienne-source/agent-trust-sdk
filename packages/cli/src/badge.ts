@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 const BADGE_LABEL = "Verified Domain Context | Trustflow";
-const LAYOUT_SKIP = new Set(["node_modules", ".git", "dist", ".next", "coverage", ".agentic-trust"]);
+const LAYOUT_FILES = ["src/app/layout.tsx", "app/layout.tsx", "index.html", "app.html"];
 
 /** Public verify page for a normalized domain. */
 export function verifyPageUrl(domain: string): string {
@@ -27,61 +27,48 @@ export function renderBadge(domain: string): string {
   ].join("\n");
 }
 
-export type BadgeEmbed = { status: "written"; file: string } | { status: "present" } | { status: "skipped" };
+export type BadgeEmbed =
+  | { status: "written"; file: string }
+  | { status: "present"; file: string }
+  | { status: "absent" }
+  | { status: "rejected"; file: string };
 
 /**
- * Insert the badge before `</footer>` or `</body>` in the nearest layout.
- * Leaves the file alone when that verify link is already there.
+ * Insert the badge before `</footer>` or `</body>` in one known layout file.
+ * Does not walk the project tree.
  */
 export async function embedBadge(cwd: string, domain: string): Promise<BadgeEmbed> {
   const badge = renderBadge(domain);
   const href = verifyPageUrl(domain);
-  const files = await findLayoutFiles(cwd);
-  const ranked: Array<{ file: string; html: string; slot: "footer" | "body" }> = [];
-  for (const file of files) {
+  for (const relative of LAYOUT_FILES) {
+    const file = path.join(cwd, relative);
     let html: string;
     try {
       html = await fs.readFile(file, "utf8");
     } catch {
       continue;
     }
-    if (html.includes(href) || html.includes(BADGE_LABEL)) return { status: "present" };
-    if (html.includes("</footer>")) ranked.push({ file, html, slot: "footer" });
-    else if (html.includes("</body>")) ranked.push({ file, html, slot: "body" });
+    if (html.includes(href) || html.includes(BADGE_LABEL)) return { status: "present", file: relative };
+    const needle = html.includes("</footer>") ? "</footer>" : html.includes("</body>") ? "</body>" : undefined;
+    if (!needle) return { status: "rejected", file: relative };
+    await fs.writeFile(file, html.replace(needle, `${badge}\n${needle}`), "utf8");
+    return { status: "written", file: relative };
   }
-  ranked.sort((left, right) => {
-    if (left.slot !== right.slot) return left.slot === "footer" ? -1 : 1;
-    return left.file.length - right.file.length;
-  });
-  const target = ranked[0];
-  if (!target) return { status: "skipped" };
-  const needle = target.slot === "footer" ? "</footer>" : "</body>";
-  await fs.writeFile(target.file, target.html.replace(needle, `${badge}\n${needle}`), "utf8");
-  return { status: "written", file: path.relative(cwd, target.file).split(path.sep).join("/") };
+  return { status: "absent" };
 }
 
-async function findLayoutFiles(cwd: string): Promise<string[]> {
-  const found: string[] = [];
-  async function walk(dir: string, depth: number): Promise<void> {
-    if (depth > 6 || found.length > 40) return;
-    let entries;
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (LAYOUT_SKIP.has(entry.name)) continue;
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(full, depth + 1);
-        continue;
-      }
-      if (/^layout\.(tsx|jsx)$/.test(entry.name) || entry.name === "index.html" || entry.name === "app.html") {
-        found.push(full);
-      }
-    }
+/** Write the badge when a known layout exists. Exit 1 when that file has no slot. */
+export async function applyBadge(
+  cwd: string,
+  domain: string,
+  log: (line?: string) => void
+): Promise<number> {
+  const embed = await embedBadge(cwd, domain);
+  if (embed.status === "written") log(`Wrote the Trustflow badge into ${embed.file}`);
+  else if (embed.status === "present") log("Trustflow badge is already in the page.");
+  else if (embed.status === "rejected") {
+    log(`Badge was not written. Expected </footer> or </body> in ${embed.file}.`);
+    return 1;
   }
-  await walk(cwd, 0);
-  return found;
+  return 0;
 }

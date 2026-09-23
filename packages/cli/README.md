@@ -2,11 +2,11 @@
 
 Command-line scaffold for **Trustflow** domain identity and **Trustflow Systems** registration.
 
-Binary: `trustflow` (`agentic-trust` is a deprecated alias of the same program)
+Binary: `trustflow`
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. The CLI command is `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package. After install, the command name is `trustflow`, and `agentic-trust` is a deprecated name for that same command.
+> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. The CLI command is `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package. After install, the command name is `trustflow`.
 
 ## Install
 
@@ -14,7 +14,7 @@ Binary: `trustflow` (`agentic-trust` is a deprecated alias of the same program)
 npx @trustflow/cli@latest init
 ```
 
-`trustflow` is the binary from `@trustflow/cli`. `agentic-trust` is a deprecated alias of that binary.
+`trustflow` is the binary from `@trustflow/cli`.
 
 ### Contributors
 
@@ -53,7 +53,7 @@ npx @trustflow/cli@latest init
 6. For `SSL_CHALLENGE`, writes `<public>/.well-known/agentic-trust-challenge.txt` (exact token, no trailing newline). Projects with `public/` do not also get a root copy. There is no manual token paste step.
 7. Auto-confirms. The CLI polls `https://<domain>/.well-known/did.json` and the challenge URL in parallel (200ms interval, 8s budget). Confirm runs only after the live DID's `publicKeyPem` matches the registered key and the challenge body matches the token. `DNS_TXT` polls the TXT record instead of the challenge file. Then it `POST`s `https://api.trustflow.systems/v1/register/confirm` and prints the verify URL plus the badge. `--no-auto-confirm` (or `AGENTIC_TRUST_AUTO_CONFIRM=false`) skips that POST. `--skip-register` only writes local files.
 8. Prints embeddable HTML/SVG: `Verified Domain Context | Trustflow`, linking to `https://trustflow.systems/verify/[domain]`.
-9. Writes IDE rules at `.cursorrules` and `.cursor/rules/agentic-trust.mdc` for the detected public directory. Pass `--no-ide-rules` to skip both files.
+9. When the project is Next.js and `middleware.ts` exists, updates the matcher so `/.well-known/` and `/llms.txt` are served as files.
 
 API assumption: the live registry still issues a challenge token and, for SSL, expects `/.well-known/agentic-trust-challenge.txt`. A reachable `did.json` is not treated as a substitute for that file. The CLI does not confirm when it has not observed the live proof. If the proof window closes first, deploy the public directory and run `trustflow confirm`.
 
@@ -68,7 +68,7 @@ npx @trustflow/cli@latest init \
   --services "Search, Docs"
 ```
 
-`--confirm` forces the confirm POST. Auto-confirm is already the default. `--no-auto-confirm` registers without it. `--skip-register` only writes local files. `--no-ide-rules` skips `.cursorrules` and `.cursor/rules/agentic-trust.mdc` (written by default).
+`--confirm` probes once and POSTs `/v1/register/confirm` during init. Confirm is not the default. `--skip-register` only writes local files.
 
 ## sign-llms
 

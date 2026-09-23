@@ -1,15 +1,14 @@
 import { promises as fs } from "node:fs";
 import { createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { resolveTrustflowApiBase } from "./api.js";
-import { embedBadge, renderBadge, verifyPageUrl } from "./badge.js";
+import { applyBadge, verifyPageUrl } from "./badge.js";
 import {
   detectProjectLayout,
   directoryExists,
-  nextMiddlewareNotice,
+  ensureNextIdentityRoutes,
   shouldMirrorPublishedFiles,
   type ProjectLayout,
 } from "./framework.js";
-import { writeIdeRules } from "./ideRules.js";
 import {
   parseServiceList,
   readLlms,
@@ -46,8 +45,6 @@ export interface InitOptions {
   autoConfirm: boolean;
   skipRegister: boolean;
   forceKeys: boolean;
-  /** When false, skip `.cursorrules` and `.cursor/rules/agentic-trust.mdc`. Default true. */
-  ideRules: boolean;
   proofBudgetMs?: number;
   proofIntervalMs?: number;
   sleep?: (ms: number) => Promise<void>;
@@ -79,7 +76,8 @@ export async function runInit(options: InitOptions): Promise<number> {
   const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
   options.log(`Project: ${frameworkLabel(layout.framework)}. Publishing to ${layout.publicDir}/ (${layout.reason}).`);
   if (layout.framework === "next") {
-    options.log(nextMiddlewareNotice());
+    const patched = await ensureNextIdentityRoutes(options.cwd);
+    if (patched) options.log(`Updated ${patched} so /.well-known/ and /llms.txt are not swallowed.`);
   }
 
   let llmsBody: string;
@@ -180,8 +178,6 @@ export async function runInit(options: InitOptions): Promise<number> {
     throw new Error("Site name and description are required.");
   }
 
-  await writeIdeRulesIfEnabled(options, layout.publicDir);
-
   if (!options.skipRegister) {
     const apiBase = resolveTrustflowApiBase(options.apiUrl ?? options.envApiUrl);
     options.log(`Trustflow API: POST ${apiBase}/v1/register`);
@@ -209,10 +205,9 @@ export async function runInit(options: InitOptions): Promise<number> {
     options.log("Keep .agentic-trust/ out of git. It holds the private key and challenge token.");
 
     if (!options.autoConfirm) {
-      options.log("Skipped auto-confirm (--no-auto-confirm).");
+      options.log("Run trustflow confirm after did.json and the challenge file are on HTTPS.");
       options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-      await printBadge(options.cwd, options.log, normalizedDomain);
-      return finishInit(options, 0);
+      return finishInit(options, await applyBadge(options.cwd, normalizedDomain, options.log));
     }
 
     options.log(`Trustflow API: POST ${apiBase}/v1/register/confirm`);
@@ -236,16 +231,15 @@ export async function runInit(options: InitOptions): Promise<number> {
       log: options.log,
     });
     options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-    await printBadge(options.cwd, options.log, normalizedDomain);
-    return finishInit(options, confirmed.code);
+    const badgeCode = await applyBadge(options.cwd, normalizedDomain, options.log);
+    return finishInit(options, confirmed.code || badgeCode);
   }
 
   options.log("Skipped Trustflow registration (--skip-register).");
   options.log(`Publish ${layout.publicDir}/.well-known/did.json and ${layout.publicDir}/llms.txt on the domain (HTTPS).`);
   options.log("Keep .agentic-trust/ out of git. It holds the private key.");
   options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-  await printBadge(options.cwd, options.log, normalizedDomain);
-  return finishInit(options, 0);
+  return finishInit(options, await applyBadge(options.cwd, normalizedDomain, options.log));
 }
 
 function finishInit(options: InitOptions, code: number): number {
@@ -258,26 +252,6 @@ function frameworkLabel(framework: ProjectLayout["framework"]): string {
   if (framework === "vite") return "Vite";
   if (framework === "nuxt") return "Nuxt";
   return "unknown framework";
-}
-
-async function writeIdeRulesIfEnabled(options: InitOptions, publicDir: string): Promise<void> {
-  if (!options.ideRules) {
-    options.log("Skipped IDE rules (--no-ide-rules).");
-    return;
-  }
-  const written = await writeIdeRules(options.cwd, publicDir);
-  options.log(`Wrote ${written.cursorrules}`);
-  options.log(`Wrote ${written.mdc}`);
-}
-
-async function printBadge(cwd: string, log: (line?: string) => void, domain: string): Promise<void> {
-  const embed = await embedBadge(cwd, domain);
-  if (embed.status === "written") log(`Wrote the Trustflow badge into ${embed.file}`);
-  else if (embed.status === "present") log("Trustflow badge is already in the page.");
-  log("");
-  log("Embeddable badge:");
-  log(renderBadge(domain));
-  log("");
 }
 
 async function requireValue(input: {

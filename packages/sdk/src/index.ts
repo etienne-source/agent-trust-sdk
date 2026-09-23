@@ -46,13 +46,13 @@ export {
 export {
   importPublicKey,
   verifyDidJws,
-  fingerprintPem,
   allowedAlgForKey,
-  clearPublicKeyCache,
   ALLOWED_JWS_ALGS,
 } from "./jws.js";
 export type { AllowedJwsAlg } from "./jws.js";
 export { createSignedDidDocument, hashLlmsTxt, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
+export { alignLlmsTxt, renderLlmsManifest } from "./llmsManifest.js";
+export type { LlmsManifestInput } from "./llmsManifest.js";
 export {
   cloneValue,
   collectContextTargets,
@@ -86,20 +86,6 @@ export type {
   AgenticTrustSecurityEvent,
   EnforcementOptions,
 } from "./audit.js";
-export {
-  notifyVerifiedDomain,
-  isCompleteVerification,
-  buildVerifiedNotifyPayload,
-  VERIFIED_NOTIFY_ENV,
-  VERIFIED_SCORE_COMPLETE,
-} from "./verifiedNotify.js";
-export type {
-  VerifiedDomainNotice,
-  NotifyVerifiedDomainOptions,
-  NotifyVerifiedDomainResult,
-  VerifiedNotifyPayload,
-  NotifyVerifiedReason,
-} from "./verifiedNotify.js";
 export type {
   VerificationStatus,
   DomainClaims,

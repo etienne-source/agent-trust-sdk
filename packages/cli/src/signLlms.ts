@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createSignedDidDocument, hashLlmsTxt, normalizeDomain, type DidDocument } from "@trustflow/sdk";
-import { detectProjectLayout, nextMiddlewareNotice } from "./framework.js";
+import { detectProjectLayout, ensureNextIdentityRoutes } from "./framework.js";
 import { readLlms } from "./llms.js";
 import { readKeyPair } from "./project.js";
 
@@ -88,7 +88,8 @@ export async function runSignLlms(options: SignLlmsOptions): Promise<number> {
   options.log(`Signed existing llms.txt at ${path.relative(options.cwd, llms.path)}.`);
   options.log("Did not call POST /v1/register and did not write a challenge.");
   if (layout.framework === "next") {
-    options.log(nextMiddlewareNotice());
+    const patched = await ensureNextIdentityRoutes(options.cwd);
+    if (patched) options.log(`Updated ${patched} so /.well-known/ and /llms.txt are not swallowed.`);
   }
   return 0;
 }

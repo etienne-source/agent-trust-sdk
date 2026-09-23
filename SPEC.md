@@ -56,7 +56,7 @@ Published document:
 
 Callers may pass `services` and replace that default `LinkedDomains` entry. The signer writes `publicKeyPem` (SPKI). Verifiers also accept `publicKeyJwk` on `verificationMethod[0]` when the JWK is Ed25519 or P-256 (see below). Only the first verification method is read.
 
-`publicKeyHash`, the value the CLI sends toward the registry, is the hex SHA-256 of the SPKI PEM after CRLF is turned into LF and the string is trimmed (`hashPublicKeyPem`). `fingerprintPem` is a separate non-cryptographic tag (`pem:` plus a 31-bit hash) placed on local verify claims. It is not `publicKeyHash`.
+`publicKeyHash`, the value the CLI sends toward the registry, is the hex SHA-256 of the SPKI PEM after CRLF is turned into LF and the string is trimmed (`hashPublicKeyPem`). Local verify claims use that same hash.
 
 The CLI writes the public document to `.well-known/did.json` and the private key to `.agentic-trust/private-key.pem` (mode `0600`, gitignored). IDE rules from `trustflow init` also ask for `public/.well-known/did.json` (or `static/` when that directory already exists).
 
@@ -153,7 +153,7 @@ The SDK timeouts in section 4.1 are client deadlines. They are not this registry
 | `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), or the registry is unreachable or returns a non-status payload. |
 | `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg`), or the endpoint is not HTTPS. |
 
-`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. `@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode (`mode: "audit"`). Unsigned or tampered `llms.txt` does not throw. The middleware logs `[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and emits that same string as an in-process telemetry event. It does not parse the unverified body. `{ strict: true }`, `{ mode: "strict" }`, or `{ failClosed: true }` is fail-closed and throws `UnverifiedDomainContextError` before the body is read. That error message is `[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
+`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. Call `verifyDomain` and refuse the tool when the status is not `VERIFIED`.
 
 ## 6. Registry HTTP the clients call
 

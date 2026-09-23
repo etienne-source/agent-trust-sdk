@@ -120,17 +120,7 @@ describe("zero-config init writes", () => {
     await expect(readFile(path.join(cwd, ".well-known", "did.json"), "utf8")).rejects.toThrow();
     await expect(readFile(path.join(cwd, "llms.txt"), "utf8")).rejects.toThrow();
     await expect(readFile(path.join(cwd, ".well-known", "llms.txt"), "utf8")).rejects.toThrow();
-    expect(output).toContain("middleware.ts");
-    expect(output).toContain("/.well-known/");
-    expect(output).toContain("/llms.txt");
-    expect(output).toContain(
-      "⚠️ Backup your .agentic-trust/private-key.pem! If lost, this domain's identity cannot be recovered or rotated."
-    );
-    const rules = await readFile(path.join(cwd, ".cursorrules"), "utf8");
-    expect(rules).toContain("public/.well-known/did.json");
-    expect(rules).toContain("public/llms.txt");
-    const mdc = await readFile(path.join(cwd, ".cursor", "rules", "agentic-trust.mdc"), "utf8");
-    expect(mdc).toContain("public/.well-known/did.json");
+    await expect(readFile(path.join(cwd, ".cursorrules"), "utf8")).rejects.toThrow();
   });
 
   it("writes only under public/ when that folder already exists", async () => {
@@ -159,8 +149,7 @@ describe("zero-config init writes", () => {
     expect(await readFile(path.join(vite, "webroot", ".well-known", "llms.txt"), "utf8")).toContain("# Example Co");
     await expect(readFile(path.join(vite, "llms.txt"), "utf8")).rejects.toThrow();
     await expect(readFile(path.join(vite, ".well-known", "did.json"), "utf8")).rejects.toThrow();
-    const rules = await readFile(path.join(vite, ".cursorrules"), "utf8");
-    expect(rules).toContain("webroot/.well-known/did.json");
+    await expect(readFile(path.join(vite, ".cursorrules"), "utf8")).rejects.toThrow();
 
     const nuxt = await tempProject();
     await writeFile(path.join(nuxt, "package.json"), JSON.stringify({ dependencies: { nuxt: "^2.17.3" } }), "utf8");
@@ -169,16 +158,13 @@ describe("zero-config init writes", () => {
     expect(await readFile(path.join(nuxt, "static", "llms.txt"), "utf8")).toContain("# Example Co");
     await expect(readFile(path.join(nuxt, "llms.txt"), "utf8")).rejects.toThrow();
     await expect(readFile(path.join(nuxt, ".well-known", "did.json"), "utf8")).rejects.toThrow();
-    expect(await readFile(path.join(nuxt, ".cursor", "rules", "agentic-trust.mdc"), "utf8")).toContain(
-      "static/.well-known/did.json"
-    );
   });
 });
 
 describe("auto-confirm", () => {
-  it("waits long enough for a deploy and still polls quickly", () => {
+  it("probes once unless a caller passes a longer budget", () => {
     expect(DEFAULT_PROOF_INTERVAL_MS).toBeLessThanOrEqual(250);
-    expect(DEFAULT_PROOF_BUDGET_MS).toBe(90_000);
+    expect(DEFAULT_PROOF_BUDGET_MS).toBe(0);
   });
 
   it("probes the DID and the challenge in parallel", async () => {
@@ -386,7 +372,7 @@ describe("auto-confirm", () => {
     });
     const { lines, log } = capture();
     const code = await main(
-      ["init", "--non-interactive", "--domain", "example.com", "--name", "Example Co", "--description", "Widgets"],
+      ["init", "--non-interactive", "--confirm", "--domain", "example.com", "--name", "Example Co", "--description", "Widgets"],
       { cwd, log, fetch: fetch as unknown as typeof fetch, stdinIsTTY: false }
     );
     expect(code).toBe(0);
@@ -395,7 +381,6 @@ describe("auto-confirm", () => {
     const output = lines.join("\n");
     expect(output).toContain("Registration confirmed.");
     expect(output).toContain("https://trustflow.systems/verify/example.com");
-    expect(output).toContain("Verified Domain Context | Trustflow");
     expect(output).not.toContain("live-token");
     expect(output).not.toContain("Paste live-token");
     expect(calls.filter((call) => call.startsWith("POST") && call.includes("/v1/register/confirm"))).toHaveLength(1);
@@ -435,7 +420,7 @@ describe("auto-confirm", () => {
     );
     expect(code).toBe(0);
     expect(calls.some((call) => call.includes("/confirm"))).toBe(false);
-    expect(lines.join("\n")).toContain("Skipped auto-confirm");
+    expect(lines.join("\n")).toContain("Run trustflow confirm");
     expect(await readFile(path.join(cwd, "public", ".well-known", "agentic-trust-challenge.txt"), "utf8")).toBe("held-token");
   });
 });

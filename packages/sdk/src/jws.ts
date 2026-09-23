@@ -6,7 +6,7 @@ import {
   type JWK,
   type KeyLike,
 } from "jose";
-import { createHash, type KeyObject } from "node:crypto";
+import { type KeyObject } from "node:crypto";
 import type { DidDocument } from "./types.js";
 
 export type PublicKeyMaterial = KeyLike | Uint8Array;
@@ -76,47 +76,6 @@ function jwkSignatureAlg(jwk: JWK): AllowedJwsAlg | null {
   return inferred;
 }
 
-const MAX_CACHE_ENTRIES = 500;
-const resolvedPublicKeys = new Map<string, PublicKeyMaterial>();
-const pendingPublicKeys = new Map<string, Promise<PublicKeyMaterial | null>>();
-const signatureResults = new Map<string, { ok: true; llmsTxtSha256?: string } | { ok: false; reason?: string }>();
-
-function remember<V>(map: Map<string, V>, key: string, value: V): void {
-  if (map.has(key)) map.delete(key);
-  map.set(key, value);
-  if (map.size <= MAX_CACHE_ENTRIES) return;
-  const oldest = map.keys().next().value;
-  if (oldest !== undefined) map.delete(oldest);
-}
-const keyIdentity = new WeakMap<object, string>();
-let keyIdentitySeq = 0;
-
-/** Drop imported verification keys and cached signature results. `clearVerifyCache` calls this. */
-export function clearPublicKeyCache(): void {
-  resolvedPublicKeys.clear();
-  pendingPublicKeys.clear();
-  signatureResults.clear();
-}
-
-function identityOfKey(key: PublicKeyMaterial): string {
-  if (key instanceof Uint8Array) {
-    let hex = "";
-    for (const byte of key) hex += byte.toString(16).padStart(2, "0");
-    return `raw:${hex}`;
-  }
-  let id = keyIdentity.get(key);
-  if (!id) {
-    keyIdentitySeq += 1;
-    id = `key:${keyIdentitySeq}`;
-    keyIdentity.set(key, id);
-  }
-  return id;
-}
-
-function signatureCacheKey(did: DidDocument, key: PublicKeyMaterial, jws: string): string {
-  return `${identityOfKey(key)}\n${did.id ?? ""}\n${jws}`;
-}
-
 async function loadPublicKey(did: DidDocument): Promise<PublicKeyMaterial | null> {
   const vm = did.verificationMethod?.[0];
   if (!vm) return null;
@@ -149,37 +108,13 @@ async function loadPublicKey(did: DidDocument): Promise<PublicKeyMaterial | null
   return null;
 }
 
-function publicKeyCacheId(did: DidDocument): string | undefined {
-  const vm = did.verificationMethod?.[0];
-  if (!vm) return undefined;
-  if (typeof vm.publicKeyPem === "string" && vm.publicKeyPem.trim()) {
-    return `pem:${vm.publicKeyPem}`;
-  }
-  if (vm.publicKeyJwk) return `jwk:${JSON.stringify(vm.publicKeyJwk)}`;
-  return undefined;
-}
-
 /**
- * Import the first verification method.
- * Successful imports are cached in memory so a repeated domain does not
- * parse the same SPKI or JWK again. Private keys are not accepted here.
+ * Import the first verification method. Private keys are not accepted here.
  */
 export async function importPublicKey(
   did: DidDocument
 ): Promise<PublicKeyMaterial | null> {
-  const cacheKey = publicKeyCacheId(did);
-  if (!cacheKey) return loadPublicKey(did);
-  const resolved = resolvedPublicKeys.get(cacheKey);
-  if (resolved) return resolved;
-  const pending = pendingPublicKeys.get(cacheKey);
-  if (pending) return pending;
-  const loading = loadPublicKey(did).then((key) => {
-    pendingPublicKeys.delete(cacheKey);
-    if (key) remember(resolvedPublicKeys, cacheKey, key);
-    return key;
-  });
-  remember(pendingPublicKeys, cacheKey, loading);
-  return loading;
+  return loadPublicKey(did);
 }
 
 function readProtectedAlg(
@@ -221,21 +156,14 @@ export async function verifyDidJws(
     return { ok: false, reason: "No JWS proof on DID document" };
   }
 
-  const cached = signatureResults.get(signatureCacheKey(did, key, jws));
-  if (cached) {
-    return cached.ok ? { ok: true, llmsTxtSha256: cached.llmsTxtSha256 } : { ok: false, reason: cached.reason };
-  }
-
   const headerAlg = readProtectedAlg(jws);
   if (!headerAlg.ok) {
-    remember(signatureResults, signatureCacheKey(did, key, jws), headerAlg);
     return headerAlg;
   }
 
   const keyAlg = allowedAlgForKey(key);
   if (!keyAlg || keyAlg !== headerAlg.alg) {
     const mismatch = { ok: false as const, reason: "JWS alg does not match verification key" };
-    remember(signatureResults, signatureCacheKey(did, key, jws), mismatch);
     return mismatch;
   }
 
@@ -249,7 +177,6 @@ export async function verifyDidJws(
         ok: false as const,
         reason: `Disallowed JWS algorithm: ${String(verifiedAlg)}`,
       };
-      remember(signatureResults, signatureCacheKey(did, key, jws), rejected);
       return rejected;
     }
     const decoded = new TextDecoder().decode(payload);
@@ -262,12 +189,10 @@ export async function verifyDidJws(
       parsed = JSON.parse(decoded) as typeof parsed;
     } catch {
       const rejected = { ok: false as const, reason: "JWS payload is not JSON" };
-      remember(signatureResults, signatureCacheKey(did, key, jws), rejected);
       return rejected;
     }
     if (!parsed.id || parsed.id !== did.id) {
       const mismatch = { ok: false as const, reason: "JWS payload DID id mismatch" };
-      remember(signatureResults, signatureCacheKey(did, key, jws), mismatch);
       return mismatch;
     }
     const signedVm = parsed.verificationMethod?.[0];
@@ -284,24 +209,20 @@ export async function verifyDidJws(
         );
       if (!keyBound) {
         const unbound = { ok: false as const, reason: "JWS payload key does not match document" };
-        remember(signatureResults, signatureCacheKey(did, key, jws), unbound);
         return unbound;
       }
     }
     const llmsTxtSha256 = readLlmsHash(parsed.llmsTxtSha256, did.llmsTxtSha256);
     if (!llmsTxtSha256.ok) {
-      remember(signatureResults, signatureCacheKey(did, key, jws), llmsTxtSha256);
       return llmsTxtSha256;
     }
     const ok = { ok: true as const, llmsTxtSha256: llmsTxtSha256.hash };
-    remember(signatureResults, signatureCacheKey(did, key, jws), ok);
     return ok;
   } catch (err) {
     const failed = {
       ok: false as const,
       reason: err instanceof Error ? err.message : "JWS verification failed",
     };
-    remember(signatureResults, signatureCacheKey(did, key, jws), failed);
     return failed;
   }
 }
@@ -331,8 +252,3 @@ function readLlmsHash(
   return { ok: true, hash: claim || undefined };
 }
 
-/** SHA-256 hex of a normalized SPKI PEM. Same bytes as the registry `publicKeyHash`. */
-export function fingerprintPem(pem: string): string {
-  const normalized = pem.replace(/\r\n/g, "\n").trim();
-  return createHash("sha256").update(normalized).digest("hex");
-}

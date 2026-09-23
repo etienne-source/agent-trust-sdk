@@ -24,6 +24,6 @@ describe("badge", () => {
     const html = await readFile(layout, "utf8");
     expect(html).toContain("https://trustflow.systems/verify/example.com");
     expect(html).toContain("</footer>");
-    expect(await embedBadge(cwd, "example.com")).toEqual({ status: "present" });
+    expect(await embedBadge(cwd, "example.com")).toEqual({ status: "present", file: "src/app/layout.tsx" });
   });
 });

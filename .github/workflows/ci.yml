@@ -31,9 +31,6 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Check starters
-        run: pnpm starters:check
-
       - name: Test
         run: pnpm test
 

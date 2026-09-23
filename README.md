@@ -1,6 +1,6 @@
 # Trustflow
 
-Open-standard domain identity for AI agents. **Trustflow** is the protocol, the SDK, the CLI, the MCP server, the Next.js plugin, and the framework middleware. **Trustflow Systems** hosts the registry at [trustflow.systems](https://trustflow.systems) and `https://api.trustflow.systems`.
+Open-standard domain identity for AI agents. **Trustflow** is the protocol, the SDK, the CLI, the MCP server, and the Next.js and Vercel plugins. **Trustflow Systems** hosts the registry at [trustflow.systems](https://trustflow.systems) and `https://api.trustflow.systems`.
 
 [Verified Domain Context | Trustflow](https://trustflow.systems/verify/example.com)
 
@@ -9,7 +9,6 @@ That link is the public verify page the CLI badge uses. `trustflow init` prints 
 | Piece | Name | What it is |
 |-------|------|------------|
 | Protocol, SDK, CLI, MCP, Next, Vercel | **Trustflow** | `did:web` signatures, `@trustflow/sdk`, `@trustflow/cli` (`trustflow`), `@trustflow/mcp-server`, `@trustflow/next-plugin`, `@trustflow/vercel-plugin` |
-| Framework middleware | **Trustflow** | `@trustflow/langchain-middleware`, `@trustflow/vercel-ai-middleware` — fail closed on unverified or tampered `llms.txt` before it is parsed |
 | Hosted platform | **Trustflow Systems** | [trustflow.systems](https://trustflow.systems) · API `https://api.trustflow.systems` |
 
 `@trustflow/sdk` verifies domain identity with DID signatures (`did:web` + compact JWS, Ed25519 or ES256 only) before tool / MCP execution. Repeated `verifyDomain` checks for the same domain stay under 5ms after the in-memory cache is warm. `@trustflow/cli` scaffolds a domain and registers it with Trustflow Systems. `@trustflow/mcp-server` exposes `audit_domain`, `generate_did_keys`, and `sign_llms_txt` over stdio. `@trustflow/next-plugin` warns during `next dev` when `public/llms.txt` or `public/.well-known/did.json` is missing or invalid. `@trustflow/vercel-plugin` signs those files during a Vercel build from environment secrets, with no interactive CLI.
@@ -18,7 +17,7 @@ The signature and fetch rules are in [SPEC.md](SPEC.md).
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. This repository publishes `@trustflow/*`. Adopt the product with `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package, so `npx trustflow` does not install this CLI. After install, the command name is `trustflow`, and `agentic-trust` is a deprecated name for that same command. The npm scope `@agentic-trust` is taken by an unrelated maintainer, so it is not used. npm publication of `@trustflow/*` is the tag workflow in [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) (Actions secret `NPM_TOKEN`).
+> **Do not install `trustflow-sdk`.** That unscoped package is an unrelated logging package. This repository publishes `@trustflow/*`. Adopt the product with `npx @trustflow/cli@latest init`. There is no unscoped `trustflow` package, so `npx trustflow` does not install this CLI. After install, the command name is `trustflow`. The npm scope `@agentic-trust` is taken by an unrelated maintainer, so it is not used. npm publication of `@trustflow/*` is the tag workflow in [`.github/workflows/publish-npm.yml`](.github/workflows/publish-npm.yml) (Actions secret `NPM_TOKEN`).
 
 ## Architecture
 
@@ -30,8 +29,6 @@ flowchart LR
     MCP["@trustflow/mcp-server"]
     NEXT["@trustflow/next-plugin"]
     VERCEL["@trustflow/vercel-plugin"]
-    LC["langchain-middleware"]
-    VAI["vercel-ai-middleware"]
   end
 
   subgraph registry [Trustflow Systems — hosted registry]
@@ -43,8 +40,6 @@ flowchart LR
 
   CLI --> SDK
   MCP --> SDK
-  LC --> SDK
-  VAI --> SDK
   VERCEL --> SDK
   CLI -->|"POST /v1/register"| API
   SDK -->|"GET did.json"| DOMAIN
@@ -63,12 +58,9 @@ Trustflow code in this repository signs and checks documents. Trustflow Systems 
 | `@trustflow/cli` | [packages/cli](packages/cli) | `npx @trustflow/cli@latest init`. Binary: `trustflow` |
 | `@trustflow/mcp-server` | [packages/mcp-server](packages/mcp-server) | `npx -y @trustflow/mcp-server`. Binary: `agentic-trust-mcp` |
 | `@trustflow/next-plugin` | [packages/next-plugin](packages/next-plugin) | `npm install @trustflow/next-plugin` |
-| `@trustflow/langchain-middleware` | [packages/langchain-middleware](packages/langchain-middleware) | `npm install @trustflow/langchain-middleware` |
-| `@trustflow/vercel-ai-middleware` | [packages/vercel-ai-middleware](packages/vercel-ai-middleware) | `npm install @trustflow/vercel-ai-middleware` |
 | `@trustflow/vercel-plugin` | [packages/vercel-plugin](packages/vercel-plugin) | `npm install @trustflow/vercel-plugin`. Binary: `agentic-trust-vercel` |
-| Starters | [starters/](starters/README.md) | [nextjs](starters/nextjs), [v0](starters/v0), [bolt](starters/bolt). Not workspace packages. Scaffold with `npx @trustflow/cli@latest init`. |
 
-Publishable packages are version **1.0.5**, MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
+Publishable packages share one version, MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
 
 WordPress sites copy [plugins/wordpress/agentic-trust.php](plugins/wordpress/agentic-trust.php) to serve `/.well-known/did.json` and `llms.txt`. Shopify and Webflow use the header and asset-routing snippets in [docs/cms/shopify-webflow-guide.md](docs/cms/shopify-webflow-guide.md). **Trustflow** is the protocol. **Trustflow Systems** is the hosted registry. Do not install the unrelated `trustflow-sdk` package.
 
@@ -78,7 +70,7 @@ WordPress sites copy [plugins/wordpress/agentic-trust.php](plugins/wordpress/age
 npx @trustflow/cli@latest init
 ```
 
-After install, the command name is `trustflow`. `agentic-trust` is a deprecated name for that same command. `npx trustflow` does not install this CLI.
+After install, the command name is `trustflow`. `npx trustflow` does not install this CLI.
 
 ```bash
 npx @trustflow/cli@latest init \
@@ -135,7 +127,7 @@ Private keys and challenge tokens are written under `.agentic-trust/` (mode `060
 
 ## Run the CLI
 
-The binary is `trustflow`. `agentic-trust` is a deprecated alias of the same CLI. The commands are `init`, `sign-llms`, `confirm`, and `sign`.
+The binary is `trustflow`. The commands are `init`, `sign-llms`, `confirm`, and `sign`.
 
 ```bash
 npx @trustflow/cli@latest init \
@@ -161,15 +153,15 @@ npx @trustflow/cli@latest sign \
 2. Looks for `llms.txt` (project root, `.well-known/`, `public/`, `static/`, `docs/`, `src/`). If it is missing, prompts for site name, description, and optional services, then writes `llms.txt` and `.well-known/llms.txt` into that public directory. Next.js, Vite, Nuxt, and any project that already has `public/` or `static/` get that single write path. A blank project also keeps a root copy.
 3. Generates an Ed25519 `did:web` key, signs `<public>/.well-known/did.json`, and stores the private key in `.agentic-trust/` (added to `.gitignore`, mode `0600`). The public key in that file is what registration binds.
 4. Registers the domain with Trustflow: `POST https://api.trustflow.systems/v1/register` (`verificationType` `SSL_CHALLENGE` or `DNS_TXT`, plus `publicKeyPem`). `https://trustflow.systems/api/register` is an alias of that API origin. The SSL challenge file is written automatically (no token paste).
-5. Polls the live HTTPS proofs (DID public key and challenge file, or the DNS TXT record) on a 200ms interval for up to 8 seconds, then `POST`s `/v1/register/confirm` once they match. `--no-auto-confirm` skips that POST. `--skip-register` only writes local files.
-6. Prints the verify URL and an embeddable badge: **Verified Domain Context | Trustflow**, linking to `https://trustflow.systems/verify/[domain]`.
-7. Writes `.cursorrules` and `.cursor/rules/agentic-trust.mdc` for the detected public directory (`@trustflow/sdk`). `--no-ide-rules` skips those files.
+5. Does not wait for a deploy. Run `trustflow confirm` after the files are on HTTPS. `--confirm` probes once during init. `--skip-register` only writes local files.
+6. Writes the badge into `app/layout.tsx`, `src/app/layout.tsx`, `index.html`, or `app.html` when that file has `</footer>` or `</body>`.
+7. When the project is Next.js and `middleware.ts` exists, the matcher is updated so `/.well-known/` and `/llms.txt` are served as files.
 
 The live API still requires the SSL challenge file. The CLI does not confirm from `did.json` alone.
 
 ### `trustflow confirm`
 
-`POST https://api.trustflow.systems/v1/register/confirm` using `.agentic-trust/registration.json` (or `--domain` and `--token`). Prints the same badge when Trustflow accepts the challenge.
+`POST https://api.trustflow.systems/v1/register/confirm` using `.agentic-trust/registration.json` (or `--domain` and `--token`). Writes the badge into a known layout when one exists.
 
 ### `trustflow sign-llms`
 
@@ -241,9 +233,9 @@ import { agenticTrustMiddleware } from "@trustflow/sdk";
 const openai = createOpenAI({ fetch: agenticTrustMiddleware().fetch });
 ```
 
-`clearVerifyCache()` drops both `verifyDomain` entries and middleware entries, and the imported public-key cache. A warm hit stays under 5ms. `AGENTIC_TRUST_CACHE_DIR` optionally stores those public results on disk for the next process. The cache refuses a payload that contains a private key.
+`clearVerifyCache()` drops cached `verifyDomain` results. `AGENTIC_TRUST_CACHE_DIR` optionally stores those public results on disk for the next process. The cache refuses a payload that contains a private key.
 
-`@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode. Unsigned or tampered `llms.txt` does not throw. They log `[Trustflow Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and emit that string as a lightweight in-process telemetry event, without parsing the body. `{ strict: true }` or `{ mode: "strict" }` (and `failClosed: true`) throws `UnverifiedDomainContextError` before the body is read. That message is `[Trustflow Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.` Install them with `npm install @trustflow/langchain-middleware` and `npm install @trustflow/vercel-ai-middleware` (each depends on `@trustflow/sdk`). Do not install `trustflow-sdk`. Scaffold a domain with `npx @trustflow/cli@latest init`.
+Call `verifyDomain` from the SDK. There are no separate LangChain or Vercel AI packages.
 
 ### Migration
 
@@ -255,14 +247,13 @@ Function names are unchanged. Install `@trustflow/sdk` and scaffold with `npx @t
 | `@agentic-trust/sdk` | `@trustflow/sdk` |
 | `import { verifyDomain } from "agent-trust-sdk"` | `import { verifyDomain } from "@trustflow/sdk"` |
 | `import { verifyDomain } from "@agentic-trust/sdk"` | `import { verifyDomain } from "@trustflow/sdk"` |
-| `npx agentic-trust init` | `npx @trustflow/cli@latest init` (after install, the command name `agentic-trust` still runs this CLI) |
+| `npx agentic-trust init` | `npx @trustflow/cli@latest init` |
 
 ### How AI frameworks should use it
 
 | Framework / pattern | Integration tip |
 |---------------------|-----------------|
-| **LangChain / LangGraph** | `@trustflow/langchain-middleware` — `agenticTrustLangChainMiddleware()` passed to `createMiddleware`. Audit mode is the default: unsigned `llms.txt` warns and is not parsed. `{ strict: true }` throws the context-poisoning security error before parsing. The SDK `wrapTool` / `annotateDocuments` helpers still only annotate. |
-| **Vercel AI SDK** | `@trustflow/vercel-ai-middleware` — `fetch` on the provider and the same object as `wrapLanguageModel` middleware. Audit mode is the default. `{ strict: true }` makes context fetches and `doStream` / `doGenerate` throw before an unsigned or tampered body is read. |
+| **Any agent loop** | Call `verifyDomain` from `@trustflow/sdk` before a tool fetch. Unsigned or mismatched `llms.txt` is `RISK`. |
 | **OpenAI Agents / function calling** | Before `fetch`/`tools` invocation, `verifyDomain` on the host of any remote tool schema URL. |
 | **MCP clients** | On `tools/list` or connect, inspect each `serviceEndpoint`; refuse non-HTTPS or RISK. |
 | **Custom agent loops** | Cache-first `verifyDomain` on first contact with a domain; reuse until TTL expires. |
@@ -382,90 +373,6 @@ module.exports = withAgenticTrust({
 
 Details are in [packages/next-plugin/README.md](packages/next-plugin/README.md).
 
-Drop-in App Router boilerplates for Next.js, v0, and Bolt.new community templates live in [`starters/`](starters/README.md) (`nextjs`, `v0`, `bolt`). Each one wraps `next.config` with `withAgenticTrust` and commits placeholder `public/llms.txt` and `public/.well-known/did.json` files (`REPLACE_ME`, no private key). How to open upstream pull requests is in [starters/UPSTREAM.md](starters/UPSTREAM.md). Those pull requests are not opened from this repository.
-
-## Starter pull requests
-
-`scripts/create-starter-prs.mjs` plans a pull request that adds the same placeholder identity the starters use, plus framework wiring:
-
-| Target `framework` | Files | Wiring |
-|--------------------|-------|--------|
-| `next` | `public/llms.txt`, `public/.well-known/llms.txt`, `public/.well-known/did.json`, Cursor rules | `@trustflow/next-plugin` `withAgenticTrust`, using the `next.config` shape from `starters/nextjs`, `starters/v0`, or `starters/bolt` |
-| `langchain` | `llms.txt`, `.well-known/llms.txt`, `.well-known/did.json`, Cursor rules | `src/agentic-trust.ts` exporting `agenticTrustLangChainMiddleware()` from `@trustflow/langchain-middleware` |
-
-`did.json` stays the unsigned `REPLACE_ME` placeholder from `starters/nextjs`. It is not a signature and it does not make a domain VERIFIED. Install lines use `github:etienne-source/agent-trust-sdk`. Do not install the unrelated `trustflow-sdk` package.
-
-The default run is a dry run. It prints the title, body, and file contents and does not call GitHub.
-
-```bash
-node scripts/create-starter-prs.mjs
-# or: pnpm starter-prs
-```
-
-A real pull request needs both `--apply` and `--targets`, a `GITHUB_TOKEN` or `GH_TOKEN` that can open pull requests on those repositories, and an allowlist you maintain. Copy [`scripts/starter-pr-targets.example.json`](scripts/starter-pr-targets.example.json) to `scripts/starter-pr-targets.json` (gitignored), set `"example"` to false, and add at most five `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. The script does not search GitHub and does not read the suggested upstreams in `starters/UPSTREAM.md`.
-
-```bash
-node scripts/create-starter-prs.mjs --targets scripts/starter-pr-targets.json --apply
-```
-
-## Ecosystem middleware pull requests
-
-`scripts/submit-ecosystem-prs.mjs` plans a pull request that adds Trustflow middleware (audit mode by default, strict mode available), a placeholder `.well-known/did.json`, and `llms.txt` to an agent-framework starter you already maintain. It does not search GitHub and it does not open a pull request against a repository that is not in the targets file you pass.
-
-The kinds of repository a maintainer might later list are a LangChain starter (`langchain`), a LlamaIndex starter (`llamaindex`), or a Next.js AI boilerplate that uses the Vercel AI SDK (`vercel-ai`). Those are documentation examples only. [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) does not name them, and `targets` stays empty.
-
-| Target `framework` | Wiring file | Packages |
-|--------------------|-------------|----------|
-| `langchain` | `src/agentic-trust-langchain.ts` | `@trustflow/sdk`, `@trustflow/langchain-middleware` |
-| `langgraph` | `src/agentic-trust-langgraph.ts` | `@trustflow/sdk`, `@trustflow/langchain-middleware` |
-| `vercel-ai` | `src/agentic-trust-vercel-ai.ts` | `@trustflow/sdk`, `@trustflow/vercel-ai-middleware` |
-| `mastra` | `src/agentic-trust-mastra.ts` | `@trustflow/sdk`, `@trustflow/vercel-ai-middleware` |
-| `openai-agents` | `src/agentic-trust-openai.ts` | `@trustflow/sdk` |
-| `llamaindex` | `src/agentic-trust-llamaindex.ts` | `@trustflow/sdk` |
-
-Every plan also adds `llms.txt`, `.well-known/llms.txt`, and `.well-known/did.json`. The DID file is the unsigned `REPLACE_ME` placeholder from `starters/nextjs`. `proof.jws` is not a signature. Install lines use `github:etienne-source/agent-trust-sdk`. Do not install the unrelated `trustflow-sdk` package. The planned files do not contain a private key.
-
-The default run is a dry run. It prints the title, the executive summary used as the pull request body, and the file contents. It does not call GitHub:
-
-```bash
-node scripts/submit-ecosystem-prs.mjs
-# or: pnpm ecosystem-prs
-```
-
-A real pull request needs `--live` and `--targets`, and `GITHUB_TOKEN` or `GH_TOKEN`. `--apply` is the same gate. The token must be able to create a fork and open a pull request. `--live` uses Octokit. It forks the allowlisted repository, or pushes the branch to a fork you already have of that same upstream. If the authenticated user owns the repository, it pushes the branch there instead of forking. The pull request is opened against the upstream base branch. At most five repositories are accepted. Copy [`scripts/ecosystem-targets.example.json`](scripts/ecosystem-targets.example.json) to `scripts/ecosystem-targets.json` (gitignored), set `"example"` to false, and list `owner/name` entries with `"enabled": true`. The example file's `targets` array is empty. `--live` without `--targets` is refused. `--live` is also refused for that example file, for an empty list, and when the token is missing. The command does not search GitHub and does not post to X.
-
-```bash
-GITHUB_TOKEN=... node scripts/submit-ecosystem-prs.mjs --targets scripts/ecosystem-targets.json --live
-```
-
-## Growth notes
-
-Drafts for builders, a launch thread, and an enterprise brief live in [`docs/growth/`](docs/growth/). They are documents only. Nothing in this repository posts them to X.
-
-## Verified-domain webhook
-
-`notifyVerifiedDomain` in `@trustflow/sdk` runs when something else reports a domain at **100/100 VERIFIED**. It does not score the domain and it does not call the registry. A complete notice is `status: "VERIFIED"` with `score` and `maxScore` both `100`. Anything else returns `not_complete` and does not send.
-
-When the notice is complete, the helper POSTs JSON to `VERIFIED_NOTIFY_WEBHOOK` (HTTPS). The body is `event: "agentic_trust.domain.verified"` and names **Trustflow** as the protocol and **Trustflow Systems** as the registry. If the variable is unset, it logs and returns `webhook_unset`. Hosts under `x.com` and `twitter.com` are refused. Sharing on X is a separate explicit step. This hook does not post to X.
-
-```ts
-import { notifyVerifiedDomain } from "@trustflow/sdk";
-
-await notifyVerifiedDomain({
-  domain: "example.com",
-  status: "VERIFIED",
-  score: 100,
-});
-```
-
-The command-line form is also a dry run until `--send`:
-
-```bash
-node scripts/notify-verified-domain.mjs --domain example.com --score 100
-VERIFIED_NOTIFY_WEBHOOK=https://example.com/hooks/agentic-trust \
-  node scripts/notify-verified-domain.mjs --domain example.com --score 100 --send
-```
-
 ## Contributors
 
 These commands are for people changing this monorepo. They are not the product install. Adopt Trustflow with `npx @trustflow/cli@latest init`.
@@ -480,18 +387,15 @@ pnpm install
 
 ```bash
 pnpm install
-pnpm starters:check
 pnpm test
-node scripts/create-starter-prs.mjs
-node scripts/notify-verified-domain.mjs --domain example.invalid --score 100
 pnpm typecheck
 pnpm build
 pnpm smoke
 ```
 
-Pull requests and pushes to `main` run `starters:check`, test, typecheck, and build in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
+Pull requests and pushes to `main` run test, typecheck, and build in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [`.github/workflows/agentic-trust-sign.yml`](.github/workflows/agentic-trust-sign.yml) is a separate signing workflow and is not part of that job.
 
-`packages/*/dist` is committed so a clone can run `trustflow`, `agentic-trust-mcp`, and `agentic-trust-vercel` before the npm scope exists. Rebuild and commit `dist/` when SDK, CLI, MCP server, Next plugin, Vercel plugin, or framework middleware sources change.
+CI builds `packages/*/dist`. Those directories are not committed.
 
 `TRUSTFLOW_LIVE=1 pnpm --filter @trustflow/cli test` also calls the production register endpoint.
 

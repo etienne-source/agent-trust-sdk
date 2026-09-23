@@ -1,7 +1,7 @@
 {
   "name": "@trustflow/cli",
-  "version": "1.0.5",
-  "description": "Trustflow CLI. Scaffold llms.txt, sign a did:web key, and register the domain with Trustflow Systems. Binary: trustflow (deprecated alias: agentic-trust).",
+  "version": "1.0.6",
+  "description": "Trustflow CLI. Scaffold llms.txt, sign a did:web key, and register the domain with Trustflow Systems. Binary: trustflow.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -17,8 +17,7 @@
   },
   "type": "module",
   "bin": {
-    "trustflow": "./dist/cli.js",
-    "agentic-trust": "./dist/cli.js"
+    "trustflow": "./dist/cli.js"
   },
   "files": [
     "dist",

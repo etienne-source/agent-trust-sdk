@@ -2,12 +2,15 @@ import { createPrivateKey } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  alignLlmsTxt,
   createSignedDidDocument,
   hashLlmsTxt,
   normalizeDomain,
   wellKnownLlmsUrl,
   type DidDocument,
 } from "@trustflow/sdk";
+
+export { alignLlmsTxt };
 import type { DidKeyAlgorithm } from "./generateDidKeys.js";
 
 export interface SignLlmsTxtInput {
@@ -112,46 +115,6 @@ export async function signLlmsTxt(input: SignLlmsTxtInput): Promise<SignLlmsTxtR
   return result;
 }
 
-/**
- * Keep a caller-supplied llms.txt, and make sure it names this domain's did:web.
- * Existing prose is preserved. Identity lines that point at another DID are rewritten.
- */
-export function alignLlmsTxt(body: string, domain: string): string {
-  const did = `did:web:${domain}`;
-  const manifest = `https://${domain}/.well-known/did.json`;
-  let text = body.replace(/\r\n/g, "\n").replace(/\s+$/, "");
-
-  if (/^- DID:\s*.*$/m.test(text)) {
-    text = text.replace(/^- DID:\s*.*$/m, `- DID: ${did}`);
-  }
-  if (/^- Manifest:\s*.*$/m.test(text)) {
-    text = text.replace(/^- Manifest:\s*.*$/m, `- Manifest: ${manifest}`);
-  }
-
-  if (!/^## Identity\s*$/m.test(text)) {
-    text += `\n\n## Identity\n- DID: ${did}\n- Manifest: ${manifest}`;
-  } else {
-    if (!text.includes(`- DID: ${did}`)) {
-      text = text.replace(/^## Identity\s*$/m, `## Identity\n- DID: ${did}`);
-    }
-    if (!text.includes(`- Manifest: ${manifest}`)) {
-      text = text.replace(new RegExp(`- DID: ${escapeRegExp(did)}`), `- DID: ${did}\n- Manifest: ${manifest}`);
-    }
-  }
-
-  if (!/^## Trust\s*$/m.test(text)) {
-    text += [
-      "",
-      "",
-      "## Trust",
-      "Verified Domain Context | Trustflow (https://trustflow.systems).",
-      "Agents should call verifyDomain before tool invocation.",
-    ].join("\n");
-  }
-
-  return `${text}\n`;
-}
-
 async function readLlmsSource(input: SignLlmsTxtInput): Promise<string> {
   const inline = input.llmsTxt;
   if (typeof inline === "string") {
@@ -207,8 +170,4 @@ async function writePublicArtifacts(outputDir: string, llmsTxt: string, didJson:
     written.push(full);
   }
   return written;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

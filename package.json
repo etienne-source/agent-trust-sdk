@@ -3,21 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
-  "description": "Trustflow workspace: @trustflow/sdk, @trustflow/cli, @trustflow/mcp-server, @trustflow/next-plugin, @trustflow/vercel-plugin, framework middleware, and Next.js starters. Hosted registry: Trustflow Systems.",
+  "description": "Trustflow workspace: @trustflow/sdk, @trustflow/cli, @trustflow/mcp-server, @trustflow/next-plugin, and @trustflow/vercel-plugin. Hosted registry: Trustflow Systems.",
   "scripts": {
-    "build": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli build && pnpm --filter @trustflow/mcp-server build && pnpm --filter @trustflow/next-plugin build && pnpm --filter @trustflow/langchain-middleware build && pnpm --filter @trustflow/vercel-ai-middleware build && pnpm --filter @trustflow/vercel-plugin build",
-    "typecheck": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli typecheck && pnpm --filter @trustflow/mcp-server typecheck && pnpm --filter @trustflow/next-plugin typecheck && pnpm --filter @trustflow/langchain-middleware typecheck && pnpm --filter @trustflow/vercel-ai-middleware typecheck && pnpm --filter @trustflow/vercel-plugin typecheck",
-    "test": "pnpm --filter @trustflow/sdk test && pnpm --filter @trustflow/cli test && pnpm --filter @trustflow/mcp-server test && pnpm --filter @trustflow/next-plugin test && pnpm --filter @trustflow/langchain-middleware test && pnpm --filter @trustflow/vercel-ai-middleware test && pnpm --filter @trustflow/vercel-plugin test && node --test scripts/create-starter-prs.test.mjs scripts/submit-ecosystem-prs.test.mjs scripts/notify-verified-domain.test.mjs scripts/launch-readiness.test.mjs",
-    "starter-prs": "node scripts/create-starter-prs.mjs",
-    "ecosystem-prs": "node scripts/submit-ecosystem-prs.mjs",
-    "smoke": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli build && pnpm --filter @trustflow/cli smoke",
-    "starters:check": "node starters/check.mjs",
-    "clean": "pnpm --filter @trustflow/sdk --filter @trustflow/cli --filter @trustflow/mcp-server --filter @trustflow/next-plugin --filter @trustflow/langchain-middleware --filter @trustflow/vercel-ai-middleware --filter @trustflow/vercel-plugin clean"
+    "build": "corepack pnpm --filter @trustflow/sdk build && corepack pnpm -r --workspace-concurrency=4 --filter \"./packages/*\" --filter \"!@trustflow/sdk\" build",
+    "typecheck": "corepack pnpm --filter @trustflow/sdk build && corepack pnpm -r --workspace-concurrency=4 --filter \"./packages/*\" --filter \"!@trustflow/sdk\" typecheck",
+    "test": "corepack pnpm --filter @trustflow/sdk build && corepack pnpm -r --workspace-concurrency=4 --filter \"./packages/*\" test && node --test scripts/launch-readiness.test.mjs",
+    "release": "node scripts/release.mjs",
+    "smoke": "corepack pnpm --filter @trustflow/sdk build && corepack pnpm --filter @trustflow/cli build && corepack pnpm --filter @trustflow/cli smoke",
+    "clean": "corepack pnpm -r --filter \"./packages/*\" clean"
   },
   "engines": {
     "node": ">=20"
-  },
-  "dependencies": {
-    "@octokit/rest": "22.0.1"
   }
 }

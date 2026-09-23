@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { confirmRegistration, resolveTrustflowApiBase, TrustflowApiError } from "./api.js";
-import { embedBadge, renderBadge } from "./badge.js";
+import { applyBadge } from "./badge.js";
 import { detectProjectLayout, directoryExists, shouldMirrorPublishedFiles } from "./framework.js";
 import { parseLlms, parseServiceList, renderLlms } from "./llms.js";
 import {
@@ -142,16 +142,14 @@ async function signDomain(
   if (options.dryRun) {
     log(`Dry run: skipped POST ${apiBase}/v1/register`);
     log("Publish llms.txt and .well-known/did.json, then rerun without dry-run to register the domain.");
-    log(renderBadge(domain));
-    const embedded = await embedBadge(options.cwd, domain);
-    if (embedded.status === "written") log(`Wrote the Trustflow badge into ${embedded.file}`);
+    const badgeCode = await applyBadge(options.cwd, domain, log);
     await writeGitHubResult(options, {
       publicKeyHash: identity.publicKeyHash,
       live: "dry-run",
       llmsGenerated,
       did: identity.did.id ?? "",
     });
-    return 0;
+    return badgeCode;
   }
 
   log(`Trustflow API: POST ${apiBase}/v1/register`);
@@ -215,16 +213,14 @@ async function signDomain(
     log("Skipped POST /v1/register/confirm.");
   }
 
-  log(renderBadge(domain));
-  const embedded = await embedBadge(options.cwd, domain);
-  if (embedded.status === "written") log(`Wrote the Trustflow badge into ${embedded.file}`);
+  const badgeCode = await applyBadge(options.cwd, domain, log);
   await writeGitHubResult(options, {
     publicKeyHash: identity.publicKeyHash,
     live: live ? "true" : "false",
     llmsGenerated,
     did: identity.did.id ?? "",
   });
-  return 0;
+  return badgeCode;
 }
 
 async function writeGitHubResult(
