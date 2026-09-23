@@ -1,7 +1,7 @@
 {
   "name": "@trustflow/mcp-server",
   "version": "1.0.0",
-  "description": "AgenticTrust MCP server. Stdio tools for Trustflow Systems domain audits, did:web keys, and signed llms.txt. Binary: trustflow-mcp. Not on npm yet — install from github:etienne-source/agent-trust-sdk.",
+  "description": "AgenticTrust MCP server. Stdio tools for Trustflow Systems domain audits, did:web keys, and signed llms.txt. Binary: agentic-trust-mcp. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -6,24 +6,30 @@ import { parseArgs } from "node:util";
 import { runConfirm } from "./confirm.js";
 import { runInit } from "./init.js";
 import { runGithubSign } from "./sign.js";
+import { runSignLlms } from "./signLlms.js";
 
 const HELP = `AgenticTrust CLI (@trustflow/cli)
 
 Protocol and SDK: AgenticTrust. Hosted registry: Trustflow Systems (trustflow.systems).
 
 Usage:
+  npx @trustflow/cli@latest init [options]
   trustflow init [options]
+  trustflow sign-llms
   trustflow sign [options]
   trustflow confirm [options]
   trustflow --help
 
 The npm binary is trustflow. agentic-trust is an alias of the same CLI.
+npx trustflow init and npx agentic-trust init run this program.
 
 init
   Detect Next.js, Vite, or Nuxt (or an existing public/ or static/ folder) and
   write llms.txt, .well-known/llms.txt, and a signed did:web document into that
   directory. No public-path flag. The default is public/.well-known/did.json
-  and public/llms.txt. Generate a did:web keypair and register the domain.
+  and public/llms.txt. When the project is Next.js, Vite, Nuxt, or already
+  has that folder (public/ or static/), files are written only there — not
+  also at the workspace root. Generate a did:web keypair and register the domain.
   IDE rules land in .cursorrules and .cursor/rules/agentic-trust.mdc.
   Pass --no-ide-rules to skip those two files.
 
@@ -36,6 +42,11 @@ init
   public key must still match the key sent at registration.
 
   https://trustflow.systems/api/register is an alias of the API origin above.
+
+sign-llms
+  Sign an existing llms.txt by rewriting the JWS in the existing did.json only.
+  Does not call POST /v1/register and does not generate a challenge.
+  Fails if llms.txt, .agentic-trust/private-key.pem, or did.json is missing.
 
 sign
   CI entry used by the AgenticTrust GitHub Action. Checks root llms.txt, writes
@@ -71,16 +82,15 @@ AGENTIC_TRUST_DRY_RUN=true matches --dry-run.
 Secrets are written to .agentic-trust/ and that directory is added to
 .gitignore. Do not commit private-key.pem.
 
-Install from Git until the @trustflow npm scope exists (clone so the
-workspace dependency on @trustflow/sdk resolves):
+Install:
+  npx @trustflow/cli@latest init
+
+Do not install the unrelated npm package trustflow-sdk.
+
+Contributors (this monorepo only, not the product install):
   git clone https://github.com/etienne-source/agent-trust-sdk.git
   cd agent-trust-sdk && pnpm install
   pnpm --filter @trustflow/cli exec trustflow init
-
-The SDK package alone can be added with:
-  pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk
-
-Do not install the unrelated npm package trustflow-sdk.
 `;
 
 interface Parsed {
@@ -130,7 +140,8 @@ function parse(argv: string[]): Parsed {
     throw new Error(`Unexpected argument: ${positionals.slice(1).join(" ")}`);
   }
   const command = positionals[0];
-  if (command && command !== "init" && command !== "confirm" && command !== "sign" && command !== "help") {
+  const commands = new Set(["init", "confirm", "sign", "sign-llms", "help"]);
+  if (command && !commands.has(command)) {
     throw new Error(`Unknown command: ${command}`);
   }
   return {
@@ -201,6 +212,9 @@ export async function main(argv: string[], io?: {
         githubOutput: env.GITHUB_OUTPUT,
         githubSummary: env.GITHUB_STEP_SUMMARY,
       });
+    }
+    if (parsed.command === "sign-llms") {
+      return await runSignLlms({ cwd, log });
     }
     if (parsed.command === "init") {
       const prompt = io?.prompt ?? defaultPrompt;

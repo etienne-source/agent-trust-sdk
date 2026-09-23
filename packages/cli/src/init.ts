@@ -2,7 +2,13 @@ import { promises as fs } from "node:fs";
 import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
 import { resolveTrustflowApiBase } from "./api.js";
 import { renderBadge, verifyPageUrl } from "./badge.js";
-import { detectProjectLayout, type ProjectLayout } from "./framework.js";
+import {
+  detectProjectLayout,
+  directoryExists,
+  nextMiddlewareNotice,
+  shouldMirrorPublishedFiles,
+  type ProjectLayout,
+} from "./framework.js";
 import { writeIdeRules } from "./ideRules.js";
 import {
   parseServiceList,
@@ -21,6 +27,9 @@ import {
 import { DEFAULT_PROOF_BUDGET_MS, DEFAULT_PROOF_INTERVAL_MS, autoConfirm } from "./proofs.js";
 import { registerAndStore } from "./registerFlow.js";
 import { parseVerificationType } from "./verificationType.js";
+
+export const PRIVATE_KEY_BACKUP_WARNING =
+  "⚠️ Backup your .agentic-trust/private-key.pem! If lost, this domain's identity cannot be recovered or rotated.";
 
 export interface InitOptions {
   cwd: string;
@@ -66,7 +75,12 @@ export async function runInit(options: InitOptions): Promise<number> {
   let services = options.services !== undefined ? parseServiceList(options.services) : existing?.services ?? [];
 
   const layout = await detectProjectLayout(options.cwd);
+  const publicDirExists = await directoryExists(options.cwd, layout.publicDir);
+  const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
   options.log(`Project: ${frameworkLabel(layout.framework)}. Publishing to ${layout.publicDir}/ (${layout.reason}).`);
+  if (layout.framework === "next") {
+    options.log(nextMiddlewareNotice());
+  }
 
   if (!existing) {
     name = await requireValue({
@@ -96,7 +110,7 @@ export async function runInit(options: InitOptions): Promise<number> {
       services,
     });
     for (const leaf of ["llms.txt", ".well-known/llms.txt"] as const) {
-      for (const file of await writePublishedFile(options.cwd, layout.publicDir, leaf, llms)) {
+      for (const file of await writePublishedFile(options.cwd, layout.publicDir, leaf, llms, mirrorRoot)) {
         options.log(`Wrote ${file}`);
       }
     }
@@ -121,7 +135,7 @@ export async function runInit(options: InitOptions): Promise<number> {
     if (!existing.path) throw new Error("Found llms.txt has no path.");
     const existingText = await fs.readFile(existing.path, "utf8");
     for (const leaf of ["llms.txt", ".well-known/llms.txt"] as const) {
-      for (const file of await ensurePublishedFile(options.cwd, layout.publicDir, leaf, existingText)) {
+      for (const file of await ensurePublishedFile(options.cwd, layout.publicDir, leaf, existingText, mirrorRoot)) {
         options.log(`Wrote ${file}`);
       }
     }
@@ -147,7 +161,13 @@ export async function runInit(options: InitOptions): Promise<number> {
 
   const didId = identity.did.id ?? `did:web:${normalizedDomain}`;
   const didBody = `${JSON.stringify(identity.did, null, 2)}\n`;
-  for (const didPath of await writePublishedFile(options.cwd, layout.publicDir, ".well-known/did.json", didBody)) {
+  for (const didPath of await writePublishedFile(
+    options.cwd,
+    layout.publicDir,
+    ".well-known/did.json",
+    didBody,
+    mirrorRoot
+  )) {
     options.log(`Wrote ${didPath}`);
   }
   options.log(`DID: ${didId}`);
@@ -174,6 +194,7 @@ export async function runInit(options: InitOptions): Promise<number> {
       publicKeyHash: identity.publicKeyHash,
       services,
       publicDir: layout.publicDir,
+      mirrorRoot,
     });
     options.log(`Saved challenge state to ${registrationPath} (gitignored).`);
     if (challengeFile) options.log(`Wrote ${challengeFile}`);
@@ -188,7 +209,7 @@ export async function runInit(options: InitOptions): Promise<number> {
       options.log("Skipped auto-confirm (--no-auto-confirm).");
       options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
       printBadge(options.log, normalizedDomain);
-      return 0;
+      return finishInit(options, 0);
     }
 
     options.log(`Trustflow API: POST ${apiBase}/v1/register/confirm`);
@@ -213,7 +234,7 @@ export async function runInit(options: InitOptions): Promise<number> {
     });
     options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
     printBadge(options.log, normalizedDomain);
-    return confirmed.code;
+    return finishInit(options, confirmed.code);
   }
 
   options.log("Skipped Trustflow registration (--skip-register).");
@@ -221,7 +242,12 @@ export async function runInit(options: InitOptions): Promise<number> {
   options.log("Keep .agentic-trust/ out of git. It holds the private key.");
   options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
   printBadge(options.log, normalizedDomain);
-  return 0;
+  return finishInit(options, 0);
+}
+
+function finishInit(options: InitOptions, code: number): number {
+  if (code === 0) options.log(PRIVATE_KEY_BACKUP_WARNING);
+  return code;
 }
 
 function frameworkLabel(framework: ProjectLayout["framework"]): string {

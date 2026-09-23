@@ -124,9 +124,10 @@ describe("auditDomain", () => {
 });
 
 describe("package README", () => {
-  it("documents the stdio config and the GitHub install path", async () => {
+  it("documents the stdio config and the npm install path", async () => {
     const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
-    expect(readme).toContain("github:etienne-source/agent-trust-sdk");
+    expect(readme).toContain("npx @trustflow/cli@latest init");
+    expect(readme).toContain("npx -y @trustflow/mcp-server");
     expect(readme).toContain("@trustflow/mcp-server");
     expect(readme).toContain("npx");
     expect(readme).toContain("claude_desktop_config.json");

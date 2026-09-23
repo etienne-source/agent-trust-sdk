@@ -14,25 +14,27 @@ Signing uses `@trustflow/sdk` `createSignedDidDocument` (EdDSA or ES256 compact 
 
 **License:** MIT
 
-> **Do not install `trustflow-sdk`.** That name is an unrelated logging package. `@trustflow/mcp-server` is not on npm yet.
+> **Do not install `trustflow-sdk`.** That name is an unrelated logging package. Scaffold a domain with `npx @trustflow/cli@latest init`.
 
 ## Install
 
-Git only, from this repository: `github:etienne-source/agent-trust-sdk`.
+```bash
+npx @trustflow/cli@latest init
+npx -y @trustflow/mcp-server
+```
 
-`@trustflow/mcp-server` depends on `@trustflow/sdk` with `workspace:*`. That link resolves inside a clone. It does not resolve from `pnpm add` of this directory alone, and `npm install github:etienne-source/agent-trust-sdk` installs the private workspace root.
+`npx trustflow init` is an alias of the CLI. Binary: `agentic-trust-mcp`.
+
+### Contributors
+
+Clone and `pnpm install` apply only when changing this monorepo. They are not the product install.
 
 ```bash
 git clone https://github.com/etienne-source/agent-trust-sdk.git
 cd agent-trust-sdk
 pnpm install
+pnpm --filter @trustflow/mcp-server build
 ```
-
-`dist/` is committed, so the binary runs after `pnpm install` links the SDK. Rebuild with `pnpm --filter @trustflow/mcp-server build` after source changes.
-
-Binary: `agentic-trust-mcp` → `packages/mcp-server/dist/index.js`.
-
-`npx @trustflow/mcp-server` is the command to use **after** the package is published to npm. Until then it will not resolve. Use the `node` snippet below.
 
 ## MCP client config
 
@@ -64,11 +66,9 @@ Same shape for Cursor and Claude Desktop. The server speaks MCP over stdio.
 }
 ```
 
-From a clone you can also run `pnpm --filter @trustflow/mcp-server exec trustflow-mcp`.
+Contributors in this monorepo can also run `pnpm --filter @trustflow/mcp-server exec agentic-trust-mcp`.
 
-### After the npm scope exists
-
-Not available today. When `@trustflow/mcp-server` is published, this is the same server:
+Published server:
 
 ```json
 {

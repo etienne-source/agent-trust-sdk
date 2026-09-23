@@ -8,7 +8,7 @@ Drop-in Next.js App Router boilerplates for community templates. Each one includ
 | [`v0`](./v0) | v0.dev / v0.app community templates | `next.config.mjs` |
 | [`bolt`](./bolt) | Bolt.new Next.js templates | `next.config.js` |
 
-These folders are not pnpm workspace packages. From the folder you want:
+These folders are not pnpm workspace packages. Scaffold identity with `npx @trustflow/cli@latest init` (`npx trustflow init` is an alias). From the folder you want, install its own dependencies and start Next.js:
 
 ```bash
 pnpm install

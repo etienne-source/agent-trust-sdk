@@ -122,12 +122,13 @@ export async function writeDidDocument(cwd: string, did: object): Promise<string
 
 /**
  * Paths for one site asset. The framework public directory is first.
- * The repository-root mirror stays byte-aligned for tools that still read it.
+ * `mirrorRoot` also writes the workspace-root copy. Next-like projects pass false.
  */
-export function publishedRelatives(publicDir: string, leaf: string): string[] {
+export function publishedRelatives(publicDir: string, leaf: string, mirrorRoot = true): string[] {
   const dir = assertPublicDir(publicDir);
   const nested = `${dir}/${leaf}`.replace(/\/{2,}/g, "/");
   if (nested === leaf) return [leaf];
+  if (!mirrorRoot) return [nested];
   return [nested, leaf];
 }
 
@@ -135,10 +136,11 @@ export async function writePublishedFile(
   cwd: string,
   publicDir: string,
   leaf: string,
-  contents: string
+  contents: string,
+  mirrorRoot = true
 ): Promise<string[]> {
   const written: string[] = [];
-  for (const relative of publishedRelatives(publicDir, leaf)) {
+  for (const relative of publishedRelatives(publicDir, leaf, mirrorRoot)) {
     written.push(await writeProjectFile(cwd, relative, contents));
   }
   return written;
@@ -149,10 +151,11 @@ export async function ensurePublishedFile(
   cwd: string,
   publicDir: string,
   leaf: string,
-  contents: string
+  contents: string,
+  mirrorRoot = true
 ): Promise<string[]> {
   const written: string[] = [];
-  for (const relative of publishedRelatives(publicDir, leaf)) {
+  for (const relative of publishedRelatives(publicDir, leaf, mirrorRoot)) {
     const full = path.resolve(cwd, relative);
     try {
       const stat = await fs.stat(full);

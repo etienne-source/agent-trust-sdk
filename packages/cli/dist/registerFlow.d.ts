@@ -11,8 +11,13 @@ export interface RegisterAndStoreInput {
     publicKeyPem: string;
     publicKeyHash: string;
     services: string[];
-    /** When set, the challenge file is written here and mirrored at the repository root. */
+    /** When set, the challenge file is written under this directory. */
     publicDir?: string;
+    /**
+     * Also write the challenge at the workspace root.
+     * Next-like layouts pass false so the file exists only under `publicDir`.
+     */
+    mirrorRoot?: boolean;
 }
 export interface RegisterAndStoreResult {
     challenge: RegisterChallenge;

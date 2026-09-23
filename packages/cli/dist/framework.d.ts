@@ -28,5 +28,15 @@ export declare function nuxtMajor(version: string | undefined): number | undefin
 export declare function parseVitePublicDir(source: string): string | false | undefined;
 /** Nuxt `dir.public` or legacy `dir.static`, when the config sets one. */
 export declare function parseNuxtPublicDir(source: string): string | undefined;
+/**
+ * Whether publishable files should also be copied to the workspace root.
+ * Next.js, Vite, and Nuxt publish only under their static directory.
+ * An unknown project that already has that directory (usually `public/`) does too.
+ * A blank project still mirrors, so tools that read the root keep working.
+ */
+export declare function shouldMirrorPublishedFiles(framework: ProjectFramework, publicDirExists: boolean): boolean;
+/** Terminal snippet for Next.js apps whose middleware would swallow identity routes. */
+export declare function nextMiddlewareNotice(): string;
+export declare function directoryExists(cwd: string, name: string): Promise<boolean>;
 export declare function assertPublicDir(publicDir: string): string;
 //# sourceMappingURL=framework.d.ts.map

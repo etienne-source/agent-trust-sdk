@@ -1,7 +1,7 @@
 {
   "name": "@trustflow/vercel-plugin",
   "version": "1.0.0",
-  "description": "AgenticTrust Vercel build hook. Signs did:web and llms.txt from environment secrets during deploy, with no interactive CLI. Not on npm yet — install from github:etienne-source/agent-trust-sdk.",
+  "description": "AgenticTrust Vercel build hook. Signs did:web and llms.txt from environment secrets during deploy, with no interactive CLI. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {
     "type": "git",

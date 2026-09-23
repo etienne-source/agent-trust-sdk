@@ -1,3 +1,4 @@
+export declare const PRIVATE_KEY_BACKUP_WARNING = "\u26A0\uFE0F Backup your .agentic-trust/private-key.pem! If lost, this domain's identity cannot be recovered or rotated.";
 export interface InitOptions {
     cwd: string;
     domain?: string;

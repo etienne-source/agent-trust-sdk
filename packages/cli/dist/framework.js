@@ -103,6 +103,35 @@ export function parseNuxtPublicDir(source) {
         return sanitizePublicDir(stat[2]);
     return undefined;
 }
+/**
+ * Whether publishable files should also be copied to the workspace root.
+ * Next.js, Vite, and Nuxt publish only under their static directory.
+ * An unknown project that already has that directory (usually `public/`) does too.
+ * A blank project still mirrors, so tools that read the root keep working.
+ */
+export function shouldMirrorPublishedFiles(framework, publicDirExists) {
+    if (framework !== "unknown")
+        return false;
+    return !publicDirExists;
+}
+/** Terminal snippet for Next.js apps whose middleware would swallow identity routes. */
+export function nextMiddlewareNotice() {
+    return [
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "Next.js middleware.ts",
+        "Exclude /.well-known/ and /llms.txt so those routes are not swallowed.",
+        "",
+        "export const config = {",
+        "  matcher: [",
+        '    "/((?!\\.well-known|llms\\.txt).*)",',
+        "  ],",
+        "};",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ].join("\n");
+}
+export async function directoryExists(cwd, name) {
+    return isDirectory(cwd, name);
+}
 export function assertPublicDir(publicDir) {
     const normalized = sanitizePublicDir(publicDir);
     if (!normalized) {
