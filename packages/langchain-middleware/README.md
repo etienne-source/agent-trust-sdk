@@ -1,8 +1,8 @@
-# @agentic-trust/langchain-middleware
+# @trustflow/langchain-middleware
 
 LangChain.js middleware that checks an **AgenticTrust** domain signature before it reads or parses `llms.txt` context. The default mode is audit. Unsigned, unverified, tampered, and RISK domains do not throw. They log a security alert and a telemetry event, and the body is not parsed. `{ strict: true }` or `{ mode: "strict" }` throws `UnverifiedDomainContextError` and the model or tool does not run.
 
-Verification and signing stay in `@agentic-trust/sdk` (`agenticTrustMiddleware`). This package only decides whether context is allowed to be parsed. The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
+Verification and signing stay in `@trustflow/sdk` (`agenticTrustMiddleware`). This package only decides whether context is allowed to be parsed. The hosted registry is Trustflow Systems (`https://api.trustflow.systems`).
 
 **License:** MIT · **Install:** GitHub only, until the npm scope exists
 
@@ -10,7 +10,7 @@ Verification and signing stay in `@agentic-trust/sdk` (`agenticTrustMiddleware`)
 
 ## Install
 
-`@agentic-trust/langchain-middleware` depends on `@agentic-trust/sdk` with `workspace:*`, same as the CLI. Add the SDK from GitHub as well. Inside a clone of this repository, `pnpm install` links the workspace package.
+`@trustflow/langchain-middleware` depends on `@trustflow/sdk` with `workspace:*`, same as the CLI. Add the SDK from GitHub as well. Inside a clone of this repository, `pnpm install` links the workspace package.
 
 ```bash
 pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne-source/agent-trust-sdk#path:/packages/langchain-middleware
@@ -22,7 +22,7 @@ pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne
 
 ```ts
 import { createAgent, createMiddleware } from "langchain";
-import { agenticTrustLangChainMiddleware } from "@agentic-trust/langchain-middleware";
+import { agenticTrustLangChainMiddleware } from "@trustflow/langchain-middleware";
 
 const trust = agenticTrustLangChainMiddleware({
   verificationApiUrl: "https://api.trustflow.systems",
@@ -45,7 +45,7 @@ const context = await trust.loadLlmsContext({
 `content` may be a string or a function. The function runs only after `verified === true`. In audit mode a failed check does not throw and does not call `content`. Strict mode throws before that call:
 
 ```ts
-import { UnverifiedDomainContextError } from "@agentic-trust/langchain-middleware";
+import { UnverifiedDomainContextError } from "@trustflow/langchain-middleware";
 
 try {
   await trust.loadLlmsContext({

@@ -192,14 +192,14 @@ function adaptRules(text, framework) {
 }
 
 function langchainWiring(domain) {
-  return `import { agenticTrustLangChainMiddleware } from "@agentic-trust/langchain-middleware";
+  return `import { agenticTrustLangChainMiddleware } from "@trustflow/langchain-middleware";
 
 /**
  * AgenticTrust middleware for LangChain.js. Pass it to \`createMiddleware\`.
  * Unsigned llms.txt throws before it is parsed.
  * Protocol: AgenticTrust. Registry: Trustflow Systems (https://trustflow.systems).
  *
- * Packages: @agentic-trust/langchain-middleware and @agentic-trust/sdk.
+ * Packages: @trustflow/langchain-middleware and @trustflow/sdk.
  * Install from GitHub until the npm scope exists:
  *   pnpm add ${SDK_SPEC} ${LANGCHAIN_SPEC}
  *
@@ -222,11 +222,11 @@ function pullRequestBody(target) {
   const wiring =
     target.framework === "next"
       ? [
-          "Wrap the existing Next.js config with `withAgenticTrust` from `@agentic-trust/next-plugin`, and set `turbopack: {}` so Next.js 16 accepts the plugin's development webpack hook.",
+          "Wrap the existing Next.js config with `withAgenticTrust` from `@trustflow/next-plugin`, and set `turbopack: {}` so Next.js 16 accepts the plugin's development webpack hook.",
           "The snippet matches `starters/nextjs`, `starters/v0`, or `starters/bolt` in `etienne-source/agent-trust-sdk`. Merge that wrapper into the config that is already here. Do not replace the application.",
           "On `--apply`, a simple `export default <name>` or `module.exports = <name>` is wrapped in place when that file already exists.",
         ].join(" ")
-      : "`src/agentic-trust.ts` exports `agenticTrustLangChainMiddleware()` from `@agentic-trust/langchain-middleware`. Pass it to LangChain `createMiddleware`. It throws before parsing unsigned `llms.txt`.";
+      : "`src/agentic-trust.ts` exports `agenticTrustLangChainMiddleware()` from `@trustflow/langchain-middleware`. Pass it to LangChain `createMiddleware`. It throws before parsing unsigned `llms.txt`.";
 
   return [
     "## AgenticTrust identity placeholder",
@@ -235,7 +235,7 @@ function pullRequestBody(target) {
     "The hosted registry is **Trustflow Systems** (https://trustflow.systems).",
     "",
     `\`did.json\` is the unsigned starter placeholder (\`proof.jws\` is \`REPLACE_ME\`). It does not make \`${target.domain}\` VERIFIED.`,
-    "Replace it with `npx agentic-trust init` from `@agentic-trust/cli` (clone `github:etienne-source/agent-trust-sdk` until the npm scope exists).",
+    "Replace it with `npx trustflow init` from `@trustflow/cli` (clone `github:etienne-source/agent-trust-sdk` until the npm scope exists).",
     "For Next.js, copy the signed document to `public/.well-known/did.json`. Do not commit a private key or `.agentic-trust/`.",
     "",
     "### Install",
@@ -311,10 +311,10 @@ export function planTarget(target, templates = loadStarterTemplates()) {
     snippetPath: snippet?.path ?? null,
     packageDependencies:
       target.framework === "next"
-        ? { "@agentic-trust/next-plugin": NEXT_PLUGIN_SPEC }
+        ? { "@trustflow/next-plugin": NEXT_PLUGIN_SPEC }
         : {
-            "@agentic-trust/sdk": SDK_SPEC,
-            "@agentic-trust/langchain-middleware": LANGCHAIN_SPEC,
+            "@trustflow/sdk": SDK_SPEC,
+            "@trustflow/langchain-middleware": LANGCHAIN_SPEC,
           },
     nextConfigCandidates: target.framework === "next" ? NEXT_CONFIGS[target.nextConfig] : [],
   };
@@ -435,13 +435,13 @@ export function wrapNextConfig(source, filename) {
   if (!matched) return { wrapped: false, reason: "unrecognized-export", content: source };
   const name = matched[1];
   if (cjs) {
-    content = `const { withAgenticTrust } = require("@agentic-trust/next-plugin");\n${content}`;
+    content = `const { withAgenticTrust } = require("@trustflow/next-plugin");\n${content}`;
     content = content.replace(
       new RegExp(`module\\.exports\\s*=\\s*${name}\\s*;?\\s*$`),
       `module.exports = withAgenticTrust(${name});\n`
     );
   } else {
-    content = `import { withAgenticTrust } from "@agentic-trust/next-plugin";\n${content}`;
+    content = `import { withAgenticTrust } from "@trustflow/next-plugin";\n${content}`;
     content = content.replace(
       new RegExp(`export default\\s+${name}\\s*;?\\s*$`),
       `export default withAgenticTrust(${name});\n`

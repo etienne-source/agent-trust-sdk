@@ -1,4 +1,4 @@
-import { normalizeDomain } from "@agentic-trust/sdk";
+import { normalizeDomain } from "@trustflow/sdk";
 
 /** Hosted Trustflow Systems verification API. The protocol is AgenticTrust. */
 export const DEFAULT_TRUSTFLOW_API_BASE = "https://api.trustflow.systems";

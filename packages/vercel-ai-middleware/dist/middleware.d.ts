@@ -1,11 +1,11 @@
-import { type AgenticTrustEnforcementMode, type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions, type AgenticTrustSecurityEvent } from "@agentic-trust/sdk";
+import { type AgenticTrustEnforcementMode, type AgenticTrustMetadata, type AgenticTrustMiddlewareOptions, type AgenticTrustSecurityEvent } from "@trustflow/sdk";
 import { type ParsedLlmsTxt } from "./llms.js";
 /** Request header that marks a fetch as domain context even when the path is not `llms.txt`. */
 export declare const AGENTIC_TRUST_CONTEXT_HEADER = "x-agentic-trust-context";
 export interface AgenticTrustVercelAiOptions extends AgenticTrustMiddlewareOptions {
     /**
      * Domain check. When omitted, the package calls `agenticTrustMiddleware`
-     * from `@agentic-trust/sdk` (the verify/sign implementation).
+     * from `@trustflow/sdk` (the verify/sign implementation).
      */
     verify?: (target: string) => Promise<AgenticTrustMetadata>;
     /**

@@ -3,16 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
-  "description": "AgenticTrust workspace: @agentic-trust/sdk, @agentic-trust/cli, @agentic-trust/mcp-server, @agentic-trust/next-plugin, @agentic-trust/vercel-plugin, framework middleware, and Next.js starters. Hosted registry: Trustflow Systems.",
+  "description": "AgenticTrust workspace: @trustflow/sdk, @trustflow/cli, @trustflow/mcp-server, @trustflow/next-plugin, @trustflow/vercel-plugin, framework middleware, and Next.js starters. Hosted registry: Trustflow Systems.",
   "scripts": {
-    "build": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build && pnpm --filter @agentic-trust/mcp-server build && pnpm --filter @agentic-trust/next-plugin build && pnpm --filter @agentic-trust/langchain-middleware build && pnpm --filter @agentic-trust/vercel-ai-middleware build && pnpm --filter @agentic-trust/vercel-plugin build",
-    "typecheck": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli typecheck && pnpm --filter @agentic-trust/mcp-server typecheck && pnpm --filter @agentic-trust/next-plugin typecheck && pnpm --filter @agentic-trust/langchain-middleware typecheck && pnpm --filter @agentic-trust/vercel-ai-middleware typecheck && pnpm --filter @agentic-trust/vercel-plugin typecheck",
-    "test": "pnpm --filter @agentic-trust/sdk test && pnpm --filter @agentic-trust/cli test && pnpm --filter @agentic-trust/mcp-server test && pnpm --filter @agentic-trust/next-plugin test && pnpm --filter @agentic-trust/langchain-middleware test && pnpm --filter @agentic-trust/vercel-ai-middleware test && pnpm --filter @agentic-trust/vercel-plugin test && node --test scripts/create-starter-prs.test.mjs scripts/submit-ecosystem-prs.test.mjs scripts/notify-verified-domain.test.mjs scripts/launch-readiness.test.mjs",
+    "build": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli build && pnpm --filter @trustflow/mcp-server build && pnpm --filter @trustflow/next-plugin build && pnpm --filter @trustflow/langchain-middleware build && pnpm --filter @trustflow/vercel-ai-middleware build && pnpm --filter @trustflow/vercel-plugin build",
+    "typecheck": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli typecheck && pnpm --filter @trustflow/mcp-server typecheck && pnpm --filter @trustflow/next-plugin typecheck && pnpm --filter @trustflow/langchain-middleware typecheck && pnpm --filter @trustflow/vercel-ai-middleware typecheck && pnpm --filter @trustflow/vercel-plugin typecheck",
+    "test": "pnpm --filter @trustflow/sdk test && pnpm --filter @trustflow/cli test && pnpm --filter @trustflow/mcp-server test && pnpm --filter @trustflow/next-plugin test && pnpm --filter @trustflow/langchain-middleware test && pnpm --filter @trustflow/vercel-ai-middleware test && pnpm --filter @trustflow/vercel-plugin test && node --test scripts/create-starter-prs.test.mjs scripts/submit-ecosystem-prs.test.mjs scripts/notify-verified-domain.test.mjs scripts/launch-readiness.test.mjs",
     "starter-prs": "node scripts/create-starter-prs.mjs",
     "ecosystem-prs": "node scripts/submit-ecosystem-prs.mjs",
-    "smoke": "pnpm --filter @agentic-trust/sdk build && pnpm --filter @agentic-trust/cli build && pnpm --filter @agentic-trust/cli smoke",
+    "smoke": "pnpm --filter @trustflow/sdk build && pnpm --filter @trustflow/cli build && pnpm --filter @trustflow/cli smoke",
     "starters:check": "node starters/check.mjs",
-    "clean": "pnpm --filter @agentic-trust/sdk --filter @agentic-trust/cli --filter @agentic-trust/mcp-server --filter @agentic-trust/next-plugin --filter @agentic-trust/langchain-middleware --filter @agentic-trust/vercel-ai-middleware --filter @agentic-trust/vercel-plugin clean"
+    "clean": "pnpm --filter @trustflow/sdk --filter @trustflow/cli --filter @trustflow/mcp-server --filter @trustflow/next-plugin --filter @trustflow/langchain-middleware --filter @trustflow/vercel-ai-middleware --filter @trustflow/vercel-plugin clean"
   },
   "engines": {
     "node": ">=20"

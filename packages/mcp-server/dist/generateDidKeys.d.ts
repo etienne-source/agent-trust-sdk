@@ -1,4 +1,4 @@
-import { type DidDocument } from "@agentic-trust/sdk";
+import { type DidDocument } from "@trustflow/sdk";
 export type DidKeyAlgorithm = "Ed25519" | "ES256";
 /** Shown next to `privateKeyPem` in every tool result. */
 export declare const PRIVATE_KEY_SECRET_WARNING = "SECRET \u2014 AgenticTrust did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json. This tool does not write the key unless privateKeyPath is set.";
@@ -38,7 +38,7 @@ export interface GenerateDidKeysResult {
 export declare function parseDidKeyAlgorithm(value: string | undefined): DidKeyAlgorithm;
 /**
  * Generate a did:web key and a signed W3C document.
- * Ed25519 keys come from `@agentic-trust/sdk` `createSignedDidDocument`.
+ * Ed25519 keys come from `@trustflow/sdk` `createSignedDidDocument`.
  * ES256 uses a P-256 PKCS#8 key passed into that same signer — the DID proof is not built here.
  */
 export declare function generateDidKeys(input: GenerateDidKeysInput): Promise<GenerateDidKeysResult>;

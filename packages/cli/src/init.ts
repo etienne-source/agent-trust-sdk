@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs";
-import { createSignedDidDocument, normalizeDomain } from "@agentic-trust/sdk";
+import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
 import { resolveTrustflowApiBase } from "./api.js";
 import { renderBadge, verifyPageUrl } from "./badge.js";
 import { detectProjectLayout, type ProjectLayout } from "./framework.js";

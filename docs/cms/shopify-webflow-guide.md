@@ -1,6 +1,6 @@
 # Host a signed `did.json` on Shopify and Webflow
 
-**AgenticTrust** is the protocol (`did:web`, `llms.txt`, `@agentic-trust/sdk`). **Trustflow Systems** is the hosted registry at https://trustflow.systems and `https://api.trustflow.systems`.
+**AgenticTrust** is the protocol (`did:web`, `llms.txt`, `@trustflow/sdk`). **Trustflow Systems** is the hosted registry at https://trustflow.systems and `https://api.trustflow.systems`.
 
 Shopify and Webflow can inject a discovery link in the page head. They do not serve `https://<domain>/.well-known/did.json` from a theme asset or a CDN file URL. `did:web` fetches that exact path on the hostname. Use the header snippet for discovery and the asset-routing snippet so the path exists.
 
@@ -8,15 +8,15 @@ Sign the documents on a machine you control. Paste only the public files into th
 
 ## 1. Produce the public files
 
-From a clone of `github:etienne-source/agent-trust-sdk` (or `npx agentic-trust` after the npm tag publish of `@agentic-trust/cli`):
+From a clone of `github:etienne-source/agent-trust-sdk` (or `npx trustflow` after the npm tag publish of `@trustflow/cli`):
 
 ```bash
-agentic-trust init --non-interactive --domain example.com --name "Example" --description "Storefront"
+trustflow init --non-interactive --domain example.com --name "Example" --description "Storefront"
 ```
 
 That writes `.well-known/did.json` and `llms.txt`. The private key stays in `.agentic-trust/private-key.pem` (mode `0600`). Copy the two public files. Leave the PEM where it is.
 
-In CI, `agentic-trust sign` reads `AGENTIC_TRUST_PRIVATE_KEY` from the environment. Do not pass the key as an argument.
+In CI, `trustflow sign` reads `AGENTIC_TRUST_PRIVATE_KEY` from the environment. Do not pass the key as an argument.
 
 Do not install the unrelated package named `trustflow-sdk`.
 
@@ -169,6 +169,6 @@ curl -fsS "https://example.com/.well-known/llms.txt"
 curl -fsS "https://example.com/llms.txt"
 ```
 
-The DID `id` is `did:web:example.com`. `proof.jws` is the compact JWS from `@agentic-trust/sdk`, not `REPLACE_ME`. Neither response contains a private key.
+The DID `id` is `did:web:example.com`. `proof.jws` is the compact JWS from `@trustflow/sdk`, not `REPLACE_ME`. Neither response contains a private key.
 
 WordPress sites can use [`plugins/wordpress/agentic-trust.php`](../../plugins/wordpress/agentic-trust.php) instead of a Worker. It exposes the same paths and reads the key from `AGENTIC_TRUST_PRIVATE_KEY` or a WordPress option.

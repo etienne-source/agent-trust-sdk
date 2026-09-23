@@ -8,7 +8,7 @@ Do not install `trustflow-sdk`. That npm name is an unrelated package.
 
 ## Shipped
 
-### `@agentic-trust/sdk` (`packages/sdk`)
+### `@trustflow/sdk` (`packages/sdk`)
 
 - `did:web` documents via `createSignedDidDocument` (Ed25519 by default, or a supplied P-256 key).
 - Compact JWS proofs (`proof.type` `JsonWebSignature2020`) pinned to `EdDSA` and `ES256`. `alg: none`, `HS*`, and every other `alg` fail closed.
@@ -17,9 +17,9 @@ Do not install `trustflow-sdk`. That npm name is an unrelated package.
 - `agenticTrustMiddleware` annotates context and `fetch` (4s budget, in-memory cache). It does not throw on an unverified domain.
 - `hashPublicKeyPem` is the SHA-256 hex the registry stores as `publicKeyHash`.
 
-### `@agentic-trust/cli` (`packages/cli`)
+### `@trustflow/cli` (`packages/cli`)
 
-Binary: `agentic-trust`.
+Binary: `trustflow`.
 
 - `init` — write `llms.txt` when it is missing, sign `.well-known/did.json`, store the private key under `.agentic-trust/` (mode `0600`, gitignored), `POST /v1/register`, print the challenge, print the badge, and write IDE rules.
 - `confirm` — `POST /v1/register/confirm`.
@@ -27,9 +27,9 @@ Binary: `agentic-trust`.
 - Badge label: `Verified by AgenticTrust | trustflow.systems`. Link: `https://trustflow.systems/verify/<domain>`.
 - Default API base: `https://api.trustflow.systems`. `https://trustflow.systems/api/register` is an alias of that origin.
 
-The intended npm command, after the scope exists, is `npx agentic-trust init`. Until then, run the binary from a clone.
+The intended npm command, after the scope exists, is `npx trustflow init`. Until then, run the binary from a clone.
 
-### `@agentic-trust/mcp-server` (`packages/mcp-server`)
+### `@trustflow/mcp-server` (`packages/mcp-server`)
 
 Stdio MCP server, binary `agentic-trust-mcp`.
 
@@ -37,16 +37,16 @@ Stdio MCP server, binary `agentic-trust-mcp`.
 - `generate_did_keys` — Ed25519 or ES256, signed with the SDK
 - `sign_llms_txt` — align an `llms.txt` manifest with that `did:web` document
 
-### `@agentic-trust/next-plugin` (`packages/next-plugin`)
+### `@trustflow/next-plugin` (`packages/next-plugin`)
 
 `withAgenticTrust` warns in `next dev` when `public/llms.txt` or `public/.well-known/did.json` is missing or invalid. The warning does not fail the build. Production builds stay quiet.
 
 ### Framework middleware
 
-- `@agentic-trust/langchain-middleware` — throws `UnverifiedDomainContextError` before unsigned `llms.txt` is parsed.
-- `@agentic-trust/vercel-ai-middleware` — same refusal on provider `fetch` and `wrapLanguageModel` for domain-context payloads.
+- `@trustflow/langchain-middleware` — throws `UnverifiedDomainContextError` before unsigned `llms.txt` is parsed.
+- `@trustflow/vercel-ai-middleware` — same refusal on provider `fetch` and `wrapLanguageModel` for domain-context payloads.
 
-Both call `@agentic-trust/sdk`. The SDK middleware still annotates; these two packages are the strict gate.
+Both call `@trustflow/sdk`. The SDK middleware still annotates; these two packages are the strict gate.
 
 ### Starters (`starters/`)
 
@@ -73,7 +73,7 @@ App Router boilerplates that are not pnpm workspace packages: [starters/nextjs](
 
 ## Not in 0.1.0
 
-- npm packages under `@agentic-trust/*`.
+- npm packages under `@trustflow/*`.
 - A hosted badge image URL. The CLI prints inline SVG. The public page is `https://trustflow.systems/verify/<domain>`.
 - The registry implementation, including `safeFetch`. That fetcher is private. The open SDK does not export it. `SPEC.md` records its SSRF limits by reference: HTTPS only, DNS public-IP checks, a 4 second timeout, and at most one apex↔www redirect on the same path.
 

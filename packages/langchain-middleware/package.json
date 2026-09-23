@@ -1,5 +1,5 @@
 {
-  "name": "@agentic-trust/langchain-middleware",
+  "name": "@trustflow/langchain-middleware",
   "version": "1.0.0",
   "description": "LangChain.js middleware that verifies AgenticTrust domain signatures before parsing llms.txt context.",
   "license": "MIT",
@@ -33,7 +33,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agentic-trust/sdk": "workspace:*"
+    "@trustflow/sdk": "workspace:*"
   },
   "peerDependencies": {
     "langchain": ">=0.3.0"

@@ -1,4 +1,4 @@
-import type { AgenticTrustMetadata } from "@agentic-trust/sdk";
+import type { AgenticTrustMetadata } from "@trustflow/sdk";
 
 /**
  * Fail-closed message thrown when unverified or tampered `llms.txt` context

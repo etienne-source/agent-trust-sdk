@@ -1,6 +1,6 @@
-# @agentic-trust/vercel-plugin
+# @trustflow/vercel-plugin
 
-Vercel and Next.js build hook for **AgenticTrust**. On deploy it writes `llms.txt` and a signed `.well-known/did.json` from environment variables. Nobody has to open a terminal or run `agentic-trust init`.
+Vercel and Next.js build hook for **AgenticTrust**. On deploy it writes `llms.txt` and a signed `.well-known/did.json` from environment variables. Nobody has to open a terminal or run `trustflow init`.
 
 **AgenticTrust** is the protocol and this package. **Trustflow Systems** is the hosted registry (`https://trustflow.systems`).
 
@@ -12,7 +12,7 @@ The private key is `AGENTIC_TRUST_PRIVATE_KEY`. Put it in the Vercel project env
 
 ## Install
 
-`@agentic-trust/vercel-plugin` depends on `@agentic-trust/sdk` with `workspace:*` inside this repository. From another project, add both from GitHub:
+`@trustflow/vercel-plugin` depends on `@trustflow/sdk` with `workspace:*` inside this repository. From another project, add both from GitHub:
 
 ```bash
 pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne-source/agent-trust-sdk#path:/packages/vercel-plugin
@@ -52,12 +52,12 @@ pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk github:etienne
 
 Register the domain with Trustflow Systems separately (`POST https://api.trustflow.systems/v1/register`) when you want the hosted registry record. This hook only publishes the signed files.
 
-The signer is `signBuildArtifacts` from `@agentic-trust/sdk`, the same function `renewBuildSignatures` uses for a Netlify build (`outDir` set to the publish directory). Neither function writes or prints the private key. The GitHub action `.github/actions/agentic-trust-sign` can commit the public `did.json` and `llms.txt` when its `commit` input is `true`.
+The signer is `signBuildArtifacts` from `@trustflow/sdk`, the same function `renewBuildSignatures` uses for a Netlify build (`outDir` set to the publish directory). Neither function writes or prints the private key. The GitHub action `.github/actions/agentic-trust-sign` can commit the public `did.json` and `llms.txt` when its `commit` input is `true`.
 
 ## Programmatic
 
 ```ts
-import { runAgenticTrustVercelBuild, withAgenticTrustVercelConfig } from "@agentic-trust/vercel-plugin";
+import { runAgenticTrustVercelBuild, withAgenticTrustVercelConfig } from "@trustflow/vercel-plugin";
 
 export const vercelConfig = withAgenticTrustVercelConfig({
   framework: "nextjs",
@@ -66,4 +66,4 @@ export const vercelConfig = withAgenticTrustVercelConfig({
 await runAgenticTrustVercelBuild();
 ```
 
-`@agentic-trust/next-plugin` remains the development warning when those public files are missing. This package is the build that creates them.
+`@trustflow/next-plugin` remains the development warning when those public files are missing. This package is the build that creates them.

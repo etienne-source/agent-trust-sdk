@@ -14,4 +14,4 @@ export type {
 } from "./middleware.js";
 export { UnverifiedDomainContextError, contextPoisoningErrorMessage } from "./error.js";
 export type { ParsedLlmsSection, ParsedLlmsTxt } from "./llms.js";
-export type { AgenticTrustMetadata, AgenticTrustMiddlewareOptions } from "@agentic-trust/sdk";
+export type { AgenticTrustMetadata, AgenticTrustMiddlewareOptions } from "@trustflow/sdk";

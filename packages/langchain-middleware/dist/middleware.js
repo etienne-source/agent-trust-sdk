@@ -1,4 +1,4 @@
-import { agenticTrustMiddleware, emitSecurityAlert, resolveEnforcementMode, securityAlertEvent, } from "@agentic-trust/sdk";
+import { agenticTrustMiddleware, emitSecurityAlert, resolveEnforcementMode, securityAlertEvent, } from "@trustflow/sdk";
 import { UnverifiedDomainContextError } from "./error.js";
 import { cloneValue, collectContextTargets, collectLlmsPayloads, formatVerifiedLlms, parseLlmsTxt, readBody, writeVerifiedText, } from "./llms.js";
 function sdkOptions(options) {

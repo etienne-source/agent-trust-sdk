@@ -11,7 +11,7 @@
  * did:web expects the files at the hostname root. Install WordPress on that
  * host, or proxy /.well-known/ in front of a subdirectory install.
  *
- * Sign the DID with @agentic-trust/sdk (agentic-trust init / agentic-trust sign)
+ * Sign the DID with @trustflow/sdk (trustflow init / trustflow sign)
  * and paste the public did.json into the setting. This plugin does not mint a
  * JWS. Do not install the unrelated trustflow-sdk package.
  *
@@ -146,7 +146,7 @@ function agentic_trust_placeholder_did($domain) {
     $document = array(
         '@context' => array('https://www.w3.org/ns/did/v1'),
         'id' => $id,
-        'placeholder' => 'REPLACE_ME — unsigned example. proof.jws is not a signature. Paste the public did.json from agentic-trust init. Do not paste a private key.',
+        'placeholder' => 'REPLACE_ME — unsigned example. proof.jws is not a signature. Paste the public did.json from trustflow init. Do not paste a private key.',
         'verificationMethod' => array(
             array(
                 'id' => $id . '#key-1',
@@ -217,7 +217,7 @@ function agentic_trust_placeholder_llms($domain) {
  * The private key is resolved from the environment or the option. This plugin
  * does not build a JWS. The manifest counts as signed when that key is
  * configured and the stored did.json is the public document from
- * @agentic-trust/sdk (proof.jws is not REPLACE_ME). The filter may replace the
+ * @trustflow/sdk (proof.jws is not REPLACE_ME). The filter may replace the
  * body. The key argument must not be written into the body or a log.
  *
  * @param string $body Public manifest.
@@ -539,7 +539,7 @@ function agentic_trust_render_settings_page() {
                     <th scope="row"><label for="agentic_trust_did_json"><?php echo esc_html__('did.json', 'agentic-trust'); ?></label></th>
                     <td>
                         <textarea name="<?php echo esc_attr(AGENTIC_TRUST_OPTION_DID); ?>" id="agentic_trust_did_json" rows="14" class="large-text code"><?php echo esc_textarea(is_string($did) ? $did : ''); ?></textarea>
-                        <p class="description"><?php echo esc_html__('Public document from @agentic-trust/sdk. Leave empty to serve the REPLACE_ME placeholder.', 'agentic-trust'); ?></p>
+                        <p class="description"><?php echo esc_html__('Public document from @trustflow/sdk. Leave empty to serve the REPLACE_ME placeholder.', 'agentic-trust'); ?></p>
                     </td>
                 </tr>
                 <tr>

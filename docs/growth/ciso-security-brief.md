@@ -2,7 +2,7 @@
 
 Enterprise summary of the behavior in [SPEC.md](../../SPEC.md) and the public README. **AgenticTrust** is the open protocol, SDK, CLI, MCP server, Next.js plugin, and framework middleware in this repository. **Trustflow Systems** is the hosted registry (`https://trustflow.systems`, API origin `https://api.trustflow.systems`).
 
-This brief does not add controls that the code does not implement. `safeFetch` is described as the registry's private domain-proof fetch. It is not exported by `@agentic-trust/sdk`.
+This brief does not add controls that the code does not implement. `safeFetch` is described as the registry's private domain-proof fetch. It is not exported by `@trustflow/sdk`.
 
 ## Identity
 
@@ -62,7 +62,7 @@ Review a deployment or a pull request against the following. Each item maps to b
 
 1. **Algorithm allowlist.** Confirm verifiers still reject `none` and `HS*` before `compactVerify`, and that `ALLOWED_JWS_ALGS` remains `EdDSA` and `ES256` only.
 2. **Audit by default, strict when required.** Confirm framework middleware defaults to audit mode and that `{ strict: true }` throws `UnverifiedDomainContextError` before unsigned or `RISK` `llms.txt` is parsed. The audit alert is `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.`
-3. **Key handling.** Confirm private keys stay in `.agentic-trust/` or a host secret such as `AGENTIC_TRUST_PRIVATE_KEY`. Diffs must not contain `BEGIN PRIVATE KEY` or `.agentic-trust/private-key.pem`. Placeholder `did.json` files must keep `proof.jws` as `REPLACE_ME` until a maintainer runs `npx agentic-trust init`.
+3. **Key handling.** Confirm private keys stay in `.agentic-trust/` or a host secret such as `AGENTIC_TRUST_PRIVATE_KEY`. Diffs must not contain `BEGIN PRIVATE KEY` or `.agentic-trust/private-key.pem`. Placeholder `did.json` files must keep `proof.jws` as `REPLACE_ME` until a maintainer runs `npx trustflow init`.
 4. **Package name.** Confirm install instructions use `github:etienne-source/agent-trust-sdk`. Reject documentation that says `npm install trustflow-sdk`.
 5. **Registry SSRF.** For the hosted API, review the private `safeFetch` implementation against the four limits above (HTTPS, public DNS answers, 4 second timeout, one apex ↔ www redirect with the same path). Do not assume the SDK client applies those limits.
 6. **Client timeouts.** Confirm the SDK's own deadlines (8s local DID, 5s `llms.txt`, 10s registry GET, 4s middleware) are still the client clocks, separate from `safeFetch`.

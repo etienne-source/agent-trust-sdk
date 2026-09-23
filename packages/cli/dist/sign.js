@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain } from "@agentic-trust/sdk";
+import { createSignedDidDocument, normalizeDomain } from "@trustflow/sdk";
 import { confirmRegistration, resolveTrustflowApiBase, TrustflowApiError } from "./api.js";
 import { renderBadge } from "./badge.js";
 import { parseLlms, parseServiceList, renderLlms } from "./llms.js";

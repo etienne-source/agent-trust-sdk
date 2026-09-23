@@ -4,7 +4,7 @@ This document describes the behavior implemented in this repository (`packages/s
 
 **AgenticTrust** is the open protocol, the SDK, the CLI, the MCP server, the Next.js plugin, and the framework middleware in this repository.
 
-**Trustflow Systems** is the hosted registry. The site is [https://trustflow.systems](https://trustflow.systems). The API origin is `https://api.trustflow.systems`. The site paths `https://trustflow.systems/api` and `https://trustflow.systems/api/register` (and the `www` host of those paths) are aliases of that API origin in `@agentic-trust/cli`. They are not a second server.
+**Trustflow Systems** is the hosted registry. The site is [https://trustflow.systems](https://trustflow.systems). The API origin is `https://api.trustflow.systems`. The site paths `https://trustflow.systems/api` and `https://trustflow.systems/api/register` (and the `www` host of those paths) are aliases of that API origin in `@trustflow/cli`. They are not a second server.
 
 Badge text, when a badge is shown, is `Verified by AgenticTrust | trustflow.systems`. The link target the CLI generates is `https://trustflow.systems/verify/<domain>`.
 
@@ -58,7 +58,7 @@ Callers may pass `services` and replace that default `LinkedDomains` entry. The 
 
 `publicKeyHash`, the value the CLI sends toward the registry, is the hex SHA-256 of the SPKI PEM after CRLF is turned into LF and the string is trimmed (`hashPublicKeyPem`). `fingerprintPem` is a separate non-cryptographic tag (`pem:` plus a 31-bit hash) placed on local verify claims. It is not `publicKeyHash`.
 
-The CLI writes the public document to `.well-known/did.json` and the private key to `.agentic-trust/private-key.pem` (mode `0600`, gitignored). IDE rules from `agentic-trust init` also ask for `public/.well-known/did.json` (or `static/` when that directory already exists).
+The CLI writes the public document to `.well-known/did.json` and the private key to `.agentic-trust/private-key.pem` (mode `0600`, gitignored). IDE rules from `trustflow init` also ask for `public/.well-known/did.json` (or `static/` when that directory already exists).
 
 ## 2. JWS signature for DID proofs
 
@@ -128,11 +128,11 @@ Two different fetches exist. Only the first is code in this repository.
 
 `inspectEndpointBeforeExecution` allows the call only when the endpoint URL’s protocol is `https:` and `verifyDomain` on that hostname is `VERIFIED`. If the DID lists MCP service endpoints, the URL must be one of them. This HTTPS check is a string check on the URL. It is not the registry fetcher below.
 
-`@agentic-trust/cli` POSTs to the registry with a default 20 second timeout (`TRUSTFLOW_API_TIMEOUT_MS`). That client does not fetch the domain’s proof.
+`@trustflow/cli` POSTs to the registry with a default 20 second timeout (`TRUSTFLOW_API_TIMEOUT_MS`). That client does not fetch the domain’s proof.
 
 ### 4.2 Hosted registry `safeFetch` (private API, by reference)
 
-`safeFetch` is not exported by `@agentic-trust/sdk` or by any other package in this repository. It is the domain-proof fetch in the private Trustflow Systems API: the fetch the registry uses when it retrieves a domain’s proof from the public web. This repository does not contain that implementation, so this section does not define a function signature, option bag, or error type for it.
+`safeFetch` is not exported by `@trustflow/sdk` or by any other package in this repository. It is the domain-proof fetch in the private Trustflow Systems API: the fetch the registry uses when it retrieves a domain’s proof from the public web. This repository does not contain that implementation, so this section does not define a function signature, option bag, or error type for it.
 
 The registry fetcher applies these SSRF limits:
 
@@ -153,7 +153,7 @@ The SDK timeouts in section 4.1 are client deadlines. They are not this registry
 | `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), or the registry is unreachable or returns a non-status payload. |
 | `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg`), or the endpoint is not HTTPS. |
 
-`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` default to audit mode (`mode: "audit"`). Unsigned or tampered `llms.txt` does not throw. The middleware logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and emits that same string as an in-process telemetry event. It does not parse the unverified body. `{ strict: true }`, `{ mode: "strict" }`, or `{ failClosed: true }` is fail-closed and throws `UnverifiedDomainContextError` before the body is read. That error message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
+`agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. `@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` default to audit mode (`mode: "audit"`). Unsigned or tampered `llms.txt` does not throw. The middleware logs `[AgenticTrust Security Alert] Unverified context payload detected for <domain>. Enable strict mode to block.` and emits that same string as an in-process telemetry event. It does not parse the unverified body. `{ strict: true }`, `{ mode: "strict" }`, or `{ failClosed: true }` is fail-closed and throws `UnverifiedDomainContextError` before the body is read. That error message is `[AgenticTrust Security Error] Context Poisoning Defense Triggered: Unverified or tampered llms.txt payload detected for <domain>. Execution blocked.`
 
 ## 6. Registry HTTP the clients call
 
@@ -162,8 +162,8 @@ These are the routes the CLI, SDK, and MCP server request. No other registry rou
 | Method | URL | Caller |
 |--------|-----|--------|
 | `GET` | `https://api.trustflow.systems/health` | Documented operational check. Not called by the SDK. |
-| `POST` | `https://api.trustflow.systems/v1/register` | `agentic-trust init` and `agentic-trust sign` |
-| `POST` | `https://api.trustflow.systems/v1/register/confirm` | `agentic-trust confirm` |
+| `POST` | `https://api.trustflow.systems/v1/register` | `trustflow init` and `trustflow sign` |
+| `POST` | `https://api.trustflow.systems/v1/register/confirm` | `trustflow confirm` |
 | `GET` | `https://api.trustflow.systems/v1/verify?domain=` | `verifyDomain` fallback, middleware, `audit_domain` |
 
 `POST /v1/register` from the CLI sends `domain`, `businessName`, `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`), `did`, SPKI `publicKeyPem`, `publicKeyHash`, `manifestUrl` (`https://<domain>/.well-known/did.json`), and `services`. The response fields the CLI requires are `challengeToken`, `instructions`, and `domain`. When `verificationType` is `SSL_CHALLENGE` or `challengePath` is set, the CLI writes `.well-known/agentic-trust-challenge.txt` with the token as the file body. When the response includes `dnsRecord`, the CLI prints `dnsRecord.name` and `dnsRecord.value` and does not invent that record. Confirm sends `domain` and `challengeToken`. No API token is required by the CLI.
@@ -179,7 +179,7 @@ Signing and checking in this repository go through:
 - `verifyDomain`, `inspectEndpointBeforeExecution`, `clearVerifyCache`
 - `fetchDidDocument`, `assessDidDocument` (used internally; the package entry exports the verify and sign functions above)
 - `agenticTrustMiddleware`
-- CLI: `agentic-trust init`, `agentic-trust confirm`, `agentic-trust sign`
+- CLI: `trustflow init`, `trustflow confirm`, `trustflow sign`
 - MCP tools: `audit_domain`, `generate_did_keys`, `sign_llms_txt`
 
 `safeFetch` is not one of these exports.

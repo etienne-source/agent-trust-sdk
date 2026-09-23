@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@agentic-trust/sdk";
+import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { main } from "../src/cli.js";
 import { redactSecrets } from "../src/redact.js";
@@ -32,13 +32,13 @@ describe("redactSecrets", () => {
   });
 });
 
-describe("agentic-trust sign", () => {
+describe("trustflow sign", () => {
   it("documents the sign command without printing a private key", async () => {
     const { lines, log } = capture();
     const code = await main(["--help"], { log, stdinIsTTY: false });
     expect(code).toBe(0);
     const text = lines.join("\n");
-    expect(text).toContain("agentic-trust sign");
+    expect(text).toContain("trustflow sign");
     expect(text).toContain("AGENTIC_TRUST_PRIVATE_KEY");
     expect(text).toContain("https://api.trustflow.systems/v1/register");
     expect(text).not.toMatch(/npm install trustflow-sdk/);

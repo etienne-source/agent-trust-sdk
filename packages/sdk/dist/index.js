@@ -1,9 +1,9 @@
 /**
- * **AgenticTrust** open-standard SDK (`@agentic-trust/sdk`).
+ * **AgenticTrust** open-standard SDK (`@trustflow/sdk`).
  *
  * Cryptographic protocol for domain identity: DID signatures (`did:web` + compact JWS).
- * The CLI package is `@agentic-trust/cli`
- * (`npx agentic-trust init`), which registers domains with Trustflow Systems.
+ * The CLI package is `@trustflow/cli`
+ * (`npx trustflow init`), which registers domains with Trustflow Systems.
  *
  * Git-only install until the npm scope exists. Clone this repository so the
  * workspace package resolves, or, once `packages/sdk` is on the default branch:
@@ -14,8 +14,10 @@
  *
  * Do not `npm install github:etienne-source/agent-trust-sdk` against the
  * repository root: that package is the private workspace. Do not install
- * `trustflow-sdk` (unrelated logging package) or run `npx trustflow init`.
- * Previous names `agent-trust-sdk` and `@trustflow/sdk` migrate to `@agentic-trust/sdk`.
+ * `trustflow-sdk` (an unrelated logging package). These packages publish as
+ * `@trustflow/*` because the npm scope `@agentic-trust` is taken by an
+ * unrelated maintainer. The previous package name `agent-trust-sdk` is now
+ * `@trustflow/sdk`. The CLI command is `npx trustflow init`.
  *
  * DID JWS proofs verify only for `EdDSA` (Ed25519) and `ES256`.
  * `alg: "none"`, symmetric `HS*` algorithms, a missing `alg`, and every other algorithm are rejected.

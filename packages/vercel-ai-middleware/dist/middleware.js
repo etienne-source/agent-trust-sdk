@@ -1,4 +1,4 @@
-import { agenticTrustMiddleware, emitSecurityAlert, resolveEnforcementMode, securityAlertEvent, } from "@agentic-trust/sdk";
+import { agenticTrustMiddleware, emitSecurityAlert, resolveEnforcementMode, securityAlertEvent, } from "@trustflow/sdk";
 import { UnverifiedDomainContextError } from "./error.js";
 import { cloneValue, collectContextTargets, collectLlmsPayloads, formatVerifiedLlms, isLlmsTxtUrl, parseLlmsTxt, readBody, writeVerifiedText, } from "./llms.js";
 /** Request header that marks a fetch as domain context even when the path is not `llms.txt`. */

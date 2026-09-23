@@ -22,11 +22,11 @@ Trustflow Systems hosts the registry at trustflow.systems and api.trustflow.syst
 
 What you can run from the repository today:
 
-- `@agentic-trust/sdk` — verify a domain, or sign a `did:web` document
-- `@agentic-trust/cli` — `npx agentic-trust init` once the npm scope exists; until then, the `agentic-trust` binary from a clone
-- `@agentic-trust/mcp-server` — stdio tools for an audit, a key, and a signed `llms.txt`
-- `@agentic-trust/next-plugin` — a development warning when `public/llms.txt` or `public/.well-known/did.json` is missing
-- `@agentic-trust/langchain-middleware` and `@agentic-trust/vercel-ai-middleware` — refuse to parse unsigned `llms.txt`
+- `@trustflow/sdk` — verify a domain, or sign a `did:web` document
+- `@trustflow/cli` — `npx trustflow init` once the npm scope exists; until then, the `trustflow` binary from a clone
+- `@trustflow/mcp-server` — stdio tools for an audit, a key, and a signed `llms.txt`
+- `@trustflow/next-plugin` — a development warning when `public/llms.txt` or `public/.well-known/did.json` is missing
+- `@trustflow/langchain-middleware` and `@trustflow/vercel-ai-middleware` — refuse to parse unsigned `llms.txt`
 - `starters/nextjs`, `starters/v0`, and `starters/bolt` — Next.js App Router boilerplates with a placeholder `did:web` and `llms.txt`
 
 The packages are MIT licensed and installed from GitHub (`github:etienne-source/agent-trust-sdk`). They are not the unrelated npm package `trustflow-sdk`.
@@ -42,7 +42,7 @@ AgenticTrust is the open protocol. Trustflow Systems is the registry we run for 
 
 A domain publishes `https://<domain>/.well-known/did.json` (W3C `did:web`) and a plain `llms.txt`. The DID proof is a compact JWS. The SDK accepts `EdDSA` (Ed25519) and `ES256` (P-256) and rejects `alg: none` and `HS*`. Agents can call `verifyDomain` before they use a tool. LangChain and Vercel AI SDK middleware throw before they parse an unsigned `llms.txt`.
 
-The CLI command is `npx agentic-trust init`. The `@agentic-trust` scope is not on npm yet, so today that binary comes from a clone of https://github.com/etienne-source/agent-trust-sdk (`pnpm --filter @agentic-trust/cli exec agentic-trust init`). The SDK alone installs with:
+The CLI command is `npx trustflow init`. The `@trustflow` scope is not on npm yet, so today that binary comes from a clone of https://github.com/etienne-source/agent-trust-sdk (`pnpm --filter @trustflow/cli exec trustflow init`). The SDK alone installs with:
 
 `pnpm add github:etienne-source/agent-trust-sdk#path:/packages/sdk`
 

@@ -2,7 +2,7 @@ import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createPrivateKey } from "node:crypto";
-import { importPublicKey, verifyDidJws } from "@agentic-trust/sdk";
+import { importPublicKey, verifyDidJws } from "@trustflow/sdk";
 import { describe, expect, it } from "vitest";
 import { generateDidKeys, PRIVATE_KEY_SECRET_WARNING } from "../src/generateDidKeys.js";
 
