@@ -58,6 +58,16 @@ export function hashLlmsTxt(text: string): string {
   return createHash("sha256").update(normalized, "utf8").digest("hex");
 }
 
+function samePublicKey(candidatePem: string, derivedPem: string): boolean {
+  try {
+    const candidate = createPublicKey(candidatePem).export({ type: "spki", format: "der" });
+    const derived = createPublicKey(derivedPem).export({ type: "spki", format: "der" });
+    return Buffer.compare(candidate, derived) === 0;
+  } catch {
+    return false;
+  }
+}
+
 function pemToString(value: string | Buffer): string {
   return typeof value === "string" ? value : value.toString("utf8");
 }
@@ -123,6 +133,9 @@ export async function createSignedDidDocument(
   if (input.privateKeyPem) {
     const material = signingMaterial(input.privateKeyPem);
     privateKeyPem = material.pkcs8Pem;
+    if (input.publicKeyPem !== undefined && !samePublicKey(input.publicKeyPem, material.publicKeyPem)) {
+      throw new Error("publicKeyPem does not match privateKeyPem. Pass the matching public key or omit it.");
+    }
     publicKeyPem = input.publicKeyPem ?? material.publicKeyPem;
     alg = material.alg;
     signingKey = await importPKCS8(material.pkcs8Pem, alg);

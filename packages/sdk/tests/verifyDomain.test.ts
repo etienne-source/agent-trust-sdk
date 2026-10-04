@@ -1,14 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SignJWT, exportSPKI, generateKeyPair } from "jose";
-import { createSignedDidDocument, hashLlmsTxt, clearVerifyCache, inspectEndpointBeforeExecution, verifyDomain } from "../src/index.js";
+import {
+  createSignedDidDocument,
+  hashLlmsTxt,
+  hashPublicKeyPem,
+  clearVerifyCache,
+  inspectEndpointBeforeExecution,
+  verifyDomain,
+} from "../src/index.js";
 import type { DidDocument } from "../src/types.js";
 
-async function makeSignedDid(domain: string) {
+async function makeSignedDid(domain: string, options: { llms?: string; services?: boolean } = {}) {
   const { publicKey, privateKey } = await generateKeyPair("EdDSA", { crv: "Ed25519" });
   const pem = await exportSPKI(publicKey);
   const didId = `did:web:${domain}`;
 
-  const payloadDoc = {
+  const payloadDoc: Omit<DidDocument, "proof"> = {
     id: didId,
     verificationMethod: [
       {
@@ -26,7 +33,9 @@ async function makeSignedDid(domain: string) {
         serviceEndpoint: `https://${domain}/mcp`,
       },
     ],
+    ...(options.llms !== undefined ? { llmsTxtSha256: hashLlmsTxt(options.llms) } : {}),
   };
+  if (options.services === false) delete payloadDoc.service;
 
   const jws = await new SignJWT(payloadDoc)
     .setProtectedHeader({ alg: "EdDSA" })
@@ -72,24 +81,152 @@ describe("verifyDomain", () => {
 
   it("returns VERIFIED for valid did.json + JWS", async () => {
     const domain = "readyaccounting.co.za";
-    const { did } = await makeSignedDid(domain);
+    const llms = "# Ready Accounting\n> Bookkeeping for SMEs";
+    const { did } = await makeSignedDid(domain, { llms });
     const fetchFn = mockFetchRouter({
       "/.well-known/did.json": { body: did },
-      "/.well-known/llms.txt": {
-        text: "# Ready Accounting\n> Bookkeeping for SMEs",
-      },
+      "/.well-known/llms.txt": { text: llms },
+      [`${domain}/llms.txt`]: { text: `${llms}\n` },
     });
 
     const result = await verifyDomain(domain, {
       fetch: fetchFn,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
 
     expect(result.status).toBe("VERIFIED");
     expect(result.domain).toBe(domain);
     expect(result.claims.llmsTxtPresent).toBe(true);
     expect(result.claims.did).toBe(`did:web:${domain}`);
+    expect(result.claims.llmsTxtSha256).toBe(hashLlmsTxt(llms));
     expect(result.cached).toBeFalsy();
+  });
+
+  it("returns RISK when llms.txt is published but did.json does not sign it", async () => {
+    const domain = "unbound.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/.well-known/llms.txt": { text: "# Swapped\n> Anything an attacker wants\n" },
+      "/v1/verify": { body: { status: "VERIFIED", claims: {} } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toMatch(/does not sign it/);
+  });
+
+  it("returns RISK when the root /llms.txt differs from the signed copy", async () => {
+    const domain = "rootswap.example";
+    const llms = "# Root\n> Signed\n";
+    const { did } = await makeSignedDid(domain, { llms });
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/.well-known/llms.txt": { text: llms },
+      [`${domain}/llms.txt`]: { text: "# Root\n> Swapped\n" },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toMatch(/^\/llms\.txt does not match the signed hash/);
+  });
+
+  it("returns RISK when the signed llms.txt is not published anywhere", async () => {
+    const domain = "nollms.example";
+    const { did } = await makeSignedDid(domain, { llms: "# Gone\n" });
+    const fetchFn = mockFetchRouter({ "/.well-known/did.json": { body: did } });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toBe("Signed llms.txt is not published");
+  });
+
+  it("returns RISK when an MCP service is swapped without re-signing", async () => {
+    const domain = "svcswap.example";
+    const { did } = await makeSignedDid(domain);
+    did.service = [{ id: `${did.id}#mcp`, type: "MCP", serviceEndpoint: "https://attacker.example/mcp" }];
+    const fetchFn = mockFetchRouter({ "/.well-known/did.json": { body: did } });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toBe("JWS payload services do not match document");
+  });
+
+  it("returns RISK when the registry marks a locally verified domain RISK", async () => {
+    const domain = "flagged.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "RISK", reason: "Key reported compromised", claims: {} } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toBe("Trustflow registry marked the domain RISK: Key reported compromised");
+    expect(result.claims.registryStatus).toBe("RISK");
+  });
+
+  it("returns RISK when did.json carries a key other than the registered one", async () => {
+    const domain = "rekeyed.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { publicKeyHash: "a".repeat(64) } } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toBe("did.json key does not match the key registered with Trustflow");
+  });
+
+  it("returns RISK when the signed llms hash differs from the registered hash", async () => {
+    const domain = "rollback.example";
+    const llms = "# Old\n";
+    const { did } = await makeSignedDid(domain, { llms });
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/.well-known/llms.txt": { text: llms },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { llmsTxtSha256: hashLlmsTxt("# New\n") } } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("RISK");
+    expect(result.reason).toMatch(/registered with Trustflow/);
+  });
+
+  it("uses the registry trust score and key when they agree with did.json", async () => {
+    const domain = "agree.example";
+    const { did, pem } = await makeSignedDid(domain);
+    (did as unknown as Record<string, unknown>).trustScore = 100;
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": {
+        body: { status: "VERIFIED", trustScore: 0.42, claims: { publicKeyHash: hashPublicKeyPem(pem) } },
+      },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("VERIFIED");
+    expect(result.claims.trustScore).toBe(0.42);
+    expect(result.claims.registryStatus).toBe("VERIFIED");
+  });
+
+  it("keeps a local VERIFIED but flags it when the registry is unreachable", async () => {
+    const domain = "regdown.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { status: 503, text: "down" },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("VERIFIED");
+    expect(result.claims.registryStatus).toBe("unreachable");
+    expect(result.reason).toMatch(/registry not checked/);
+  });
+
+  it("refuses a plain-HTTP registry URL", async () => {
+    const domain = "plainhttp.example";
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { status: 404, text: "" },
+      "/v1/verify": { body: { status: "VERIFIED", claims: {} } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "http://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.reason).toMatch(/must use HTTPS/);
+    const urls = (fetchFn as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((call) => String(call[0]));
+    expect(urls.some((url) => url.includes("/v1/verify"))).toBe(false);
   });
 
   it("returns RISK when llms.txt does not match the signed hash", async () => {
@@ -106,7 +243,7 @@ describe("verifyDomain", () => {
     const ok = await verifyDomain(domain, {
       fetch: match,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(ok.status).toBe("VERIFIED");
 
@@ -118,7 +255,7 @@ describe("verifyDomain", () => {
     const risk = await verifyDomain(domain, {
       fetch: tampered,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(risk.status).toBe("RISK");
     expect(risk.reason).toMatch(/does not match the signed hash/);
@@ -140,7 +277,7 @@ describe("verifyDomain", () => {
 
     const result = await verifyDomain(domain, {
       fetch: fetchFn,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
 
     expect(result.status).toBe("UNVERIFIED");
@@ -163,7 +300,7 @@ describe("verifyDomain", () => {
 
     const result = await verifyDomain(domain, {
       fetch: fetchFn,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
 
     expect(result.status).toBe("RISK");
@@ -193,10 +330,10 @@ describe("verifyDomain", () => {
     samples.sort((left, right) => left - right);
     const median = samples[Math.floor(samples.length / 2)] ?? Number.POSITIVE_INFINITY;
     expect(median).toBeLessThan(5);
-    // did.json only fetched once (+ optional llms)
+    // One cold lookup: did.json, both llms.txt URLs, and the registry.
     const calls = (fetchFn as unknown as { mock: { calls: unknown[] } }).mock
       .calls;
-    expect(calls.length).toBeLessThanOrEqual(2);
+    expect(calls.length).toBeLessThanOrEqual(4);
   });
 
   it("returns UNVERIFIED for an invalid domain instead of throwing", async () => {
@@ -216,7 +353,7 @@ describe("verifyDomain", () => {
     const fetchFn = mockFetchRouter({
       "/.well-known/did.json": { text: "<html>nope</html>" },
     });
-    const invalid = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "http://api.test" });
+    const invalid = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
     expect(invalid.status).toBe("RISK");
     expect(invalid.reason).toMatch(/not valid JSON/);
 
@@ -227,7 +364,7 @@ describe("verifyDomain", () => {
     const malformed = await verifyDomain(domain, {
       fetch: arrayBody,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(malformed.status).toBe("RISK");
     expect(malformed.reason).toMatch(/not a DID document/);
@@ -239,7 +376,7 @@ describe("verifyDomain", () => {
     const risk = await verifyDomain(domain, {
       fetch: foreign,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(risk.status).toBe("RISK");
     expect(risk.reason).toMatch(/not did:web/);
@@ -254,7 +391,7 @@ describe("verifyDomain", () => {
     const result = await verifyDomain("victim.example", {
       fetch: fetchFn,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(result.status).toBe("RISK");
     expect(result.reason).toMatch(/does not match domain/);
@@ -279,7 +416,7 @@ describe("verifyDomain", () => {
     const result = await verifyDomain("victim.example", {
       fetch: fetchFn as unknown as typeof fetch,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(result.status).not.toBe("VERIFIED");
     expect(calls.some((url) => url.includes("attacker.example"))).toBe(false);
@@ -307,7 +444,7 @@ describe("verifyDomain", () => {
     const result = await verifyDomain(domain, {
       fetch: fetchFn as unknown as typeof fetch,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(result.status).toBe("VERIFIED");
   });
@@ -322,7 +459,7 @@ describe("verifyDomain", () => {
       "/.well-known/did.json": { body: did },
       "/v1/verify": { body: { status: "VERIFIED", domain, claims: {} } },
     });
-    const none = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "http://api.test" });
+    const none = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
     expect(none.status).toBe("RISK");
     expect(none.reason).toMatch(/Disallowed JWS algorithm: none/);
     const urls = (fetchFn as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((call) =>
@@ -342,7 +479,7 @@ describe("verifyDomain", () => {
     const hmac = await verifyDomain(domain, {
       fetch: hmacFetch,
       bypassCache: true,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(hmac.status).toBe("RISK");
     expect(hmac.reason).toMatch(/Disallowed symmetric JWS algorithm: HS256/);
@@ -362,7 +499,7 @@ describe("verifyDomain", () => {
 
     const result = await verifyDomain(domain, {
       fetch: fetchFn,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(result.status).toBe("UNVERIFIED");
     expect(result.reason).toMatch(/API fallback failed/);
@@ -376,7 +513,7 @@ describe("verifyDomain", () => {
       if (url.includes("did.json")) throw new TypeError("offline");
       return new Response("<html>gateway</html>", { status: 200 });
     }) as unknown as typeof fetch;
-    const badJson = await verifyDomain(domain, { fetch: html, verificationApiUrl: "http://api.test" });
+    const badJson = await verifyDomain(domain, { fetch: html, verificationApiUrl: "https://api.test" });
     expect(badJson.status).toBe("UNVERIFIED");
     expect(badJson.reason).toMatch(/invalid JSON/);
 
@@ -391,7 +528,7 @@ describe("verifyDomain", () => {
     }) as unknown as typeof fetch;
     const unexpected = await verifyDomain(domain, {
       fetch: weird,
-      verificationApiUrl: "http://api.test",
+      verificationApiUrl: "https://api.test",
     });
     expect(unexpected.status).toBe("UNVERIFIED");
     expect(unexpected.reason).toMatch(/unexpected payload/);
@@ -425,5 +562,22 @@ describe("inspectEndpointBeforeExecution", () => {
     });
     expect(r.allowed).toBe(true);
     expect(r.status).toBe("VERIFIED");
+  });
+
+  it("blocks every endpoint when a verified did.json lists no MCP services", async () => {
+    const domain = "nomcp.example";
+    const { did } = await makeSignedDid(domain, { services: false });
+    const fetchFn = mockFetchRouter({ "/.well-known/did.json": { body: did } });
+    const r = await inspectEndpointBeforeExecution(`https://${domain}/mcp`, { fetch: fetchFn });
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBe("Domain did.json lists no MCP service endpoints");
+  });
+
+  it("blocks an endpoint the did.json does not list", async () => {
+    const domain = "mcplisted.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({ "/.well-known/did.json": { body: did } });
+    const r = await inspectEndpointBeforeExecution(`https://${domain}/other`, { fetch: fetchFn });
+    expect(r.allowed).toBe(false);
   });
 });
