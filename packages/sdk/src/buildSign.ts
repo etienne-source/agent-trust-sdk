@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createSignedDidDocument, type DidServiceEndpoint } from "./identity.js";
-import { alignLlmsTxt, renderLlmsManifest } from "./llmsManifest.js";
+import { createSignedDidDocument, hashLlmsTxt, type DidServiceEndpoint } from "./identity.js";
+import { alignLlmsTxt, assertLlmsTxtDomain, renderLlmsManifest } from "./llmsManifest.js";
 import { normalizeDomain, wellKnownLlmsUrl } from "./tls.js";
 import type { DidDocument } from "./types.js";
 
@@ -9,6 +9,8 @@ export interface SignBuildArtifactsInput {
   domain: string;
   /** Ed25519 or P-256 PKCS#8 PEM. Required. Never written and never logged by this function. */
   privateKeyPem: string;
+  /** `hashLlmsTxt` of the llms.txt body published with this did.json. Required. */
+  llmsTxtSha256: string;
   services?: DidServiceEndpoint[];
 }
 
@@ -115,9 +117,16 @@ export async function signBuildArtifacts(input: SignBuildArtifactsInput): Promis
       "AGENTIC_TRUST_PRIVATE_KEY is not set. Add the Ed25519 or P-256 PEM as a build secret. It is not written and it is not printed."
     );
   }
+  const llmsTxtSha256 = typeof input.llmsTxtSha256 === "string" ? input.llmsTxtSha256.trim().toLowerCase() : "";
+  if (!/^[0-9a-f]{64}$/.test(llmsTxtSha256)) {
+    throw new Error(
+      "llmsTxtSha256 is required. Pass hashLlmsTxt(body) for the llms.txt published with this did.json."
+    );
+  }
   const identity = await createSignedDidDocument({
     domain: input.domain,
     privateKeyPem,
+    llmsTxtSha256,
     services: input.services,
   });
   const didJson = `${JSON.stringify(identity.did, null, 2)}\n`;
@@ -173,6 +182,47 @@ async function readOptional(filePath: string): Promise<string | undefined> {
   }
 }
 
+export interface PublishedLlms {
+  /** Repo-relative path the body was read from. */
+  path: string;
+  body: string;
+}
+
+/**
+ * Find the llms.txt body to sign.
+ *
+ * `targets` are the copies that will be published. When any exist they must have the same
+ * hash, because one signed hash covers every published URL. When none exist, the first
+ * existing `fallbacks` entry is used. Returns undefined when there is no llms.txt at all.
+ */
+export async function resolvePublishedLlms(
+  cwd: string,
+  targets: string[],
+  fallbacks: string[] = []
+): Promise<PublishedLlms | undefined> {
+  const found: PublishedLlms[] = [];
+  for (const relative of targets) {
+    const body = await readOptional(projectPath(cwd, relative));
+    if (body !== undefined) found.push({ path: relative, body });
+  }
+  const [first, ...rest] = found;
+  if (first) {
+    const differing = rest.find((copy) => hashLlmsTxt(copy.body) !== hashLlmsTxt(first.body));
+    if (differing) {
+      throw new Error(
+        `${first.path} and ${differing.path} differ. Both are published and one hash signs both. Make them identical, or delete one, before signing.`
+      );
+    }
+    return first;
+  }
+  for (const relative of fallbacks) {
+    if (targets.includes(relative)) continue;
+    const body = await readOptional(projectPath(cwd, relative));
+    if (body !== undefined) return { path: relative, body };
+  }
+  return undefined;
+}
+
 function flag(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
   const normalized = value.trim().toLowerCase();
@@ -195,8 +245,7 @@ export async function renewBuildSignatures(
     options.domain?.trim() ||
     envValue(env, "AGENTIC_TRUST_DOMAIN") ||
     envValue(env, "VERCEL_PROJECT_PRODUCTION_URL") ||
-    envValue(env, "URL") ||
-    envValue(env, "VERCEL_URL");
+    envValue(env, "URL");
   if (!domainInput) {
     throw new Error(
       "AGENTIC_TRUST_DOMAIN is not set. Set the hostname for the build. This hook does not prompt."
@@ -224,7 +273,12 @@ export async function renewBuildSignatures(
     explicitWellKnown === false ? undefined : explicitWellKnown || (explicitLlms ? undefined : `${prefix}.well-known/llms.txt`);
 
   const existingDid = await readOptional(projectPath(cwd, didPath));
-  const existingLlms = await readOptional(projectPath(cwd, llmsPath));
+  const published = await resolvePublishedLlms(
+    cwd,
+    wellKnownLlmsPath ? [llmsPath, wellKnownLlmsPath] : [llmsPath]
+  );
+  const existingLlms = published?.body;
+  if (existingLlms !== undefined) assertLlmsTxtDomain(existingLlms, domain);
   const services = parseServiceList(options.services ?? envValue(env, "AGENTIC_TRUST_SERVICES"));
   const businessName = (
     options.businessName?.trim() ||
@@ -242,6 +296,8 @@ export async function renewBuildSignatures(
     ? alignLlmsTxt(existingLlms, domain)
     : renderLlmsManifest({ name: businessName, description, domain, services });
 
+  const llmsBody = llmsTxt.endsWith("\n") ? llmsTxt : `${llmsTxt}\n`;
+  const llmsTxtSha256 = hashLlmsTxt(llmsBody);
   const keepDid = rotate === false && existingDid !== undefined;
   let didJson = existingDid;
   let publicKeyHash = "";
@@ -251,6 +307,7 @@ export async function renewBuildSignatures(
     const signed = await signBuildArtifacts({
       domain,
       privateKeyPem,
+      llmsTxtSha256,
       services: [
         {
           id: `did:web:${domain}#llms`,
@@ -265,27 +322,30 @@ export async function renewBuildSignatures(
     didId = signed.did.id ?? didId;
   } else if (didJson) {
     assertPublic(didPath, didJson, privateKeyPem);
+    let parsed: { id?: string; llmsTxtSha256?: string; proof?: { jws?: string } };
     try {
-      const parsed = JSON.parse(didJson) as { id?: string; proof?: { jws?: string } };
-      if (typeof parsed.id === "string") didId = parsed.id;
-      if (parsed.proof?.jws) algorithm = algorithmFromJws(parsed.proof.jws);
+      parsed = JSON.parse(didJson) as typeof parsed;
     } catch {
-      // an existing document that is not JSON is still left untouched when rotate is false
+      throw new Error(`${didPath} is not JSON. Set rotate to true to sign a new did.json.`);
     }
+    if (parsed.llmsTxtSha256 !== llmsTxtSha256) {
+      throw new Error(
+        `${didPath} does not sign this llms.txt (rotate is false). Set rotate to true so the published llms.txt matches the signed hash.`
+      );
+    }
+    if (typeof parsed.id === "string") didId = parsed.id;
+    if (parsed.proof?.jws) algorithm = algorithmFromJws(parsed.proof.jws);
   }
   if (!didJson) {
     throw new Error(`Refusing to publish an empty did.json at ${didPath}`);
   }
 
   const files: BuildSignatureFile[] = [
-    { path: llmsPath, contents: llmsTxt.endsWith("\n") ? llmsTxt : `${llmsTxt}\n` },
+    { path: llmsPath, contents: llmsBody },
     { path: didPath, contents: didJson.endsWith("\n") ? didJson : `${didJson}\n` },
   ];
   if (wellKnownLlmsPath) {
-    files.splice(1, 0, {
-      path: wellKnownLlmsPath,
-      contents: llmsTxt.endsWith("\n") ? llmsTxt : `${llmsTxt}\n`,
-    });
+    files.splice(1, 0, { path: wellKnownLlmsPath, contents: llmsBody });
   }
   for (const file of files) assertPublic(file.path, file.contents, privateKeyPem);
 

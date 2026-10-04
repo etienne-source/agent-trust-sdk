@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createSignedDidDocument } from "@trustflow/sdk";
+import { createSignedDidDocument, hashLlmsTxt, importPublicKey, verifyDidJws } from "@trustflow/sdk";
 import { describe, expect, it } from "vitest";
 import {
   agenticTrustBuildCommand,
@@ -116,5 +116,57 @@ describe("runAgenticTrustVercelBuild", () => {
       withAgenticTrustVercelConfig({ buildCommand: "agentic-trust-vercel && pnpm build" }).buildCommand
     ).toBe("agentic-trust-vercel && pnpm build");
     expect(JSON.stringify(withAgenticTrustVercelConfig({}))).not.toContain("PRIVATE KEY");
+  });
+
+  it("signs llmsTxtSha256 for the llms.txt it publishes", async () => {
+    const cwd = await project();
+    await mkdir(path.join(cwd, "public"), { recursive: true });
+    const result = await runAgenticTrustVercelBuild({
+      cwd,
+      privateKeyPem: await privateKey(),
+      domain: "hash.example",
+      env: {},
+    });
+    const did = JSON.parse(await readFile(path.join(cwd, "public/.well-known/did.json"), "utf8"));
+    const llms = await readFile(path.join(cwd, "public/llms.txt"), "utf8");
+    expect(did.llmsTxtSha256).toBe(hashLlmsTxt(llms));
+    const key = await importPublicKey(did);
+    expect(await verifyDidJws(did, key!)).toMatchObject({ ok: true, llmsTxtSha256: hashLlmsTxt(llms) });
+    expect(result.written).toHaveLength(3);
+  });
+
+  it("signs a published .well-known/llms.txt rather than an unrelated candidate", async () => {
+    const cwd = await project();
+    await mkdir(path.join(cwd, "public/.well-known"), { recursive: true });
+    await writeFile(path.join(cwd, "public/.well-known/llms.txt"), "# Published\n> Real body\n");
+    await writeFile(path.join(cwd, "llms.txt"), "# Stale root copy\n");
+    await runAgenticTrustVercelBuild({ cwd, privateKeyPem: await privateKey(), domain: "pick.example", env: {} });
+    const llms = await readFile(path.join(cwd, "public/llms.txt"), "utf8");
+    expect(llms).toContain("# Published");
+    expect(llms).not.toContain("Stale root copy");
+  });
+
+  it("refuses differing published copies and an llms.txt for another domain", async () => {
+    const differ = await project();
+    await mkdir(path.join(differ, "public/.well-known"), { recursive: true });
+    await writeFile(path.join(differ, "public/llms.txt"), "# A\n");
+    await writeFile(path.join(differ, "public/.well-known/llms.txt"), "# B\n");
+    await expect(
+      runAgenticTrustVercelBuild({ cwd: differ, privateKeyPem: await privateKey(), domain: "a.example", env: {} })
+    ).rejects.toThrow(/differ/);
+
+    const foreign = await project();
+    await mkdir(path.join(foreign, "public"), { recursive: true });
+    await writeFile(path.join(foreign, "public/llms.txt"), "# Copied\n\n## Identity\n- DID: did:web:other.example\n");
+    await expect(
+      runAgenticTrustVercelBuild({ cwd: foreign, privateKeyPem: await privateKey(), domain: "mine.example", env: {} })
+    ).rejects.toThrow(/names other\.example/);
+  });
+
+  it("does not fall back to the preview VERCEL_URL", async () => {
+    const cwd = await project();
+    await expect(
+      runAgenticTrustVercelBuild({ cwd, privateKeyPem: await privateKey(), env: { VERCEL_URL: "app-git-x.vercel.app" } })
+    ).rejects.toThrow(/AGENTIC_TRUST_DOMAIN is not set/);
   });
 });

@@ -1,8 +1,7 @@
 import { alignLlmsTxt, renderLlmsManifest } from "@trustflow/sdk";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 
-const CANDIDATES = [
+/** Places an llms.txt may already live, used when the published copies do not exist yet. */
+export const LLMS_CANDIDATES = [
   "public/llms.txt",
   "public/.well-known/llms.txt",
   "llms.txt",
@@ -27,19 +26,6 @@ export function headingName(text: string): string | undefined {
   const match = /^#\s+(.+)$/m.exec(text);
   const name = match?.[1]?.trim();
   return name || undefined;
-}
-
-export async function findLlmsFile(cwd: string): Promise<string | undefined> {
-  for (const relative of CANDIDATES) {
-    const full = path.join(cwd, relative);
-    try {
-      const stat = await fs.stat(full);
-      if (stat.isFile()) return full;
-    } catch {
-      // try the next candidate
-    }
-  }
-  return undefined;
 }
 
 export function parseServiceList(value: string | undefined): string[] {

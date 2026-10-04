@@ -1,8 +1,15 @@
 import { createPrivateKey } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { normalizeDomain, signBuildArtifacts, wellKnownLlmsUrl } from "@trustflow/sdk";
-import { alignLlmsTxt, findLlmsFile, headingName, parseServiceList, renderLlms } from "./llms.js";
+import {
+  assertLlmsTxtDomain,
+  hashLlmsTxt,
+  normalizeDomain,
+  resolvePublishedLlms,
+  signBuildArtifacts,
+  wellKnownLlmsUrl,
+} from "@trustflow/sdk";
+import { LLMS_CANDIDATES, alignLlmsTxt, headingName, parseServiceList, renderLlms } from "./llms.js";
 
 export const AGENTIC_TRUST_VERCEL_BIN = "agentic-trust-vercel";
 
@@ -91,8 +98,7 @@ function resolveDomain(options: AgenticTrustVercelBuildOptions, env: NodeJS.Proc
   const raw =
     options.domain?.trim() ||
     envValue(env, "AGENTIC_TRUST_DOMAIN") ||
-    envValue(env, "VERCEL_PROJECT_PRODUCTION_URL") ||
-    envValue(env, "VERCEL_URL");
+    envValue(env, "VERCEL_PROJECT_PRODUCTION_URL");
   if (!raw) {
     throw new Error(
       "AGENTIC_TRUST_DOMAIN is not set. Add the hostname as a Vercel environment variable. This build does not prompt."
@@ -188,8 +194,16 @@ export async function runAgenticTrustVercelBuild(
   }
   const algorithm = assertPrivateKey(privateKeyPem);
 
-  const existingPath = await findLlmsFile(cwd);
-  const existing = existingPath ? await fs.readFile(existingPath, "utf8") : undefined;
+  const outDir = options.outDir?.trim() || (await defaultOutDir(cwd));
+  const relativeOut = outDir === "." ? "" : outDir.replace(/\\/g, "/").replace(/\/$/, "");
+  const join = (name: string) => (relativeOut ? `${relativeOut}/${name}` : name);
+  const published = await resolvePublishedLlms(
+    cwd,
+    [join("llms.txt"), join(".well-known/llms.txt")],
+    LLMS_CANDIDATES
+  );
+  const existing = published?.body;
+  if (existing !== undefined) assertLlmsTxtDomain(existing, domain);
   const services = parseServiceList(options.services ?? envValue(env, "AGENTIC_TRUST_SERVICES"));
   const businessName = (
     options.businessName?.trim() ||
@@ -208,9 +222,11 @@ export async function runAgenticTrustVercelBuild(
     ? alignLlmsTxt(existing, domain)
     : renderLlms({ name: businessName, description, domain, services });
 
+  const llmsBody = llmsTxt.endsWith("\n") ? llmsTxt : `${llmsTxt}\n`;
   const identity = await signBuildArtifacts({
     domain,
     privateKeyPem,
+    llmsTxtSha256: hashLlmsTxt(llmsBody),
     services: [
       {
         id: `did:web:${domain}#llms`,
@@ -220,12 +236,9 @@ export async function runAgenticTrustVercelBuild(
     ],
   });
   const didJson = identity.didJson;
-  const outDir = options.outDir?.trim() || (await defaultOutDir(cwd));
-  const relativeOut = outDir === "." ? "" : outDir.replace(/\\/g, "/").replace(/\/$/, "");
-  const join = (name: string) => (relativeOut ? `${relativeOut}/${name}` : name);
   const files: AgenticTrustVercelArtifact[] = [
-    { path: join("llms.txt"), contents: llmsTxt.endsWith("\n") ? llmsTxt : `${llmsTxt}\n` },
-    { path: join(".well-known/llms.txt"), contents: llmsTxt.endsWith("\n") ? llmsTxt : `${llmsTxt}\n` },
+    { path: join("llms.txt"), contents: llmsBody },
+    { path: join(".well-known/llms.txt"), contents: llmsBody },
     { path: join(".well-known/did.json"), contents: didJson },
   ];
 

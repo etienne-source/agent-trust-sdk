@@ -57,9 +57,10 @@ export { createSignedDidDocument, hashLlmsTxt, hashPublicKeyPem, publicKeyPemFro
 export { alignLlmsTxt, assertLlmsTxtDomain, llmsTxtDomains, renderLlmsManifest } from "./llmsManifest.js";
 export type { LlmsManifestInput } from "./llmsManifest.js";
 export type { CreateSignedDidInput, DidServiceEndpoint, SignedDidIdentity } from "./identity.js";
-export { signBuildArtifacts, renewBuildSignatures } from "./buildSign.js";
+export { signBuildArtifacts, renewBuildSignatures, resolvePublishedLlms } from "./buildSign.js";
 export type {
   BuildSignatureFile,
+  PublishedLlms,
   RenewBuildSignaturesOptions,
   RenewBuildSignaturesResult,
   SignBuildArtifactsInput,
