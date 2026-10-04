@@ -58,7 +58,7 @@ if (!gate.allowed) {
 
 ## Demand-side middleware
 
-`agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It verifies local `did:web` (JWS on `/.well-known/did.json`) or calls `GET {base}/v1/verify` (default `https://api.trustflow.systems`). Verified results append `{ verified: true, trustScore }`. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
+`agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It verifies local `did:web` (JWS on `/.well-known/did.json`), requires any published `llms.txt` to match the signed hash, and consults `GET {base}/v1/verify` (default `https://api.trustflow.systems`, HTTPS required). A registry `RISK` is not ignored. `trustScore` comes from the registry. Verified results append `{ verified: true, trustScore }`. An unsigned or swapped `llms.txt` body is `RISK`. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
 
 ```ts
 import { agenticTrustMiddleware } from "@trustflow/sdk";
@@ -73,7 +73,7 @@ Call `verifyDomain` from `@trustflow/sdk` before a tool reads a remote `llms.txt
 
 ## Verify cache
 
-`verifyDomain` and `agenticTrustMiddleware` share an in-memory result cache. After the first lookup, a repeat check for the same domain is a cache hit and stays under 5ms. Imported public keys and successful local JWS checks are cached too. A warm `importPublicKey` or `verifyDidJws` stays under 2ms. `clearVerifyCache()` drops those entries and the imported public-key cache. Set `AGENTIC_TRUST_CACHE_DIR` to also keep a JSON copy of public verify results on disk for the next process. That directory must not contain a private key; the cache refuses results that include one. Pass `cache: new MemoryCache({ diskDirectory })` to use a separate store.
+`verifyDomain` and `agenticTrustMiddleware` share an in-memory result cache. After the first lookup, a repeat check for the same domain is a cache hit and stays under 5ms. `clearVerifyCache()` drops those entries. Set `AGENTIC_TRUST_CACHE_DIR` to also keep a JSON copy of public verify results on disk for the next process. That directory must not contain a private key; the cache refuses results that include one, records that are not verify results, and files another user can write. Pass `cache: new MemoryCache({ diskDirectory })` to use a separate store.
 
 ## Edge bundle
 
@@ -89,7 +89,7 @@ pnpm --filter @trustflow/sdk bundle:edge
 
 ## Build-time signature renewal
 
-`signBuildArtifacts` and `renewBuildSignatures` re-sign `did.json` from `AGENTIC_TRUST_PRIVATE_KEY` during a Vercel or Netlify build. They call `createSignedDidDocument`. The private key is not written, not returned, and not printed.
+`signBuildArtifacts` and `renewBuildSignatures` re-sign `did.json` from `AGENTIC_TRUST_PRIVATE_KEY` during a Vercel or Netlify build. They call `createSignedDidDocument` and require `llmsTxtSha256` for the `llms.txt` they publish. The private key is not written, not returned, and not printed.
 
 ```ts
 import { renewBuildSignatures } from "@trustflow/sdk";

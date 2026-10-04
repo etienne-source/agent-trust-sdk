@@ -7,10 +7,10 @@ Stdio [Model Context Protocol](https://modelcontextprotocol.io) server for **Tru
 | Tool | What it does |
 |------|----------------|
 | `audit_domain` | `GET /v1/verify?domain=` — status, `isVerified`, TrustScore, and audit factors |
-| `generate_did_keys` | Ed25519 (default) or ES256 (P-256) key pair and a signed W3C `did:web` document |
-| `sign_llms_txt` | Sign an `llms.txt` manifest with the domain private key |
+| `generate_did_keys` | Ed25519 (default) or ES256 (P-256) key pair and a signed W3C `did:web` document. The private key is written to `privateKeyPath` and is not returned. |
+| `sign_llms_txt` | Sign an `llms.txt` manifest with the domain private key read from `privateKeyPath` |
 
-Signing uses `@trustflow/sdk` `createSignedDidDocument` (EdDSA or ES256 compact JWS). This package does not invent a second proof format.
+Signing uses `@trustflow/sdk` `createSignedDidDocument` (EdDSA or ES256 compact JWS). This package does not invent a second proof format. Paths a tool reads or writes must be inside the server root (`AGENTIC_TRUST_MCP_ROOT`, or the process working directory). The registry base is a server option (`TRUSTFLOW_API_URL`), not a tool argument.
 
 **License:** MIT
 
@@ -85,7 +85,7 @@ Published server:
 
 ### `audit_domain`
 
-Fetches `GET {base}/v1/verify?domain=`. Default base: `https://api.trustflow.systems`. Pass `baseUrl` to point at another origin (unit tests do this; they do not call the network).
+Fetches `GET {base}/v1/verify?domain=`. Default base: `https://api.trustflow.systems`. Override the base with `TRUSTFLOW_API_URL` or the `apiBase` server option. There is no `baseUrl` tool argument.
 
 Returns structured content:
 
@@ -93,21 +93,22 @@ Returns structured content:
 - `isVerified` — `true` when the registry says so, or when `status` is `VERIFIED`
 - `audit.score` — TrustScore (`audit.score`, or a top-level `trustScore` when that is all the payload has)
 - `audit.factors` — score factors from the Trustflow Domain Audit
+- `domain` — the hostname that was asked, even if the body names another host
 
 ### `generate_did_keys`
 
-Arguments: `domain`, optional `algorithm` (`Ed25519` default, or `ES256` / `P-256`), optional `privateKeyPath`.
+Arguments: `domain`, optional `algorithm` (`Ed25519` default, or `ES256` / `P-256`), required `privateKeyPath`.
 
 Ed25519 generation and the JWS proof both go through `createSignedDidDocument`. ES256 generates a P-256 PKCS#8 key and passes it into that same SDK function.
 
-The result includes `didJson` (public, suitable for `.well-known/did.json`) and `privateKeyPem`. `secret.label` is `SECRET`. The private key is not written unless `privateKeyPath` is set (mode `0600`).
+The private key is written to a new file at `privateKeyPath` (mode `0600`) inside the server root. An existing file is not replaced. The tool result includes `didJson` (public, suitable for `.well-known/did.json`) and does not include `privateKeyPem`.
 
 ### `sign_llms_txt`
 
-Arguments: `domain`, `privateKeyPem`, and `llmsTxt` or `llmsTxtPath`. Optional `outputDir`.
+Arguments: `domain`, `privateKeyPath`, and `llmsTxt` or `llmsTxtPath`. Optional `outputDir`. All paths must be inside the server root. `llmsTxtPath` must name a file called `llms.txt`. The manifest must not name another domain.
 
-The SDK signs a `did:web` document whose `LinkedDomains` service endpoint is `https://<domain>/.well-known/llms.txt`. That document is the Trustflow signature for the manifest, matching `@trustflow/cli`. The returned `llms.txt` keeps the caller's prose and names the same `did:web`.
+The SDK signs a `did:web` document whose `LinkedDomains` service endpoint is `https://<domain>/.well-known/llms.txt` and whose `llmsTxtSha256` is the hash of the aligned body. That document is the Trustflow signature for the manifest, matching `@trustflow/cli`. The returned `llms.txt` keeps the caller's prose and names the same `did:web`. The private key is read from disk and is never returned.
 
-`outputDir` writes only public files: `llms.txt`, `.well-known/llms.txt`, and `.well-known/did.json`. The private key is never written.
+`outputDir` overwrites public files there: `llms.txt`, `.well-known/llms.txt`, and `.well-known/did.json`. The private key is never written.
 
 Publish those files, then register with Trustflow Systems (`POST https://api.trustflow.systems/v1/register`) via `trustflow init` or `trustflow sign`.

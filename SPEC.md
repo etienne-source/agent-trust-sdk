@@ -67,8 +67,9 @@ The proof is a compact JWS in `proof.jws`. `proof.type` on documents this SDK si
 Signing (`SignJWT` in `createSignedDidDocument`):
 
 - Protected header is `{ "alg": "EdDSA" }` or `{ "alg": "ES256" }`. No other header parameter is set.
-- The payload is the DID object without `@context` and without `proof`: `id`, `verificationMethod`, `assertionMethod`, and `service`. `setIssuedAt()` adds `iat`.
+- The payload is the DID object without `@context` and without `proof`: `id`, `verificationMethod`, `assertionMethod`, `service`, and optional `llmsTxtSha256`. `setIssuedAt()` adds `iat`.
 - The key is the Ed25519 or P-256 private key. `alg` is `EdDSA` for Ed25519 and `ES256` for P-256 (`prime256v1`).
+- `createSignedDidDocument` refuses a `publicKeyPem` that does not match the private key.
 
 Verification (`verifyDidJws`):
 
@@ -76,7 +77,10 @@ Verification (`verifyDidJws`):
 2. Apply the allowlist in section 3 before the signature is trusted.
 3. Require the key’s algorithm to be that same allowlisted `alg` (`JWS alg does not match verification key` otherwise).
 4. `compactVerify` the JWS with `algorithms` set to that single `alg`.
-5. If the payload is JSON and contains `id`, that `id` must equal `did.id`. A non-JSON payload is accepted when the signature verifies.
+5. The payload must be a JSON object. `id` must equal `did.id`.
+6. `verificationMethod[0]` in the payload must bind the same public key as the document (PEM, or a canonical JWK of `kty`/`crv`/`x`/`y` only). Extra JWK members such as `kid` are ignored.
+7. Canonical JSON of `service` and of `assertionMethod` must match the published document. A swapped MCP endpoint that the JWS does not cover fails (`JWS payload services do not match document`).
+8. When the document lists `llmsTxtSha256`, the payload must sign the same SHA-256 hex.
 
 `assessDidDocument` then maps that result:
 
@@ -89,9 +93,13 @@ Verification (`verifyDidJws`):
 | `verifyDidJws` fails | `risk` |
 | Signature checks pass | `verified` |
 
-A `did:web` id for a different host is not rejected by the `did:web:` prefix check alone. The JWS `id` is compared to the document `id`, not to `did:web:<requested host>`.
+A `did:web` id for a different host is `RISK` (`DID id does not match domain`). The JWS `id` is also compared to the document `id`.
 
-`verifyDomain` treats local `VERIFIED` and local `RISK` as final. A local `RISK` proof is not replaced by a registry `VERIFIED`. `incomplete` and transport failure fall through to `GET {base}/v1/verify?domain=`.
+`evaluateDomainTrust` (used by `verifyDomain` and the middleware) is the one decision:
+
+- A local `RISK` (bad JWS, swapped services, swapped or unbound `llms.txt`) is final. The registry is not queried.
+- A local `VERIFIED` is always checked against the registry. A registry `RISK`, a different registered `publicKeyHash`, or a different registered `llmsTxtSha256` is `RISK`. A registry `VERIFIED` may add `trustScore` (never read from `did.json`). When the registry is unreachable the local `VERIFIED` is kept, `claims.registryStatus` is `unreachable`, and the result is cached briefly.
+- When there is no usable local proof, a registry `VERIFIED` or `RISK` is returned as-is. Otherwise the result is `UNVERIFIED`.
 
 ## 3. Algorithm pinning
 
@@ -118,15 +126,15 @@ Two different fetches exist. Only the first is code in this repository.
 
 ### 4.1 Public SDK
 
-`fetchDidDocument` requests `GET https://<domain>/.well-known/did.json` with `Accept: application/json` and `redirect: "follow"`. It does not resolve DNS itself, does not filter private addresses, and does not cap redirects. `verifyDomain` aborts that call after 8 seconds (`LOCAL_DID_TIMEOUT_MS`). A network error there is not `RISK`; the call falls through to the registry. HTTP errors are `UNVERIFIED`. Invalid JSON is `RISK`.
+`fetchDidDocument` requests `GET https://<domain>/.well-known/did.json` with `Accept: application/json` and `redirect: "manual"`. One same-site hop is followed (`sameSiteRedirect`: HTTPS, same path, same host or a single apex ↔ www change). Cross-host redirects are refused. `verifyDomain` aborts that call after 8 seconds (`LOCAL_DID_TIMEOUT_MS`). A network error there is not `RISK`; the call falls through to the registry. HTTP errors are `UNVERIFIED`. Invalid JSON is `RISK`.
 
-`softFetchLlms` GETs `https://<domain>/.well-known/llms.txt` with `redirect: "follow"` and a 5 second timeout. Failure only clears `llmsTxtPresent`.
+When the JWS verifies, the SDK GETs both `https://<domain>/.well-known/llms.txt` and `https://<domain>/llms.txt` (`redirect: "manual"`, one same-site hop, 5 second timeout). An HTML body counts as absent. A published copy whose SHA-256 (`hashLlmsTxt`: BOM and CRLF normalized, one trailing newline ignored) does not match the signed `llmsTxtSha256` is `RISK`. A published copy when the JWS does not sign a hash is `RISK` (`llms.txt is published … but did.json does not sign it`). A signed hash with nothing published is `RISK` (`Signed llms.txt is not published`).
 
-`verifyDomain`’s registry GET uses a 10 second timeout. The default base is `VERIFICATION_API_URL`, or `http://localhost:8787` when that variable is unset.
+`verifyDomain`’s registry GET uses a 10 second timeout. The default base is `VERIFICATION_API_URL`, or `https://api.trustflow.systems` when that variable is unset. The base must be HTTPS (plain HTTP only on loopback). A `domain` field in the registry body is ignored; the answer is applied to the host that was asked.
 
-`agenticTrustMiddleware` uses one `AbortSignal` of 4 seconds (`DEFAULT_MIDDLEWARE_TIMEOUT_MS`) for its local DID read and, if needed, `GET {base}/v1/verify`. Its default base is `AGENTIC_TRUST_API_URL`, then `VERIFICATION_API_URL`, then `https://api.trustflow.systems`. Timeout and transport failure set `securityWarning` and do not throw. Middleware cache TTL is 5 minutes for a successful lookup and 15 seconds for a transport failure. A warm in-memory hit for `verifyDomain` or the middleware stays under 5ms. A warm `importPublicKey` or `verifyDidJws` stays under 2ms. `AGENTIC_TRUST_CACHE_DIR` is an optional disk copy of those public results.
+`agenticTrustMiddleware` uses one `AbortSignal` of 4 seconds (`DEFAULT_MIDDLEWARE_TIMEOUT_MS`) for one lookup (did.json, both llms.txt URLs, and the registry). Its default base is `AGENTIC_TRUST_API_URL`, then `VERIFICATION_API_URL`, then `https://api.trustflow.systems`. Timeout and transport failure set `securityWarning` and do not throw, except a local `RISK` stays `RISK`. An `llms.txt` body returned through `fetch`, `annotateDocuments`, or a wrapped tool must hash to the signed value; an unsigned or swapped body is `RISK`. Middleware cache TTL is 5 minutes for a successful lookup and 15 seconds for a transport failure. A warm in-memory hit for `verifyDomain` or the middleware stays under 5ms. `AGENTIC_TRUST_CACHE_DIR` is an optional disk copy of those public results. A cache directory or file that another user can write, or a record that is not a verify result, is ignored.
 
-`inspectEndpointBeforeExecution` allows the call only when the endpoint URL’s protocol is `https:` and `verifyDomain` on that hostname is `VERIFIED`. If the DID lists MCP service endpoints, the URL must be one of them. This HTTPS check is a string check on the URL. It is not the registry fetcher below.
+`inspectEndpointBeforeExecution` allows the call only when the endpoint URL’s protocol is `https:`, `verifyDomain` on that hostname is `VERIFIED`, and the URL is one of the MCP service endpoints signed into `did.json`. When that list is empty, every endpoint is blocked (`Domain did.json lists no MCP service endpoints`). This HTTPS check is a string check on the URL. It is not the registry fetcher below.
 
 `@trustflow/cli` POSTs to the registry with a default 20 second timeout (`TRUSTFLOW_API_TIMEOUT_MS`). That client does not fetch the domain’s proof.
 
@@ -149,11 +157,15 @@ The SDK timeouts in section 4.1 are client deadlines. They are not this registry
 
 | Status | When the SDK uses it |
 |--------|----------------------|
-| `VERIFIED` | Local `did:web` JWS verifies, or the registry payload status is `VERIFIED` after a non-authoritative local result. |
+| `VERIFIED` | Local `did:web` JWS verifies, published `llms.txt` (if any) matches the signed hash, and the registry does not report `RISK` or a different key/hash. Or the registry reports `VERIFIED` when there is no usable local proof. |
 | `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), or the registry is unreachable or returns a non-status payload. |
-| `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg`), or the endpoint is not HTTPS. |
+| `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg` or unbound services/key), a published `llms.txt` is unsigned or swapped, the registry marked the domain `RISK`, the registered key or llms hash differs, or the endpoint is not HTTPS. |
+
+`claims.registryStatus` is set when a local `VERIFIED` is combined with the registry (`VERIFIED`, `RISK`, or `unreachable`). `trustScore` is copied from the registry only.
 
 `agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. Call `verifyDomain` and refuse the tool when the status is not `VERIFIED`.
+
+Build signers (`signBuildArtifacts`, `renewBuildSignatures`, `@trustflow/vercel-plugin`) require `llmsTxtSha256` and sign the published `llms.txt` copies. Those copies must be identical and must name this domain. The preview `VERCEL_URL` is not used as the signing hostname.
 
 ## 6. Registry HTTP the clients call
 
@@ -180,6 +192,6 @@ Signing and checking in this repository go through:
 - `fetchDidDocument`, `assessDidDocument` (used internally; the package entry exports the verify and sign functions above)
 - `agenticTrustMiddleware`
 - CLI: `trustflow init`, `trustflow confirm`, `trustflow sign`
-- MCP tools: `audit_domain`, `generate_did_keys`, `sign_llms_txt`
+- MCP tools: `audit_domain` (no `baseUrl` argument; API base is a server option), `generate_did_keys` (`privateKeyPath` inside the server root; the private key is not returned), `sign_llms_txt` (`privateKeyPath` and paths inside the server root)
 
 `safeFetch` is not one of these exports.

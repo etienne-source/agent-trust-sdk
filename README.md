@@ -153,15 +153,15 @@ npx @trustflow/cli@latest sign \
 2. Looks for `llms.txt` (project root, `.well-known/`, `public/`, `static/`, `docs/`, `src/`). If it is missing, prompts for site name, description, and optional services, then writes `llms.txt` and `.well-known/llms.txt` into that public directory. Next.js, Vite, Nuxt, and any project that already has `public/` or `static/` get that single write path. A blank project also keeps a root copy.
 3. Generates an Ed25519 `did:web` key, signs `<public>/.well-known/did.json`, and stores the private key in `.agentic-trust/` (added to `.gitignore`, mode `0600`). The public key in that file is what registration binds.
 4. Registers the domain with Trustflow: `POST https://api.trustflow.systems/v1/register` (`verificationType` `SSL_CHALLENGE` or `DNS_TXT`, plus `publicKeyPem`). `https://trustflow.systems/api/register` is an alias of that API origin. The SSL challenge file is written automatically (no token paste).
-5. Does not wait for a deploy. Run `trustflow confirm` after the files are on HTTPS. `--confirm` probes once during init. `--skip-register` only writes local files.
-6. Writes the badge into `app/layout.tsx`, `src/app/layout.tsx`, `index.html`, or `app.html` when that file has `</footer>` or `</body>`.
+5. Does not wait for a deploy. Run `trustflow confirm` after the files are on HTTPS. `--confirm` probes once during init. Confirm is not the default. `--skip-register` only writes local files.
+6. Writes the badge into `app/layout.tsx`, `src/app/layout.tsx`, `index.html`, or `app.html` only after the registry verifies the domain, and only when that file has `</footer>` or `</body>`.
 7. When the project is Next.js and `middleware.ts` exists, the matcher is updated so `/.well-known/` and `/llms.txt` are served as files.
 
 The live API still requires the SSL challenge file. The CLI does not confirm from `did.json` alone.
 
 ### `trustflow confirm`
 
-`POST https://api.trustflow.systems/v1/register/confirm` using `.agentic-trust/registration.json` (or `--domain` and `--token`). Writes the badge into a known layout when one exists.
+`POST https://api.trustflow.systems/v1/register/confirm` using `.agentic-trust/registration.json` (or `--domain` and `--token`). Writes the badge into a known layout only when the registry returns a verified status. Otherwise the command exits 1 and does not claim success.
 
 ### `trustflow sign-llms`
 
@@ -169,7 +169,7 @@ Signs an existing `llms.txt` by rewriting the JWS in the existing `did.json` onl
 
 ### `trustflow sign`
 
-Non-interactive entry used by the GitHub Action. Checks root `llms.txt`, signs a `did:web` document with `AGENTIC_TRUST_PRIVATE_KEY`, and POSTs `/v1/register`. `--dry-run` skips the API call. The private key is never printed. Details are in [GitHub Action](#github-action).
+Non-interactive entry used by the GitHub Action. Signs the published `llms.txt` (`public/llms.txt`, `.well-known/llms.txt`, or another existing copy). The generic template is written only when there is no `llms.txt` anywhere. Signs a `did:web` document with `AGENTIC_TRUST_PRIVATE_KEY` (including `llmsTxtSha256`) and POSTs `/v1/register`. `--dry-run` skips the API call. The private key is never printed. Details are in [GitHub Action](#github-action).
 
 ## SDK
 
@@ -204,7 +204,7 @@ Set `VERIFICATION_API_URL=https://api.trustflow.systems` to use the hosted regis
 
 ### Demand-side middleware
 
-`agenticTrustMiddleware` checks a domain when an agent fetches it. The wrapper verifies local `did:web` or calls `GET https://api.trustflow.systems/v1/verify` (base URL configurable). Verified content gets `{ verified: true, trustScore }` on the context and, for `fetch`, an `x-agentic-trust` header. Unverified domains and registry timeouts or network errors set `securityWarning: true` and do not throw. Results reuse the SDK memory cache (middleware misses for 5 minutes; transport failures for 15 seconds). The check times out after 4 seconds.
+`agenticTrustMiddleware` checks a domain when an agent fetches it. The wrapper verifies local `did:web`, requires any published `llms.txt` to match the signed hash, and always consults `GET https://api.trustflow.systems/v1/verify` (base URL configurable, HTTPS required). A registry `RISK` is not ignored. `trustScore` comes from the registry, not from `did.json`. Verified content gets `{ verified: true, trustScore }` on the context and, for `fetch`, an `x-agentic-trust` header. An `llms.txt` body that is unsigned or swapped is reported as `RISK`. Unverified domains and registry timeouts or network errors set `securityWarning: true` and do not throw. Results reuse the SDK memory cache (middleware misses for 5 minutes; transport failures for 15 seconds). The check times out after 4 seconds.
 
 ```ts
 import { agenticTrustMiddleware } from "@trustflow/sdk";
@@ -260,9 +260,9 @@ Function names are unchanged. Install `@trustflow/sdk` and scaffold with `npx @t
 
 Statuses:
 
-- **VERIFIED** — Trustflow `did:web` present and the DID signature (JWS) verifies (and/or the Trustflow registry confirms)
+- **VERIFIED** — Trustflow `did:web` JWS verifies, published `llms.txt` matches the signed hash when one exists, and the registry does not report `RISK` or a different key/hash
 - **UNVERIFIED** — missing manifest, key, proof, or registry entry
-- **RISK** — bad signature, non-`did:web`, or unsafe endpoint (for example non-HTTPS)
+- **RISK** — bad signature, non-`did:web`, unsigned or swapped `llms.txt`, registry `RISK` or key/hash mismatch, or unsafe endpoint (for example non-HTTPS)
 
 ## Trustflow register API
 
@@ -295,14 +295,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: etienne-source/agent-trust-sdk/.github/actions/agentic-trust-sign@main
+      - uses: etienne-source/agent-trust-sdk/.github/actions/agentic-trust-sign@<release-tag-or-commit-sha>
         with:
           domain: ${{ vars.AGENTIC_TRUST_DOMAIN }}
           business-name: ${{ vars.AGENTIC_TRUST_BUSINESS_NAME }}
           private-key: ${{ secrets.AGENTIC_TRUST_PRIVATE_KEY }}
 ```
 
-The action checks root `llms.txt`. If that file is missing it writes the same template as `trustflow init` (`renderLlms` in `@trustflow/cli`) to `llms.txt` and `.well-known/llms.txt`. It then calls `createSignedDidDocument` from `@trustflow/sdk` with `AGENTIC_TRUST_PRIVATE_KEY` and writes `.well-known/did.json`. The private key stays in the environment and in gitignored `.agentic-trust/private-key.pem` (mode `0600`). Logs and the step summary contain the `did:web` id and `publicKeyHash` only.
+Pin the action to a release tag or commit SHA, not `@main`. The action signs the published `llms.txt` copies (it does not overwrite a user's `public/llms.txt` with the generic template). The template is written only when no `llms.txt` exists. It then calls `createSignedDidDocument` from `@trustflow/sdk` with `AGENTIC_TRUST_PRIVATE_KEY` and `llmsTxtSha256`, and writes `.well-known/did.json`. The private key stays in the environment and in gitignored `.agentic-trust/private-key.pem` (mode `0600`). Logs and the step summary contain the `did:web` id and `publicKeyHash` only.
 
 It then calls `POST https://api.trustflow.systems/v1/register` and, by default, `POST /v1/register/confirm`. Confirm stays green when the challenge file is not public yet; set `require-live: true` to fail until Trustflow returns `isVerified`.
 

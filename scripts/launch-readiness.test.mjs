@@ -35,7 +35,8 @@ test("publishable packages share the sdk version and stay public MIT packages of
   }
 
   const server = read("packages/mcp-server/src/server.ts");
-  assert.match(server, /const SERVER_VERSION = "1\.0\.0"/);
+  assert.match(server, /createRequire\(import\.meta\.url\)\("\.\.\/package\.json"\)/);
+  assert.doesNotMatch(server, /const SERVER_VERSION = "1\.0\.0"/);
 });
 
 test("npm publish workflow documents NPM_TOKEN and does not publish on pull requests", () => {
