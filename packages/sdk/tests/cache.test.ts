@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -53,5 +54,29 @@ describe("MemoryCache disk copy", () => {
     expect(() => cache.set("verify:example.com", secret, 60_000)).toThrow(/private key/i);
     expect(readdirSync(directory)).toHaveLength(0);
     expect(cache.get("verify:example.com")).toBeUndefined();
+  });
+
+  it("ignores a cache directory or file that other users can write", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "agentic-trust-cache-"));
+    new MemoryCache({ diskDirectory: directory }).set("verify:example.com", result("example.com"), 60_000);
+    chmodSync(directory, 0o777);
+    expect(new MemoryCache({ diskDirectory: directory }).get("verify:example.com")).toBeUndefined();
+
+    chmodSync(directory, 0o700);
+    const [file] = readdirSync(directory);
+    chmodSync(path.join(directory, file ?? ""), 0o666);
+    expect(new MemoryCache({ diskDirectory: directory }).get("verify:example.com")).toBeUndefined();
+  });
+
+  it("ignores a planted record that is not a verify result", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "agentic-trust-cache-"));
+    const key = "verify:planted.example";
+    const name = `${createHash("sha256").update(key).digest("hex")}.json`;
+    writeFileSync(
+      path.join(directory, name),
+      JSON.stringify({ key, expiresAt: Date.now() + 60_000, value: { status: "TRUSTED", domain: 1 } }),
+      { mode: 0o600 }
+    );
+    expect(new MemoryCache({ diskDirectory: directory }).get(key)).toBeUndefined();
   });
 });
