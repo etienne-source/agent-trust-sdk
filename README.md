@@ -161,7 +161,7 @@ The live API still requires the SSL challenge file. The CLI does not confirm fro
 
 ### `trustflow confirm`
 
-`POST https://api.trustflow.systems/v1/register/confirm` using `.agentic-trust/registration.json` (or `--domain` and `--token`) plus a compact JWS `proof` signed with `.agentic-trust/private-key.pem` or `AGENTIC_TRUST_PRIVATE_KEY`. The private key is not printed. Writes the badge into a known layout only when the registry returns a verified status. A `409 VERIFIED_LISTING_LOCKED` response is a hard failure. Otherwise the command exits 1 and does not claim success.
+`POST https://api.trustflow.systems/v1/register/confirm` using `.agentic-trust/registration.json` (or `--domain` and `--token`) plus a compact JWS `proofJws` signed with `.agentic-trust/private-key.pem` or `AGENTIC_TRUST_PRIVATE_KEY`. The payload is `{ purpose: "trustflow-register-confirm", domain, challengeToken }`. The private key is not printed. Writes the badge into a known layout only when the registry returns a verified status. A `409 VERIFIED_LISTING_LOCKED` response is a hard failure. Otherwise the command exits 1 and does not claim success.
 
 ### `trustflow sign-llms`
 
@@ -275,7 +275,7 @@ Live contract (not a guessed path):
 | `POST` | `https://api.trustflow.systems/v1/register/confirm` |
 | `GET` | `https://api.trustflow.systems/v1/verify?domain=` |
 
-`POST /v1/register` requires `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`). Send the SPKI `publicKeyPem` as well: the live API stores that PEM and sets `publicKeyHash` from it (a hash sent on its own is not stored). The response includes `challengeToken`, `instructions`, and either `challengePath` (HTTPS file `/.well-known/agentic-trust-challenge.txt`, token body, no extra newline required) or `dnsRecord` (`_agentic-trust.<domain>` TXT `agentic-trust-verification=<token>`). Confirm at `POST /v1/register/confirm` with `domain`, `challengeToken`, and `proof` (compact JWS over `{ domain, challengeToken }`, signed with the did:web private key). The private key is not sent. A proved verified listing returns `409 VERIFIED_LISTING_LOCKED`. No API token is required.
+`POST /v1/register` requires `domain`, `businessName`, and `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`). Send the SPKI `publicKeyPem` as well: the live API stores that PEM and sets `publicKeyHash` from it (a hash sent on its own is not stored). The response includes `challengeToken`, `instructions`, and either `challengePath` (HTTPS file `/.well-known/agentic-trust-challenge.txt`, token body, no extra newline required) or `dnsRecord` (`_agentic-trust.<domain>` TXT `agentic-trust-verification=<token>`). Confirm at `POST /v1/register/confirm` with `domain`, `challengeToken`, and `proofJws` (compact JWS over `{ purpose: "trustflow-register-confirm", domain, challengeToken }`, signed with the did:web private key). The field name `proof` is ignored. The private key is not sent. A proved verified listing returns `409 VERIFIED_LISTING_LOCKED`. No API token is required.
 
 `trustflow init` writes the challenge file and registers the domain. It does not wait for those files to become reachable. Run `trustflow confirm` after `did.json` and the challenge URL or DNS TXT are on HTTPS. `--confirm` probes once during init. Confirm still requires the challenge. The registry does not accept `did.json` alone.
 

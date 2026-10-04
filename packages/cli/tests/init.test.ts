@@ -146,9 +146,10 @@ describe("trustflow init", () => {
       domain: "kept.example",
       challengeToken: "token-from-api",
     });
-    const confirmBody = calls[1]?.body as { proof?: string };
-    expect(typeof confirmBody.proof).toBe("string");
-    expect(confirmBody.proof?.split(".")).toHaveLength(3);
+    const confirmBody = calls[1]?.body as { proofJws?: string; proof?: string };
+    expect(confirmBody.proof).toBeUndefined();
+    expect(typeof confirmBody.proofJws).toBe("string");
+    expect(confirmBody.proofJws?.split(".")).toHaveLength(3);
     expect(JSON.stringify(confirmBody)).not.toContain("PRIVATE KEY");
     const challenge = await readFile(
       path.join(cwd, "public", ".well-known", "agentic-trust-challenge.txt"),
@@ -197,10 +198,15 @@ describe("trustflow init", () => {
 
     const confirmFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe("https://api.trustflow.systems/v1/register/confirm");
-      const body = JSON.parse(String(init?.body)) as { challengeToken?: string; proof?: string };
+      const body = JSON.parse(String(init?.body)) as {
+        challengeToken?: string;
+        proofJws?: string;
+        proof?: string;
+      };
       expect(body.challengeToken).toBe("saved-token");
-      expect(typeof body.proof).toBe("string");
-      expect(body.proof?.split(".")).toHaveLength(3);
+      expect(body.proof).toBeUndefined();
+      expect(typeof body.proofJws).toBe("string");
+      expect(body.proofJws?.split(".")).toHaveLength(3);
       expect(JSON.stringify(body)).not.toContain("PRIVATE KEY");
       return jsonResponse({ status: "VERIFIED", domain: "example.com" });
     });

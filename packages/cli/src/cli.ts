@@ -57,7 +57,7 @@ sign
 confirm
   POST /v1/register/confirm using .agentic-trust/registration.json. Signs a
   compact JWS proof with the did:web private key (never printed) and sends it
-  as \`proof\`. Writes the badge only when the registry returns a verified status.
+  as \`proofJws\`. Writes the badge only when the registry returns a verified status.
   A 409 VERIFIED_LISTING_LOCKED means the listing is already proved and locked.
 
 Options:

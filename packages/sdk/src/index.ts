@@ -58,6 +58,7 @@ export {
   hashLlmsTxt,
   hashPublicKeyPem,
   publicKeyPemFromPrivate,
+  REGISTER_CONFIRM_PURPOSE,
   signRegisterConfirmProof,
 } from "./identity.js";
 export { alignLlmsTxt, assertLlmsTxtDomain, llmsTxtDomains, renderLlmsManifest } from "./llmsManifest.js";

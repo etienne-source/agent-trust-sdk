@@ -203,10 +203,14 @@ export async function createSignedDidDocument(
   };
 }
 
+/** Claim the register-confirm API requires inside `proofJws`. */
+export const REGISTER_CONFIRM_PURPOSE = "trustflow-register-confirm";
+
 /**
  * Compact JWS that `POST /v1/register/confirm` verifies against the registered
- * public key. Payload is `{ domain, challengeToken }` only. The private key is
- * used to sign and is not included in the JWS.
+ * public key. Payload is exactly
+ * `{ purpose: "trustflow-register-confirm", domain, challengeToken }`.
+ * The private key is used to sign and is not included in the JWS.
  */
 export async function signRegisterConfirmProof(input: {
   domain: string;
@@ -220,7 +224,11 @@ export async function signRegisterConfirmProof(input: {
   }
   const material = signingMaterial(input.privateKeyPem);
   const signingKey = await importPKCS8(material.pkcs8Pem, material.alg);
-  return new SignJWT({ domain, challengeToken })
+  return new SignJWT({
+    purpose: REGISTER_CONFIRM_PURPOSE,
+    domain,
+    challengeToken,
+  })
     .setProtectedHeader({ alg: material.alg })
     .sign(signingKey);
 }

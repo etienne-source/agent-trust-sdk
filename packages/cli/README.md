@@ -51,7 +51,7 @@ npx @trustflow/cli@latest init
 4. Generates an Ed25519 `did:web` key with `@trustflow/sdk` (`createSignedDidDocument`), writes `<public>/.well-known/did.json` only under that directory when it is a framework public folder, and stores `private-key.pem` in `.agentic-trust/` with mode `0600`. That directory is appended to `.gitignore`.
 5. Registers the domain: `POST https://api.trustflow.systems/v1/register` with `domain`, `businessName`, `verificationType` (`SSL_CHALLENGE` by default, or `DNS_TXT`), and the SPKI `publicKeyPem`. Passing `--api-url https://trustflow.systems/api/register` uses the same API. The site path is not a separate server.
 6. For `SSL_CHALLENGE`, writes `<public>/.well-known/agentic-trust-challenge.txt` (exact token, no trailing newline). Projects with `public/` do not also get a root copy. There is no manual token paste step.
-7. Does not auto-confirm. Pass `--confirm` (or `AGENTIC_TRUST_AUTO_CONFIRM=true`) to probe once and `POST /v1/register/confirm` with `domain`, `challengeToken`, and a compact JWS `proof` signed by the did:web private key (never printed). The default is one probe and no wait. Confirm runs only after the live DID's `publicKeyPem` matches the registered key and the challenge body matches the token. `DNS_TXT` polls the TXT record instead of the challenge file. `--no-auto-confirm` skips that POST. `--skip-register` only writes local files. A proved verified listing returns `409 VERIFIED_LISTING_LOCKED`.
+7. Does not auto-confirm. Pass `--confirm` (or `AGENTIC_TRUST_AUTO_CONFIRM=true`) to probe once and `POST /v1/register/confirm` with `domain`, `challengeToken`, and a compact JWS `proofJws` signed by the did:web private key (never printed). The payload is `{ purpose: "trustflow-register-confirm", domain, challengeToken }`. The default is one probe and no wait. Confirm runs only after the live DID's `publicKeyPem` matches the registered key and the challenge body matches the token. `DNS_TXT` polls the TXT record instead of the challenge file. `--no-auto-confirm` skips that POST. `--skip-register` only writes local files. A proved verified listing returns `409 VERIFIED_LISTING_LOCKED`.
 8. Writes embeddable HTML/SVG (`Verified Domain Context | Trustflow`, linking to `https://trustflow.systems/verify/[domain]`) only after the registry verifies the domain.
 9. When the project is Next.js and `middleware.ts` exists, updates the matcher so `/.well-known/` and `/llms.txt` are served as files.
 
@@ -86,7 +86,7 @@ npx @trustflow/cli@latest init \
 1. Sign the published `llms.txt`. The standard template (`renderLlms`) is written only when no `llms.txt` exists anywhere. A user's `public/llms.txt` is not overwritten.
 2. Sign a `did:web` document with `@trustflow/sdk` (`createSignedDidDocument`) using `AGENTIC_TRUST_PRIVATE_KEY` and `llmsTxtSha256`.
 3. `POST https://api.trustflow.systems/v1/register`, including the SPKI `publicKeyPem`.
-4. Write `.well-known/agentic-trust-challenge.txt` and call `POST /v1/register/confirm` with a compact JWS `proof` unless this is a dry run. The private key is not sent.
+4. Write `.well-known/agentic-trust-challenge.txt` and call `POST /v1/register/confirm` with a compact JWS `proofJws` unless this is a dry run. The private key is not sent.
 
 Set `AGENTIC_TRUST_PRIVATE_KEY` in the environment (do not pass it as an argument), then:
 

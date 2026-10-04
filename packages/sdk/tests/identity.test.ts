@@ -53,7 +53,7 @@ describe("createSignedDidDocument", () => {
 });
 
 describe("signRegisterConfirmProof", () => {
-  it("signs { domain, challengeToken } and does not embed the private key", async () => {
+  it("signs purpose, domain, and challengeToken and does not embed the private key", async () => {
     const identity = await createSignedDidDocument({ domain: "Proof.Example" });
     const proof = await signRegisterConfirmProof({
       domain: "Proof.Example",
@@ -65,6 +65,7 @@ describe("signRegisterConfirmProof", () => {
     const key = await importSPKI(identity.publicKeyPem, "EdDSA");
     const verified = await compactVerify(proof, key, { algorithms: ["EdDSA"] });
     expect(JSON.parse(new TextDecoder().decode(verified.payload))).toEqual({
+      purpose: "trustflow-register-confirm",
       domain: "proof.example",
       challengeToken: "challenge-1",
     });

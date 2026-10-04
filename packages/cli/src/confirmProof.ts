@@ -7,7 +7,8 @@ export const MISSING_CONFIRM_KEY =
 
 /**
  * Build the register-confirm body the API accepts: domain, challengeToken, and
- * a compact JWS `proof` signed by the domain private key. The PEM is not sent.
+ * a compact JWS `proofJws` signed by the domain private key. The PEM is not sent.
+ * The field name `proof` is ignored by the API and is not sent.
  */
 export async function buildConfirmRequest(input: {
   domain: string;
@@ -18,7 +19,7 @@ export async function buildConfirmRequest(input: {
   services?: string[];
   businessName?: string;
 }): Promise<ConfirmRequest> {
-  const proof = await signRegisterConfirmProof({
+  const proofJws = await signRegisterConfirmProof({
     domain: input.domain,
     challengeToken: input.challengeToken,
     privateKeyPem: input.privateKeyPem,
@@ -26,7 +27,7 @@ export async function buildConfirmRequest(input: {
   return {
     domain: input.domain,
     challengeToken: input.challengeToken,
-    proof,
+    proofJws,
     did: input.did,
     publicKeyHash: input.publicKeyHash,
     services: input.services,

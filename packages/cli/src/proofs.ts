@@ -29,7 +29,7 @@ export interface LiveProofInput {
 export interface AutoConfirmInput extends LiveProofInput {
   apiBase: string;
   publicKeyHash: string;
-  /** Signs the confirm `proof`. Never logged or included in the POST body. */
+  /** Signs the confirm `proofJws`. Never logged or included in the POST body. */
   privateKeyPem: string;
   businessName?: string;
   services?: string[];
@@ -50,7 +50,7 @@ export interface AutoConfirmResult {
  * API assumption: `POST /v1/register` still returns `challengeToken` and, for
  * `SSL_CHALLENGE`, `challengePath` (`/.well-known/agentic-trust-challenge.txt`).
  * `POST /v1/register/confirm` still requires that token plus a compact JWS
- * `proof` signed by the registered private key. This client does not
+ * `proofJws` signed by the registered private key. This client does not
  * treat a live `did.json` as a substitute for the challenge file. It writes the
  * challenge, then confirms only after a poll sees both the live
  * DID (public key must match registration) and the challenge body, or the DNS

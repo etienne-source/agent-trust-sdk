@@ -33,10 +33,11 @@ export interface ConfirmRequest {
   domain: string;
   challengeToken: string;
   /**
-   * Compact JWS (EdDSA or ES256) over `{ domain, challengeToken }`.
-   * Proves possession of the registered private key. Never the PEM itself.
+   * Compact JWS (EdDSA or ES256). Payload must be exactly
+   * `{ purpose: "trustflow-register-confirm", domain, challengeToken }`.
+   * The field name `proof` is ignored by the API. Never the PEM itself.
    */
-  proof: string;
+  proofJws: string;
   did?: string;
   publicKeyHash?: string;
   services?: string[];
