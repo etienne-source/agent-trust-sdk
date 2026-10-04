@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
+import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
 import { main } from "../src/cli.js";
 
 async function tempProject(): Promise<string> {
@@ -146,6 +146,10 @@ describe("trustflow init", () => {
       domain: "kept.example",
       challengeToken: "token-from-api",
     });
+    const confirmBody = calls[1]?.body as { proof?: string };
+    expect(typeof confirmBody.proof).toBe("string");
+    expect(confirmBody.proof?.split(".")).toHaveLength(3);
+    expect(JSON.stringify(confirmBody)).not.toContain("PRIVATE KEY");
     const challenge = await readFile(
       path.join(cwd, "public", ".well-known", "agentic-trust-challenge.txt"),
       "utf8"
@@ -193,7 +197,11 @@ describe("trustflow init", () => {
 
     const confirmFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe("https://api.trustflow.systems/v1/register/confirm");
-      expect(JSON.parse(String(init?.body)).challengeToken).toBe("saved-token");
+      const body = JSON.parse(String(init?.body)) as { challengeToken?: string; proof?: string };
+      expect(body.challengeToken).toBe("saved-token");
+      expect(typeof body.proof).toBe("string");
+      expect(body.proof?.split(".")).toHaveLength(3);
+      expect(JSON.stringify(body)).not.toContain("PRIVATE KEY");
       return jsonResponse({ status: "VERIFIED", domain: "example.com" });
     });
     const second = capture();
@@ -249,7 +257,9 @@ describe("trustflow init", () => {
 
   it("writes the badge only when confirm returns a verified status", async () => {
     const cwd = await tempProject();
+    const identity = await createSignedDidDocument({ domain: "example.com" });
     await mkdir(path.join(cwd, ".agentic-trust"), { recursive: true });
+    await writeFile(path.join(cwd, ".agentic-trust", "private-key.pem"), identity.privateKeyPem, "utf8");
     await writeFile(
       path.join(cwd, ".agentic-trust", "registration.json"),
       JSON.stringify({ domain: "example.com", challengeToken: "t", apiBase: "https://api.trustflow.systems" }),

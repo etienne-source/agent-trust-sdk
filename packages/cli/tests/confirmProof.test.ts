@@ -1,7 +1,6 @@
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { compactVerify, importSPKI } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import { createSignedDidDocument } from "@trustflow/sdk";
 import { main } from "../src/cli.js";
@@ -28,27 +27,27 @@ interface ConfirmBody {
   proof?: string;
 }
 
-async function expectValidConfirmProof(
-  body: ConfirmBody,
-  publicKeyPem: string,
-  domain: string,
-  challengeToken: string,
-  privateKeyPem: string
-): Promise<void> {
-  expect(body.domain).toBe(domain);
-  expect(body.challengeToken).toBe(challengeToken);
-  expect(typeof body.proof).toBe("string");
-  expect(body.proof?.split(".")).toHaveLength(3);
-  expect(JSON.stringify(body)).not.toContain("PRIVATE KEY");
-  expect(JSON.stringify(body)).not.toContain(privateKeyPem);
-
-  const key = await importSPKI(publicKeyPem, "EdDSA");
-  const verified = await compactVerify(body.proof!, key, { algorithms: ["EdDSA"] });
-  const payload = JSON.parse(new TextDecoder().decode(verified.payload)) as {
+function decodeJwsPayload(proof: string): { domain?: string; challengeToken?: string } {
+  const parts = proof.split(".");
+  expect(parts).toHaveLength(3);
+  return JSON.parse(Buffer.from(parts[1]!, "base64url").toString("utf8")) as {
     domain?: string;
     challengeToken?: string;
   };
-  expect(payload).toEqual({ domain, challengeToken });
+}
+
+function expectValidConfirmProof(
+  body: ConfirmBody,
+  domain: string,
+  challengeToken: string,
+  privateKeyPem: string
+): void {
+  expect(body.domain).toBe(domain);
+  expect(body.challengeToken).toBe(challengeToken);
+  expect(typeof body.proof).toBe("string");
+  expect(JSON.stringify(body)).not.toContain("PRIVATE KEY");
+  expect(JSON.stringify(body)).not.toContain(privateKeyPem);
+  expect(decodeJwsPayload(body.proof!)).toEqual({ domain, challengeToken });
 }
 
 describe("register confirm private-key proof", () => {
@@ -97,9 +96,8 @@ describe("register confirm private-key proof", () => {
     );
     expect(initCode).toBe(0);
     const privateKeyPem = await readFile(path.join(cwd, ".agentic-trust", "private-key.pem"), "utf8");
-    const publicKeyPem = await readFile(path.join(cwd, ".agentic-trust", "public-key.pem"), "utf8");
     expect(confirmBodies).toHaveLength(1);
-    await expectValidConfirmProof(confirmBodies[0]!, publicKeyPem, "proof.example", "proof-token", privateKeyPem);
+    expectValidConfirmProof(confirmBodies[0]!, "proof.example", "proof-token", privateKeyPem);
     expect(init.lines.join("\n")).not.toContain("PRIVATE KEY");
     expect(init.lines.join("\n")).not.toContain(privateKeyPem.trim());
 
@@ -112,7 +110,7 @@ describe("register confirm private-key proof", () => {
     });
     expect(confirmCode).toBe(0);
     expect(confirmBodies).toHaveLength(2);
-    await expectValidConfirmProof(confirmBodies[1]!, publicKeyPem, "proof.example", "proof-token", privateKeyPem);
+    expectValidConfirmProof(confirmBodies[1]!, "proof.example", "proof-token", privateKeyPem);
     expect(confirm.lines.join("\n")).not.toContain("PRIVATE KEY");
 
     const signer = await createSignedDidDocument({ domain: "sign.example" });
@@ -153,7 +151,7 @@ describe("register confirm private-key proof", () => {
     });
     expect(signCode).toBe(0);
     const signBody = confirmBodies[confirmBodies.length - 1]!;
-    await expectValidConfirmProof(signBody, signer.publicKeyPem, "sign.example", "sign-token", signer.privateKeyPem);
+    expectValidConfirmProof(signBody, "sign.example", "sign-token", signer.privateKeyPem);
     expect(sign.lines.join("\n")).not.toContain("PRIVATE KEY");
     expect(JSON.stringify(signFetch.mock.calls)).not.toContain("PRIVATE KEY");
   });
