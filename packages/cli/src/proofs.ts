@@ -1,6 +1,7 @@
 import { resolveTxt as defaultResolveTxt } from "node:dns/promises";
 import { sameSiteRedirect } from "@trustflow/sdk";
 import { confirmRegistration, TrustflowApiError, type VerificationType } from "./api.js";
+import { buildConfirmRequest } from "./confirmProof.js";
 
 /**
  * CLI wait budget for "register → proofs reachable → confirm".
@@ -28,6 +29,8 @@ export interface LiveProofInput {
 export interface AutoConfirmInput extends LiveProofInput {
   apiBase: string;
   publicKeyHash: string;
+  /** Signs the confirm `proof`. Never logged or included in the POST body. */
+  privateKeyPem: string;
   businessName?: string;
   services?: string[];
   budgetMs?: number;
@@ -46,7 +49,8 @@ export interface AutoConfirmResult {
 /**
  * API assumption: `POST /v1/register` still returns `challengeToken` and, for
  * `SSL_CHALLENGE`, `challengePath` (`/.well-known/agentic-trust-challenge.txt`).
- * `POST /v1/register/confirm` still requires that token. This client does not
+ * `POST /v1/register/confirm` still requires that token plus a compact JWS
+ * `proof` signed by the registered private key. This client does not
  * treat a live `did.json` as a substitute for the challenge file. It writes the
  * challenge, then confirms only after a poll sees both the live
  * DID (public key must match registration) and the challenge body, or the DNS
@@ -82,14 +86,15 @@ export async function autoConfirm(input: AutoConfirmInput): Promise<AutoConfirmR
       try {
         const result = await confirmRegistration(
           input.apiBase,
-          {
+          await buildConfirmRequest({
             domain: input.domain,
             challengeToken: input.challengeToken,
+            privateKeyPem: input.privateKeyPem,
             did: input.didId,
             publicKeyHash: input.publicKeyHash,
             services: input.services,
             businessName: input.businessName,
-          },
+          }),
           input.fetchFn
         );
         if (confirmResultVerified(result)) {
@@ -127,6 +132,7 @@ export function confirmResultVerified(result: Record<string, unknown>): boolean 
 export function isRetryableConfirmError(err: unknown): boolean {
   if (!(err instanceof TrustflowApiError)) return false;
   if (err.status == null) return false;
+  if (err.status === 409 || /VERIFIED_LISTING_LOCKED/i.test(err.message)) return false;
   if (err.status === 404 || err.status === 408 || err.status === 425 || err.status === 429 || err.status === 503) {
     return true;
   }

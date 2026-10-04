@@ -178,7 +178,7 @@ These are the routes the CLI, SDK, and MCP server request. No other registry rou
 | `POST` | `https://api.trustflow.systems/v1/register/confirm` | `trustflow confirm` |
 | `GET` | `https://api.trustflow.systems/v1/verify?domain=` | `verifyDomain` fallback, middleware, `audit_domain` |
 
-`POST /v1/register` from the CLI sends `domain`, `businessName`, `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`), `did`, SPKI `publicKeyPem`, `publicKeyHash`, `manifestUrl` (`https://<domain>/.well-known/did.json`), and `services`. The response fields the CLI requires are `challengeToken`, `instructions`, and `domain`. When `verificationType` is `SSL_CHALLENGE` or `challengePath` is set, the CLI writes `.well-known/agentic-trust-challenge.txt` with the token as the file body. When the response includes `dnsRecord`, the CLI prints `dnsRecord.name` and `dnsRecord.value` and does not invent that record. Confirm sends `domain` and `challengeToken`. No API token is required by the CLI.
+`POST /v1/register` from the CLI sends `domain`, `businessName`, `verificationType` (`SSL_CHALLENGE` or `DNS_TXT`), `did`, SPKI `publicKeyPem`, `publicKeyHash`, `manifestUrl` (`https://<domain>/.well-known/did.json`), and `services`. The response fields the CLI requires are `challengeToken`, `instructions`, and `domain`. When `verificationType` is `SSL_CHALLENGE` or `challengePath` is set, the CLI writes `.well-known/agentic-trust-challenge.txt` with the token as the file body. When the response includes `dnsRecord`, the CLI prints `dnsRecord.name` and `dnsRecord.value` and does not invent that record. Confirm sends `domain`, `challengeToken`, and `proof` — a compact JWS (`EdDSA` or `ES256`) whose payload is `{ domain, challengeToken }`, signed with the did:web private key. The private key is not sent and is not printed. A proved verified listing returns `409 VERIFIED_LISTING_LOCKED` and is not overwritten. No API token is required by the CLI.
 
 The public verify page linked from the badge is `https://trustflow.systems/verify/<domain>`. That page is not an API.
 
@@ -186,7 +186,7 @@ The public verify page linked from the badge is `https://trustflow.systems/verif
 
 Signing and checking in this repository go through:
 
-- `createSignedDidDocument`, `hashPublicKeyPem`, `publicKeyPemFromPrivate`
+- `createSignedDidDocument`, `hashPublicKeyPem`, `publicKeyPemFromPrivate`, `signRegisterConfirmProof`
 - `verifyDidJws`, `importPublicKey`, `allowedAlgForKey`, `ALLOWED_JWS_ALGS`
 - `verifyDomain`, `inspectEndpointBeforeExecution`, `clearVerifyCache`
 - `fetchDidDocument`, `assessDidDocument` (used internally; the package entry exports the verify and sign functions above)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { importPublicKey, verifyDidJws } from "../src/jws.js";
-import { createSignedDidDocument, hashPublicKeyPem } from "../src/identity.js";
+import { compactVerify, importSPKI } from "jose";
+import { createSignedDidDocument, hashPublicKeyPem, signRegisterConfirmProof } from "../src/identity.js";
 import { assertLlmsTxtDomain, llmsTxtDomains } from "../src/llmsManifest.js";
 
 describe("createSignedDidDocument", () => {
@@ -48,6 +49,25 @@ describe("createSignedDidDocument", () => {
         publicKeyPem: other.publicKeyPem,
       })
     ).rejects.toThrow(/does not match privateKeyPem/);
+  });
+});
+
+describe("signRegisterConfirmProof", () => {
+  it("signs { domain, challengeToken } and does not embed the private key", async () => {
+    const identity = await createSignedDidDocument({ domain: "Proof.Example" });
+    const proof = await signRegisterConfirmProof({
+      domain: "Proof.Example",
+      challengeToken: "challenge-1",
+      privateKeyPem: identity.privateKeyPem,
+    });
+    expect(proof.split(".")).toHaveLength(3);
+    expect(proof).not.toContain("PRIVATE KEY");
+    const key = await importSPKI(identity.publicKeyPem, "EdDSA");
+    const verified = await compactVerify(proof, key, { algorithms: ["EdDSA"] });
+    expect(JSON.parse(new TextDecoder().decode(verified.payload))).toEqual({
+      domain: "proof.example",
+      challengeToken: "challenge-1",
+    });
   });
 });
 

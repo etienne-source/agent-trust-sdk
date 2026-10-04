@@ -36,7 +36,9 @@ init
   The CLI writes the SSL challenge file itself. It does not wait for a deploy.
   Run trustflow confirm after did.json and the challenge file are on HTTPS.
   Pass --confirm to probe once and POST /v1/register/confirm during init.
-  The did.json public key must still match the key sent at registration.
+  Confirm signs a compact JWS proof with the did:web private key and never
+  prints that key. The did.json public key must still match the key sent
+  at registration.
 
   https://trustflow.systems/api/register is an alias of the API origin above.
 
@@ -53,8 +55,10 @@ sign
   is read from AGENTIC_TRUST_PRIVATE_KEY and is never printed.
 
 confirm
-  POST /v1/register/confirm using .agentic-trust/registration.json. Writes the
-  badge only when the registry returns a verified status.
+  POST /v1/register/confirm using .agentic-trust/registration.json. Signs a
+  compact JWS proof with the did:web private key (never printed) and sends it
+  as \`proof\`. Writes the badge only when the registry returns a verified status.
+  A 409 VERIFIED_LISTING_LOCKED means the listing is already proved and locked.
 
 Options:
   --domain <host>                 Domain to register (example.com)
@@ -239,6 +243,7 @@ export async function main(argv: string[], io?: {
       token: parsed.token,
       apiUrl: parsed.apiUrl,
       envApiUrl: env.TRUSTFLOW_API_URL,
+      privateKeyPem: env.AGENTIC_TRUST_PRIVATE_KEY,
       fetch: fetchFn,
       log,
     });

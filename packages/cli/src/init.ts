@@ -209,6 +209,7 @@ export async function runInit(options: InitOptions): Promise<number> {
       didId,
       publicKeyPem: identity.publicKeyPem,
       publicKeyHash: identity.publicKeyHash,
+      privateKeyPem: identity.privateKeyPem,
       businessName: name,
       services,
       verificationType: stored.verificationType,

@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { createSignedDidDocument } from "@trustflow/sdk";
 import { main } from "../src/cli.js";
 import { detectProjectLayout, nuxtMajor, parseNuxtPublicDir, parseVitePublicDir } from "../src/framework.js";
 import {
@@ -30,6 +31,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const PEM = "-----BEGIN PUBLIC KEY-----\nTESTKEY\n-----END PUBLIC KEY-----\n";
 const OTHER_PEM = "-----BEGIN PUBLIC KEY-----\nOTHER\n-----END PUBLIC KEY-----\n";
+const PLACEHOLDER_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n";
 
 function didBody(pem: string, id = "did:web:example.com"): string {
   return JSON.stringify({
@@ -203,6 +205,7 @@ describe("auto-confirm", () => {
     const sleeps: number[] = [];
     let ready = false;
     const calls: string[] = [];
+    const identity = await createSignedDidDocument({ domain: "example.com" });
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       calls.push(`${init?.method ?? "GET"} ${url}`);
@@ -211,7 +214,10 @@ describe("auto-confirm", () => {
       }
       if (!ready) return new Response("missing", { status: 404 });
       if (url.endsWith("/did.json")) {
-        return new Response(didBody(PEM), { status: 200, headers: { "Content-Type": "application/json" } });
+        return new Response(didBody(identity.publicKeyPem), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       }
       return new Response("token-1", { status: 200 });
     });
@@ -220,8 +226,9 @@ describe("auto-confirm", () => {
       fetchFn: fetch as unknown as typeof fetch,
       domain: "example.com",
       didId: "did:web:example.com",
-      publicKeyPem: PEM,
-      publicKeyHash: "hash",
+      publicKeyPem: identity.publicKeyPem,
+      publicKeyHash: identity.publicKeyHash,
+      privateKeyPem: identity.privateKeyPem,
       verificationType: "SSL_CHALLENGE" satisfies VerificationType,
       challengeToken: "token-1",
       businessName: "Example",
@@ -258,6 +265,7 @@ describe("auto-confirm", () => {
       didId: "did:web:example.com",
       publicKeyPem: PEM,
       publicKeyHash: "hash",
+      privateKeyPem: PLACEHOLDER_PRIVATE_KEY,
       verificationType: "SSL_CHALLENGE",
       challengeToken: "token-1",
       budgetMs: 8_000,
@@ -290,6 +298,7 @@ describe("auto-confirm", () => {
       didId: "did:web:example.com",
       publicKeyPem: PEM,
       publicKeyHash: "hash",
+      privateKeyPem: PLACEHOLDER_PRIVATE_KEY,
       verificationType: "SSL_CHALLENGE",
       challengeToken: "token-1",
       budgetMs: 400,
@@ -308,19 +317,24 @@ describe("auto-confirm", () => {
 
   it("confirms DNS_TXT from the TXT record and the DID key", async () => {
     const calls: string[] = [];
+    const identity = await createSignedDidDocument({ domain: "example.com" });
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       calls.push(url);
       if (url.endsWith("/confirm")) return jsonResponse({ status: "VERIFIED", domain: "example.com" });
-      return new Response(didBody(PEM), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(didBody(identity.publicKeyPem), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     });
     const result = await autoConfirm({
       apiBase: "https://api.trustflow.systems",
       fetchFn: fetch as unknown as typeof fetch,
       domain: "example.com",
       didId: "did:web:example.com",
-      publicKeyPem: PEM,
-      publicKeyHash: "hash",
+      publicKeyPem: identity.publicKeyPem,
+      publicKeyHash: identity.publicKeyHash,
+      privateKeyPem: identity.privateKeyPem,
       verificationType: "DNS_TXT",
       challengeToken: "token-1",
       dnsRecord: { name: "_agentic-trust.example.com", value: "agentic-trust-verification=token-1" },

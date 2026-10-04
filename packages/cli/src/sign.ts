@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { assertLlmsTxtDomain, createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { confirmRegistration, resolveTrustflowApiBase, TrustflowApiError } from "./api.js";
+import { buildConfirmRequest } from "./confirmProof.js";
 import { BADGE_DEFERRED, applyBadge } from "./badge.js";
 import { detectProjectLayout, directoryExists, shouldMirrorPublishedFiles } from "./framework.js";
 import { findPublishedLlms, parseServiceList, publishLlms, renderLlms } from "./llms.js";
@@ -176,20 +177,24 @@ async function signDomain(
     try {
       const result = await confirmRegistration(
         apiBase,
-        {
+        await buildConfirmRequest({
           domain: stored.domain,
           challengeToken: challenge.challengeToken,
+          privateKeyPem: identity.privateKeyPem,
           did: stored.did,
           publicKeyHash: stored.publicKeyHash,
           services,
           businessName,
-        },
+        }),
         options.fetch
       );
       live = result.ok === true || result.isVerified === true || result.status === "VERIFIED";
       log(live ? "Registration confirmed. Domain status is verified." : "Confirm returned without a verified status.");
       if (typeof result.verifiedAt === "string") log(`verifiedAt: ${result.verifiedAt}`);
     } catch (err) {
+      if (err instanceof TrustflowApiError && (err.status === 409 || /VERIFIED_LISTING_LOCKED/i.test(err.message))) {
+        throw new Error("Confirm refused: VERIFIED_LISTING_LOCKED. A proved verified listing cannot be overwritten.");
+      }
       if (err instanceof TrustflowApiError && /domain proof failed/i.test(err.message)) {
         log("Register succeeded. Confirm is waiting until the challenge file or DNS TXT is publicly visible.");
         if (options.requireLive) {

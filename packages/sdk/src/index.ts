@@ -53,7 +53,13 @@ export {
   ALLOWED_JWS_ALGS,
 } from "./jws.js";
 export type { AllowedJwsAlg } from "./jws.js";
-export { createSignedDidDocument, hashLlmsTxt, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
+export {
+  createSignedDidDocument,
+  hashLlmsTxt,
+  hashPublicKeyPem,
+  publicKeyPemFromPrivate,
+  signRegisterConfirmProof,
+} from "./identity.js";
 export { alignLlmsTxt, assertLlmsTxtDomain, llmsTxtDomains, renderLlmsManifest } from "./llmsManifest.js";
 export type { LlmsManifestInput } from "./llmsManifest.js";
 export type { CreateSignedDidInput, DidServiceEndpoint, SignedDidIdentity } from "./identity.js";
