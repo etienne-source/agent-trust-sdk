@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   alignLlmsTxt,
+  assertLlmsTxtDomain,
   createSignedDidDocument,
   hashLlmsTxt,
   normalizeDomain,
@@ -10,17 +11,23 @@ import {
   type DidDocument,
 } from "@trustflow/sdk";
 
-export { alignLlmsTxt };
 import type { DidKeyAlgorithm } from "./generateDidKeys.js";
+import { resolveInsideRoot } from "./paths.js";
+
+export { alignLlmsTxt };
 
 export interface SignLlmsTxtInput {
   domain: string;
-  /** Unencrypted Ed25519 or P-256 PKCS#8 PEM. Used to sign; never written by this tool. */
-  privateKeyPem: string;
+  /** Unencrypted Ed25519 or P-256 PKCS#8 PEM. Used to sign; never written by this tool. Use this or `privateKeyPath`. */
+  privateKeyPem?: string;
+  /** File holding the private key PEM. The key is read, used to sign, and not returned. */
+  privateKeyPath?: string;
   /** llms.txt body. Use this or `llmsTxtPath`. */
   llmsTxt?: string;
-  /** UTF-8 file to read when `llmsTxt` is omitted. */
+  /** UTF-8 file named `llms.txt` to read when `llmsTxt` is omitted. */
   llmsTxtPath?: string;
+  /** When set, `privateKeyPath`, `llmsTxtPath`, and `outputDir` must resolve inside this directory. */
+  rootDir?: string;
   /**
    * When set, write public artifacts only:
    * `llms.txt`, `.well-known/llms.txt`, and `.well-known/did.json`.
@@ -57,12 +64,10 @@ export interface SignLlmsTxtResult {
  */
 export async function signLlmsTxt(input: SignLlmsTxtInput): Promise<SignLlmsTxtResult> {
   const domain = normalizeDomain(input.domain);
-  const privateKeyPem = input.privateKeyPem?.trim();
-  if (!privateKeyPem) {
-    throw new Error("privateKeyPem is required (Ed25519 or P-256 PKCS#8). It is not written to disk.");
-  }
+  const privateKeyPem = await readPrivateKey(input);
   const algorithm = algorithmOfPrivateKey(privateKeyPem);
   const source = await readLlmsSource(input);
+  assertLlmsTxtDomain(source, domain);
   const llmsTxt = alignLlmsTxt(source, domain);
 
   const identity = await createSignedDidDocument({
@@ -87,7 +92,7 @@ export async function signLlmsTxt(input: SignLlmsTxtInput): Promise<SignLlmsTxtR
     "The did:web JWS is the Trustflow signature for this llms.txt. Its service endpoint is /.well-known/llms.txt.",
     "Publish llms.txt at the site root and the same body at /.well-known/llms.txt.",
     `Publish did.json at /.well-known/did.json (${identity.did.id}). It contains the public key only.`,
-    "The private key was used to sign and was not written.",
+    "The private key was used to sign. It was not written and is not in this result.",
     "Register the domain with Trustflow Systems: POST https://api.trustflow.systems/v1/register (trustflow init or trustflow sign).",
   ];
 
@@ -110,9 +115,31 @@ export async function signLlmsTxt(input: SignLlmsTxtInput): Promise<SignLlmsTxtR
 
   const outputDir = input.outputDir?.trim();
   if (outputDir) {
-    result.written = await writePublicArtifacts(outputDir, llmsTxt, didJson);
+    const target = input.rootDir ? resolveInsideRoot(input.rootDir, outputDir, "outputDir") : outputDir;
+    result.written = await writePublicArtifacts(target, llmsTxt, didJson);
   }
   return result;
+}
+
+function resolvePath(input: SignLlmsTxtInput, target: string, label: string): string {
+  return input.rootDir ? resolveInsideRoot(input.rootDir, target, label) : path.resolve(target);
+}
+
+async function readPrivateKey(input: SignLlmsTxtInput): Promise<string> {
+  const inline = input.privateKeyPem?.trim();
+  if (inline) return inline;
+  const keyPath = input.privateKeyPath?.trim();
+  if (!keyPath) {
+    throw new Error("privateKeyPath (or privateKeyPem) is required (Ed25519 or P-256 PKCS#8). It is not written to disk.");
+  }
+  const full = resolvePath(input, keyPath, "privateKeyPath");
+  try {
+    const pem = (await readFile(full, "utf8")).trim();
+    if (pem) return pem;
+  } catch {
+    // reported below without echoing file contents
+  }
+  throw new Error(`Could not read a private key PEM at ${full}.`);
 }
 
 async function readLlmsSource(input: SignLlmsTxtInput): Promise<string> {
@@ -125,11 +152,15 @@ async function readLlmsSource(input: SignLlmsTxtInput): Promise<string> {
   if (!filePath) {
     throw new Error("Provide llmsTxt (the file body) or llmsTxtPath.");
   }
+  const full = resolvePath(input, filePath, "llmsTxtPath");
+  if (path.basename(full).toLowerCase() !== "llms.txt") {
+    throw new Error(`llmsTxtPath must name an llms.txt file: ${filePath}`);
+  }
   try {
-    return await readFile(filePath, "utf8");
+    return await readFile(full, "utf8");
   } catch (err) {
     const message = err instanceof Error ? err.message : "read failed";
-    throw new Error(`Could not read llms.txt at ${filePath}: ${message}`);
+    throw new Error(`Could not read llms.txt at ${full}: ${message}`);
   }
 }
 
