@@ -1,6 +1,7 @@
-import { renderLlmsManifest } from "@trustflow/sdk";
+import { renderLlmsManifest, resolvePublishedLlms } from "@trustflow/sdk";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { publishedRelatives, writeProjectFile } from "./project.js";
 
 /** Project-relative paths checked, in order, for an existing manifest. */
 export const LLMS_CANDIDATES = [
@@ -21,19 +22,6 @@ export interface LlmsManifest {
   services: string[];
   /** Absolute path when loaded from disk. */
   path?: string;
-}
-
-export async function findLlmsFile(cwd: string): Promise<string | undefined> {
-  for (const relative of LLMS_CANDIDATES) {
-    const full = path.join(cwd, relative);
-    try {
-      const stat = await fs.stat(full);
-      if (stat.isFile()) return full;
-    } catch {
-      // missing candidate
-    }
-  }
-  return undefined;
 }
 
 export function parseLlms(text: string): LlmsManifest {
@@ -73,11 +61,51 @@ export function parseLlms(text: string): LlmsManifest {
   return { name, description, domain, services };
 }
 
-export async function readLlms(cwd: string): Promise<LlmsManifest | undefined> {
-  const found = await findLlmsFile(cwd);
+/** Every path the CLI publishes llms.txt to for this layout. */
+export function publishedLlmsTargets(publicDir: string, mirrorRoot: boolean): string[] {
+  return [
+    ...publishedRelatives(publicDir, "llms.txt", mirrorRoot),
+    ...publishedRelatives(publicDir, ".well-known/llms.txt", mirrorRoot),
+  ];
+}
+
+export interface FoundLlms extends LlmsManifest {
+  /** Project-relative path the body was read from. */
+  path: string;
+  body: string;
+}
+
+/**
+ * The llms.txt to sign. Published copies win, and they must be identical because one
+ * hash signs every URL. Otherwise the first file in {@link LLMS_CANDIDATES} is used.
+ */
+export async function findPublishedLlms(
+  cwd: string,
+  publicDir: string,
+  mirrorRoot: boolean
+): Promise<FoundLlms | undefined> {
+  const found = await resolvePublishedLlms(cwd, publishedLlmsTargets(publicDir, mirrorRoot), [...LLMS_CANDIDATES]);
   if (!found) return undefined;
-  const text = await fs.readFile(found, "utf8");
-  return { ...parseLlms(text), path: found };
+  return { ...parseLlms(found.body), path: found.path, body: found.body };
+}
+
+/** Write `body` to each published llms.txt path that does not exist yet. Existing files are not touched. */
+export async function publishLlms(
+  cwd: string,
+  publicDir: string,
+  mirrorRoot: boolean,
+  body: string
+): Promise<string[]> {
+  const written: string[] = [];
+  for (const relative of publishedLlmsTargets(publicDir, mirrorRoot)) {
+    try {
+      if ((await fs.stat(path.resolve(cwd, relative))).isFile()) continue;
+    } catch {
+      // missing, write it
+    }
+    written.push(await writeProjectFile(cwd, relative, body));
+  }
+  return written;
 }
 
 export function renderLlms(input: {

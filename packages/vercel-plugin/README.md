@@ -47,9 +47,9 @@ The private key is `AGENTIC_TRUST_PRIVATE_KEY`. Put it in the Vercel project env
 | `public/.well-known/llms.txt` | `https://<domain>/.well-known/llms.txt` |
 | `public/.well-known/did.json` | `https://<domain>/.well-known/did.json` |
 
-`public/` is chosen when that directory or a `next.config.*` file exists. Otherwise the same three files are written at the project root. An existing `llms.txt` is kept and its DID lines are aligned to the domain. The hook also adds `.agentic-trust/` and `*.pem` to `.gitignore` when they are missing. It does not create `.agentic-trust/`.
+`public/` is chosen when that directory or a `next.config.*` file exists. Otherwise the same three files are written at the project root. An existing `llms.txt` is kept and its DID lines are aligned to the domain. The published copies (`<outDir>/llms.txt` and `<outDir>/.well-known/llms.txt`) are read first, and the build stops when they differ or when the file names another domain. `did.json` signs `llmsTxtSha256`, the hash of the body written to both URLs. The hook also adds `.agentic-trust/` and `*.pem` to `.gitignore` when they are missing. It does not create `.agentic-trust/`.
 
-`VERCEL_PROJECT_PRODUCTION_URL` or `VERCEL_URL` is used only when `AGENTIC_TRUST_DOMAIN` is unset. There is no prompt.
+`VERCEL_PROJECT_PRODUCTION_URL` is used only when `AGENTIC_TRUST_DOMAIN` is unset. The preview `VERCEL_URL` is never used, so a preview build without `AGENTIC_TRUST_DOMAIN` fails instead of signing a preview hostname. There is no prompt.
 
 `--dry-run` signs and prints `publicKeyHash` without writing files. It still requires the environment secret, and it still does not print the key.
 

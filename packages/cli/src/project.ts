@@ -66,6 +66,15 @@ export async function writePublicKey(cwd: string, pem: string): Promise<string> 
   return file;
 }
 
+export async function readPrivateKey(cwd: string): Promise<string | undefined> {
+  try {
+    const pem = (await fs.readFile(path.join(secretsDir(cwd), "private-key.pem"), "utf8")).trim();
+    return pem || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function readKeyPair(
   cwd: string
 ): Promise<{ privateKeyPem: string; publicKeyPem: string } | undefined> {

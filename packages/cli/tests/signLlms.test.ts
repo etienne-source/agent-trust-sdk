@@ -120,4 +120,47 @@ describe("trustflow sign-llms", () => {
       spy.mockRestore();
     }
   });
+
+  it("signs the edited services so the rewritten did.json verifies", async () => {
+    const cwd = await tempProject();
+    await mkdir(path.join(cwd, "public"));
+    await scaffold(cwd);
+    const didPath = path.join(cwd, "public", ".well-known", "did.json");
+    const edited = JSON.parse(await readFile(didPath, "utf8")) as DidDocument;
+    edited.service = [{ id: `${edited.id}#mcp`, type: "MCP", serviceEndpoint: "https://example.com/mcp" }];
+    await writeFile(didPath, `${JSON.stringify(edited, null, 2)}\n`, "utf8");
+    const code = await main(["sign-llms"], { cwd, log: () => undefined, stdinIsTTY: false });
+    expect(code).toBe(0);
+    const did = JSON.parse(await readFile(didPath, "utf8")) as DidDocument;
+    const key = await importPublicKey(did);
+    const llms = await readFile(path.join(cwd, "public", "llms.txt"), "utf8");
+    expect(await verifyDidJws(did, key!)).toMatchObject({ ok: true, llmsTxtSha256: hashLlmsTxt(llms) });
+    expect(did.service).toEqual(edited.service);
+  });
+
+  it("refuses to sign when the published llms.txt copies differ", async () => {
+    const cwd = await tempProject();
+    await mkdir(path.join(cwd, "public"));
+    await scaffold(cwd);
+    await writeFile(path.join(cwd, "public", ".well-known", "llms.txt"), "# Edited only here\n", "utf8");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const code = await main(["sign-llms"], { cwd, log: () => undefined, stdinIsTTY: false });
+    expect(code).toBe(1);
+    expect(String(errors.mock.calls[0]?.[0])).toMatch(/differ/);
+    errors.mockRestore();
+  });
+
+  it("refuses an llms.txt that names a domain other than did.json", async () => {
+    const cwd = await tempProject();
+    await mkdir(path.join(cwd, "public"));
+    await scaffold(cwd);
+    const foreign = "# Other\nDomain: other.example\n";
+    await writeFile(path.join(cwd, "public", "llms.txt"), foreign, "utf8");
+    await writeFile(path.join(cwd, "public", ".well-known", "llms.txt"), foreign, "utf8");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const code = await main(["sign-llms"], { cwd, log: () => undefined, stdinIsTTY: false });
+    expect(code).toBe(1);
+    expect(String(errors.mock.calls[0]?.[0])).toMatch(/names other\.example/);
+    errors.mockRestore();
+  });
 });

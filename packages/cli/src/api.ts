@@ -1,3 +1,5 @@
+import { secureApiBase } from "@trustflow/sdk";
+
 /** Production Trustflow Systems verification API. */
 export const TRUSTFLOW_API_BASE = "https://api.trustflow.systems";
 
@@ -30,6 +32,12 @@ export interface RegisterChallenge {
 export interface ConfirmRequest {
   domain: string;
   challengeToken: string;
+  /**
+   * Compact JWS (EdDSA or ES256). Payload must be exactly
+   * `{ purpose: "trustflow-register-confirm", domain, challengeToken }`.
+   * The field name `proof` is ignored by the API. Never the PEM itself.
+   */
+  proofJws: string;
   did?: string;
   publicKeyHash?: string;
   services?: string[];
@@ -67,6 +75,8 @@ export function resolveTrustflowApiBase(input?: string | null): string {
     throw new Error(`Invalid Trustflow API URL: ${input}`);
   }
 
+  // Register and confirm send the challenge token and public key; plain HTTP is loopback only.
+  secureApiBase(url.origin);
   const host = url.hostname.toLowerCase();
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const siteAlias =

@@ -2,22 +2,30 @@ import { generateKeyPairSync } from "node:crypto";
 import { mkdir, writeFile, chmod } from "node:fs/promises";
 import path from "node:path";
 import { createSignedDidDocument, normalizeDomain, type DidDocument } from "@trustflow/sdk";
+import { resolveInsideRoot } from "./paths.js";
 
 export type DidKeyAlgorithm = "Ed25519" | "ES256";
 
 /** Shown next to `privateKeyPem` in every tool result. */
 export const PRIVATE_KEY_SECRET_WARNING =
-  "SECRET — Trustflow did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json. This tool does not write the key unless privateKeyPath is set.";
+  "SECRET — Trustflow did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json.";
 
 export interface GenerateDidKeysInput {
   domain: string;
   /** Ed25519 (default) or ES256 (P-256). */
   algorithm?: string;
   /**
-   * When set, write the private key PEM to this path (mode 0600).
-   * Omitted means the key is returned only and never written.
+   * When set, write the private key PEM to this new file (mode 0600). An existing file is
+   * never replaced. Omitted means the key is returned only and never written.
    */
   privateKeyPath?: string;
+  /** When set, `privateKeyPath` must resolve inside this directory. */
+  rootDir?: string;
+  /**
+   * Include `privateKeyPem` in the result. Default true. The MCP tool passes false so the key
+   * never enters a model context, and requires `privateKeyPath` instead.
+   */
+  returnPrivateKey?: boolean;
 }
 
 export interface GenerateDidKeysResult {
@@ -29,8 +37,8 @@ export interface GenerateDidKeysResult {
   didDocument: DidDocument;
   publicKeyPem: string;
   publicKeyHash: string;
-  /** SECRET. Unencrypted PKCS#8 PEM. */
-  privateKeyPem: string;
+  /** SECRET. Unencrypted PKCS#8 PEM. Absent when `returnPrivateKey` is false. */
+  privateKeyPem?: string;
   secret: {
     label: "SECRET";
     field: "privateKeyPem";
@@ -66,10 +74,17 @@ export async function generateDidKeys(input: GenerateDidKeysInput): Promise<Gene
     throw new Error("Refusing to return a did.json that contains a private key");
   }
 
+  const returnPrivateKey = input.returnPrivateKey !== false;
   let writtenTo: string | undefined;
   const requestedPath = input.privateKeyPath?.trim();
+  if (!returnPrivateKey && !requestedPath) {
+    throw new Error("privateKeyPath is required. The private key is written there and is not returned.");
+  }
   if (requestedPath) {
-    writtenTo = await writeSecretPem(requestedPath, identity.privateKeyPem);
+    const target = input.rootDir
+      ? resolveInsideRoot(input.rootDir, requestedPath, "privateKeyPath")
+      : path.resolve(requestedPath);
+    writtenTo = await writeSecretPem(target, identity.privateKeyPem);
   }
 
   return {
@@ -80,7 +95,7 @@ export async function generateDidKeys(input: GenerateDidKeysInput): Promise<Gene
     didDocument: identity.did,
     publicKeyPem: identity.publicKeyPem,
     publicKeyHash: identity.publicKeyHash,
-    privateKeyPem: identity.privateKeyPem,
+    ...(returnPrivateKey ? { privateKeyPem: identity.privateKeyPem } : {}),
     secret: {
       label: "SECRET",
       field: "privateKeyPem",
@@ -101,11 +116,17 @@ function generateP256PrivateKeyPem(): string {
   return typeof exported === "string" ? exported : exported.toString("utf8");
 }
 
-async function writeSecretPem(filePath: string, pem: string): Promise<string> {
-  const full = path.resolve(filePath);
+async function writeSecretPem(full: string, pem: string): Promise<string> {
   await mkdir(path.dirname(full), { recursive: true, mode: 0o700 });
   const body = pem.endsWith("\n") ? pem : `${pem}\n`;
-  await writeFile(full, body, { encoding: "utf8", mode: 0o600 });
+  try {
+    await writeFile(full, body, { encoding: "utf8", mode: 0o600, flag: "wx" });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(`${full} already exists. The existing key was not replaced. Choose a new privateKeyPath.`);
+    }
+    throw err;
+  }
   await chmod(full, 0o600);
   return full;
 }

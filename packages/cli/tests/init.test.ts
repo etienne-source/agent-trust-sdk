@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
+import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
 import { main } from "../src/cli.js";
 
 async function tempProject(): Promise<string> {
@@ -146,6 +146,11 @@ describe("trustflow init", () => {
       domain: "kept.example",
       challengeToken: "token-from-api",
     });
+    const confirmBody = calls[1]?.body as { proofJws?: string; proof?: string };
+    expect(confirmBody.proof).toBeUndefined();
+    expect(typeof confirmBody.proofJws).toBe("string");
+    expect(confirmBody.proofJws?.split(".")).toHaveLength(3);
+    expect(JSON.stringify(confirmBody)).not.toContain("PRIVATE KEY");
     const challenge = await readFile(
       path.join(cwd, "public", ".well-known", "agentic-trust-challenge.txt"),
       "utf8"
@@ -193,7 +198,16 @@ describe("trustflow init", () => {
 
     const confirmFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe("https://api.trustflow.systems/v1/register/confirm");
-      expect(JSON.parse(String(init?.body)).challengeToken).toBe("saved-token");
+      const body = JSON.parse(String(init?.body)) as {
+        challengeToken?: string;
+        proofJws?: string;
+        proof?: string;
+      };
+      expect(body.challengeToken).toBe("saved-token");
+      expect(body.proof).toBeUndefined();
+      expect(typeof body.proofJws).toBe("string");
+      expect(body.proofJws?.split(".")).toHaveLength(3);
+      expect(JSON.stringify(body)).not.toContain("PRIVATE KEY");
       return jsonResponse({ status: "VERIFIED", domain: "example.com" });
     });
     const second = capture();
@@ -215,5 +229,72 @@ describe("trustflow init", () => {
       stdinIsTTY: false,
     });
     expect(code).toBe(1);
+  });
+
+  it("refuses an existing llms.txt that names another domain", async () => {
+    const cwd = await tempProject();
+    await writeFile(path.join(cwd, "llms.txt"), "# Copied\n> From elsewhere\n\nDomain: other.example\n", "utf8");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const code = await main(["init", "--non-interactive", "--skip-register", "--domain", "mine.example"], {
+      cwd,
+      log: () => undefined,
+      stdinIsTTY: false,
+    });
+    expect(code).toBe(1);
+    expect(String(errors.mock.calls[0]?.[0])).toMatch(/names other\.example, not mine\.example/);
+    errors.mockRestore();
+    await expect(stat(path.join(cwd, ".well-known", "did.json"))).rejects.toThrow();
+  });
+
+  it("does not write the verified badge before the domain is verified", async () => {
+    const cwd = await tempProject();
+    await mkdir(path.join(cwd, "app"), { recursive: true });
+    const layout = "<html><body><main /></body></html>\n";
+    await writeFile(path.join(cwd, "app", "layout.tsx"), layout, "utf8");
+    const { lines, log } = capture();
+    const code = await main(
+      ["init", "--non-interactive", "--skip-register", "--domain", "example.com", "--name", "Ex", "--description", "D"],
+      { cwd, log, stdinIsTTY: false }
+    );
+    expect(code).toBe(0);
+    expect(await readFile(path.join(cwd, "app", "layout.tsx"), "utf8")).toBe(layout);
+    expect(lines.join("\n")).toContain("Badge not written");
+  });
+
+  it("writes the badge only when confirm returns a verified status", async () => {
+    const cwd = await tempProject();
+    const identity = await createSignedDidDocument({ domain: "example.com" });
+    await mkdir(path.join(cwd, ".agentic-trust"), { recursive: true });
+    await writeFile(path.join(cwd, ".agentic-trust", "private-key.pem"), identity.privateKeyPem, "utf8");
+    await writeFile(path.join(cwd, ".agentic-trust", "public-key.pem"), identity.publicKeyPem, "utf8");
+    await writeFile(
+      path.join(cwd, ".agentic-trust", "registration.json"),
+      JSON.stringify({ domain: "example.com", challengeToken: "t", apiBase: "https://api.trustflow.systems" }),
+      "utf8"
+    );
+    await mkdir(path.join(cwd, "app"), { recursive: true });
+    const layout = "<html><body><main /></body></html>\n";
+    await writeFile(path.join(cwd, "app", "layout.tsx"), layout, "utf8");
+
+    const pending = capture();
+    const pendingCode = await main(["confirm"], {
+      cwd,
+      log: pending.log,
+      fetch: (async () => jsonResponse({ status: "PENDING" })) as unknown as typeof globalThis.fetch,
+      stdinIsTTY: false,
+    });
+    expect(pendingCode).toBe(1);
+    expect(pending.lines.join("\n")).not.toContain("Registration confirmed.");
+    expect(await readFile(path.join(cwd, "app", "layout.tsx"), "utf8")).toBe(layout);
+
+    const verified = capture();
+    const verifiedCode = await main(["confirm"], {
+      cwd,
+      log: verified.log,
+      fetch: (async () => jsonResponse({ status: "VERIFIED" })) as unknown as typeof globalThis.fetch,
+      stdinIsTTY: false,
+    });
+    expect(verifiedCode).toBe(0);
+    expect(await readFile(path.join(cwd, "app", "layout.tsx"), "utf8")).toContain("Verified Domain Context | Trustflow");
   });
 });

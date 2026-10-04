@@ -1,4 +1,4 @@
-import { normalizeDomain } from "@trustflow/sdk";
+import { normalizeDomain, secureApiBase } from "@trustflow/sdk";
 
 /** Hosted Trustflow Systems verification API. The protocol is Trustflow. */
 export const DEFAULT_TRUSTFLOW_API_BASE = "https://api.trustflow.systems";
@@ -36,7 +36,7 @@ export interface AuditDomainResult {
 
 export interface AuditDomainInput {
   domain: string;
-  /** Override the API origin. Tests pass a local base so CI never calls the network. */
+  /** Override the API origin. Must be HTTPS (plain HTTP only on loopback). */
   baseUrl?: string;
   fetch?: typeof fetch;
 }
@@ -86,7 +86,8 @@ export async function auditDomain(input: AuditDomainInput): Promise<AuditDomainR
   const factors = readFactors(auditRecord);
 
   const result: AuditDomainResult = {
-    domain: typeof body.domain === "string" && body.domain.trim() ? body.domain : domain,
+    // The registry answers for the domain that was asked; a different `domain` in the body is ignored.
+    domain,
     status,
     isVerified: readIsVerified(body, status),
     audit: {
@@ -119,9 +120,7 @@ export function resolveApiBase(input?: string): string {
   } catch {
     throw new Error(`Invalid Trustflow API base URL: ${input}`);
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new Error("Trustflow API base URL must use http or https");
-  }
+  secureApiBase(url.origin);
 
   let path = url.pathname.replace(/\/+$/, "");
   if (path.endsWith("/v1/verify")) path = path.slice(0, -"/v1/verify".length);

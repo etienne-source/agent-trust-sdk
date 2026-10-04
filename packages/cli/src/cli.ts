@@ -36,24 +36,29 @@ init
   The CLI writes the SSL challenge file itself. It does not wait for a deploy.
   Run trustflow confirm after did.json and the challenge file are on HTTPS.
   Pass --confirm to probe once and POST /v1/register/confirm during init.
-  The did.json public key must still match the key sent at registration.
+  Confirm signs a compact JWS proof with the did:web private key and never
+  prints that key. The did.json public key must still match the key sent
+  at registration.
 
   https://trustflow.systems/api/register is an alias of the API origin above.
 
 sign-llms
-  Sign an existing llms.txt by rewriting the JWS in the existing did.json only.
+  Sign the published llms.txt by rewriting the JWS in the existing did.json only.
   Does not call POST /v1/register and does not generate a challenge.
   Fails if llms.txt, .agentic-trust/private-key.pem, or did.json is missing.
 
 sign
-  CI entry used by the Trustflow GitHub Action. Checks root llms.txt, writes
-  the standard template when it is missing, signs a did:web document with
-  @trustflow/sdk, and POSTs /v1/register. The private key is read from
-  AGENTIC_TRUST_PRIVATE_KEY and is never printed.
+  CI entry used by the Trustflow GitHub Action. Signs the published llms.txt
+  (public/llms.txt, .well-known/llms.txt, or another existing llms.txt) and
+  writes the standard template only when there is no llms.txt anywhere. Signs a
+  did:web document with @trustflow/sdk and POSTs /v1/register. The private key
+  is read from AGENTIC_TRUST_PRIVATE_KEY and is never printed.
 
 confirm
-  POST /v1/register/confirm using .agentic-trust/registration.json, then print
-  the badge.
+  POST /v1/register/confirm using .agentic-trust/registration.json. Signs a
+  compact JWS proof with the did:web private key (never printed) and sends it
+  as \`proofJws\`. Writes the badge only when the registry returns a verified status.
+  A 409 VERIFIED_LISTING_LOCKED means the listing is already proved and locked.
 
 Options:
   --domain <host>                 Domain to register (example.com)
@@ -238,6 +243,7 @@ export async function main(argv: string[], io?: {
       token: parsed.token,
       apiUrl: parsed.apiUrl,
       envApiUrl: env.TRUSTFLOW_API_URL,
+      privateKeyPem: env.AGENTIC_TRUST_PRIVATE_KEY,
       fetch: fetchFn,
       log,
     });

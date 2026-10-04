@@ -76,6 +76,29 @@ describe("auditDomain", () => {
     expect(result.audit.score).toBe(0);
     expect(result.audit.factors[0]).toMatchObject({ id: "registry", state: "fail" });
     expect(result.reason).toBe("Domain not in registry");
+    expect(result.domain).toBe("missing.example");
+  });
+
+  it("uses the requested domain even when the body names another host", async () => {
+    const fetch = vi.fn(async () =>
+      jsonResponse({
+        status: "VERIFIED",
+        domain: "attacker.example",
+        audit: { score: 1, factors: [] },
+      })
+    );
+    const result = await auditDomain({
+      domain: "victim.example",
+      baseUrl: "https://registry.test",
+      fetch: fetch as unknown as typeof globalThis.fetch,
+    });
+    expect(result.domain).toBe("victim.example");
+  });
+
+  it("refuses a plain-HTTP registry URL", async () => {
+    await expect(
+      auditDomain({ domain: "plain.example", baseUrl: "http://api.example.test" })
+    ).rejects.toThrow(/must use HTTPS/);
   });
 
   it("honors an explicit isVerified flag and a trustScore outside audit", async () => {

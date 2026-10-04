@@ -63,8 +63,36 @@ function diskPath(directory: string, key: string): string {
   return file;
 }
 
+const STATUSES = new Set(["VERIFIED", "UNVERIFIED", "RISK"]);
+
+/** Another local user who can write the cache could plant a VERIFIED result. */
+function trustedPath(target: string): boolean {
+  let stat: fs.Stats;
+  try {
+    stat = fs.lstatSync(target);
+  } catch {
+    return false;
+  }
+  if (stat.isSymbolicLink()) return false;
+  if ((stat.mode & 0o022) !== 0) return false;
+  const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
+  return uid === undefined || stat.uid === uid;
+}
+
+function validResult(value: unknown): value is VerifyResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const result = value as Partial<VerifyResult>;
+  return (
+    typeof result.status === "string" &&
+    STATUSES.has(result.status) &&
+    typeof result.domain === "string" &&
+    (result.claims === undefined || (typeof result.claims === "object" && result.claims !== null))
+  );
+}
+
 function readDisk(directory: string, key: string): CacheEntry | undefined {
   const file = diskPath(directory, key);
+  if (!trustedPath(directory) || !trustedPath(file)) return undefined;
   let text: string;
   try {
     text = fs.readFileSync(file, "utf8");
@@ -79,7 +107,9 @@ function readDisk(directory: string, key: string): CacheEntry | undefined {
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
   const record = parsed as Partial<DiskRecord>;
-  if (record.key !== key || typeof record.expiresAt !== "number" || !record.value) return undefined;
+  if (record.key !== key || typeof record.expiresAt !== "number" || !validResult(record.value)) {
+    return undefined;
+  }
   if (Date.now() > record.expiresAt) {
     try {
       fs.unlinkSync(file);
@@ -101,8 +131,12 @@ function writeDisk(directory: string, key: string, entry: CacheEntry): void {
     throw new Error("Refusing to write a private key to the verify cache");
   }
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  // Results in a directory another user can write are never read back, so skip the copy.
+  if (!trustedPath(directory)) return;
   const file = diskPath(directory, key);
-  fs.writeFileSync(file, serialized, { encoding: "utf8", mode: 0o600 });
+  const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(temp, serialized, { encoding: "utf8", mode: 0o600, flag: "wx" });
+  fs.renameSync(temp, file);
 }
 
 /**

@@ -184,6 +184,8 @@ export async function verifyDidJws(
       id?: string;
       llmsTxtSha256?: string;
       verificationMethod?: Array<{ publicKeyPem?: string; publicKeyJwk?: unknown }>;
+      assertionMethod?: unknown;
+      service?: unknown;
     };
     try {
       parsed = JSON.parse(decoded) as typeof parsed;
@@ -191,26 +193,34 @@ export async function verifyDidJws(
       const rejected = { ok: false as const, reason: "JWS payload is not JSON" };
       return rejected;
     }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { ok: false, reason: "JWS payload is not a JSON object" };
+    }
     if (!parsed.id || parsed.id !== did.id) {
       const mismatch = { ok: false as const, reason: "JWS payload DID id mismatch" };
       return mismatch;
     }
-    const signedVm = parsed.verificationMethod?.[0];
-    if (signedVm) {
-      const fileVm = did.verificationMethod?.[0];
-      const signedPem = normalizePem(signedVm.publicKeyPem);
-      const filePem = normalizePem(fileVm?.publicKeyPem);
-      const keyBound =
-        Boolean(signedPem && filePem && signedPem === filePem) ||
-        Boolean(
-          signedVm.publicKeyJwk &&
-            fileVm?.publicKeyJwk &&
-            JSON.stringify(signedVm.publicKeyJwk) === JSON.stringify(fileVm.publicKeyJwk)
-        );
-      if (!keyBound) {
-        const unbound = { ok: false as const, reason: "JWS payload key does not match document" };
-        return unbound;
-      }
+    const signedVm = Array.isArray(parsed.verificationMethod) ? parsed.verificationMethod[0] : undefined;
+    if (!signedVm) {
+      return { ok: false, reason: "JWS payload does not bind a verification key" };
+    }
+    const fileVm = did.verificationMethod?.[0];
+    const signedPem = normalizePem(signedVm.publicKeyPem);
+    const filePem = normalizePem(fileVm?.publicKeyPem);
+    const signedJwk = canonicalJwk(signedVm.publicKeyJwk);
+    const fileJwk = canonicalJwk(fileVm?.publicKeyJwk);
+    const keyBound =
+      Boolean(signedPem && filePem && signedPem === filePem) ||
+      Boolean(signedJwk && fileJwk && signedJwk === fileJwk);
+    if (!keyBound) {
+      const unbound = { ok: false as const, reason: "JWS payload key does not match document" };
+      return unbound;
+    }
+    if (canonicalJson(parsed.service ?? []) !== canonicalJson(did.service ?? [])) {
+      return { ok: false, reason: "JWS payload services do not match document" };
+    }
+    if (canonicalJson(parsed.assertionMethod ?? []) !== canonicalJson(did.assertionMethod ?? [])) {
+      return { ok: false, reason: "JWS payload assertionMethod does not match document" };
     }
     const llmsTxtSha256 = readLlmsHash(parsed.llmsTxtSha256, did.llmsTxtSha256);
     if (!llmsTxtSha256.ok) {
@@ -227,8 +237,33 @@ export async function verifyDidJws(
   }
 }
 
-function normalizePem(pem: string | undefined): string {
-  return (pem ?? "").replace(/\r\n/g, "\n").trim();
+function normalizePem(pem: unknown): string {
+  return typeof pem === "string" ? pem.replace(/\r\n/g, "\n").trim() : "";
+}
+
+const JWK_KEY_MEMBERS = ["kty", "crv", "x", "y"] as const;
+
+function canonicalJwk(jwk: unknown): string {
+  if (!jwk || typeof jwk !== "object" || Array.isArray(jwk)) return "";
+  const record = jwk as Record<string, unknown>;
+  const picked: Record<string, unknown> = {};
+  for (const member of JWK_KEY_MEMBERS) {
+    if (record[member] !== undefined) picked[member] = record[member];
+  }
+  return picked.kty ? canonicalJson(picked) : "";
+}
+
+/** JSON with object keys sorted, so equal documents compare equal regardless of key order. */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record)
+      .filter((key) => record[key] !== undefined)
+      .sort();
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
 }
 
 function readLlmsHash(

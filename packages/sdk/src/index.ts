@@ -15,7 +15,8 @@
  * unrelated maintainer. The previous package name `agent-trust-sdk` is now
  * `@trustflow/sdk`.
  *
- * DID JWS proofs verify only for `EdDSA` (Ed25519) and `ES256`.
+ * DID JWS proofs verify only for `EdDSA` (Ed25519) and `ES256`. The signed payload must
+ * bind the verification key, services, and assertion methods in the published document.
  * `alg: "none"`, symmetric `HS*` algorithms, a missing `alg`, and every other algorithm are rejected.
  *
  * @packageDocumentation
@@ -40,6 +41,8 @@ export {
   didWebId,
   wellKnownDidUrl,
   wellKnownLlmsUrl,
+  rootLlmsUrl,
+  secureApiBase,
   assertHttpsEndpoint,
   sameSiteRedirect,
 } from "./tls.js";
@@ -50,42 +53,26 @@ export {
   ALLOWED_JWS_ALGS,
 } from "./jws.js";
 export type { AllowedJwsAlg } from "./jws.js";
-export { createSignedDidDocument, hashLlmsTxt, hashPublicKeyPem, publicKeyPemFromPrivate } from "./identity.js";
-export { alignLlmsTxt, renderLlmsManifest } from "./llmsManifest.js";
-export type { LlmsManifestInput } from "./llmsManifest.js";
 export {
-  cloneValue,
-  collectContextTargets,
-  collectLlmsPayloads,
-  formatVerifiedLlms,
-  isContextTarget,
-  isLlmsTxtUrl,
-  parseLlmsTxt,
-  readBody,
-  writeVerifiedText,
-} from "./llmsContext.js";
-export type { LlmsPayloadSite, ParsedLlmsSection, ParsedLlmsTxt } from "./llmsContext.js";
+  createSignedDidDocument,
+  hashLlmsTxt,
+  hashPublicKeyPem,
+  publicKeyPemFromPrivate,
+  REGISTER_CONFIRM_PURPOSE,
+  signRegisterConfirmProof,
+} from "./identity.js";
+export { alignLlmsTxt, assertLlmsTxtDomain, llmsTxtDomains, renderLlmsManifest } from "./llmsManifest.js";
+export type { LlmsManifestInput } from "./llmsManifest.js";
 export type { CreateSignedDidInput, DidServiceEndpoint, SignedDidIdentity } from "./identity.js";
-export { signBuildArtifacts, renewBuildSignatures } from "./buildSign.js";
+export { signBuildArtifacts, renewBuildSignatures, resolvePublishedLlms } from "./buildSign.js";
 export type {
   BuildSignatureFile,
+  PublishedLlms,
   RenewBuildSignaturesOptions,
   RenewBuildSignaturesResult,
   SignBuildArtifactsInput,
   SignBuildArtifactsResult,
 } from "./buildSign.js";
-export {
-  emitSecurityAlert,
-  resolveEnforcementMode,
-  securityAlertEvent,
-  subscribeSecurityAlerts,
-  unverifiedContextAlert,
-} from "./audit.js";
-export type {
-  AgenticTrustEnforcementMode,
-  AgenticTrustSecurityEvent,
-  EnforcementOptions,
-} from "./audit.js";
 export type {
   VerificationStatus,
   DomainClaims,

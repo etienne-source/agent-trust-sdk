@@ -1,5 +1,6 @@
 import { defaultCache, type MemoryCache } from "./cache.js";
-import { assessDidDocument, fetchDidDocument } from "./localDid.js";
+import { hashLlmsTxt } from "./identity.js";
+import { evaluateDomainTrust } from "./trustCore.js";
 import { didWebId, normalizeDomain } from "./tls.js";
 import type { VerificationStatus, VerifyResult } from "./types.js";
 
@@ -22,17 +23,23 @@ const HEADER_NAME = "x-agentic-trust";
 const WARNING_HEADER_NAME = "x-agentic-trust-warning";
 
 export interface AgenticTrustMetadata {
-  /** True only when the registry reports the domain as verified. */
+  /**
+   * True when the domain verifies: either its did:web JWS verifies (with any published
+   * llms.txt bound to the signed hash) and the registry does not report RISK, or the
+   * registry reports VERIFIED when there is no local proof.
+   */
   verified: boolean;
-  /** Registry trust score when the domain is verified and a score was returned. */
+  /** Registry trust score. Never read from the domain's own did.json. */
   trustScore?: number;
-  /** Set when the domain is unverified, risky, or the registry could not be reached. */
+  /** Set when the domain is unverified or risky, or when verification could not complete. */
   securityWarning?: boolean;
-  /** Why the payload should be treated as untrusted. */
+  /** Why the payload should be treated as untrusted, or why the registry was not checked. */
   warning?: string;
   domain: string;
   status: VerificationStatus;
   did?: string;
+  /** SHA-256 of the llms.txt body signed into did.json, when the JWS covers one. */
+  llmsTxtSha256?: string;
 }
 
 export interface AgenticTrustMiddlewareOptions {
@@ -42,7 +49,7 @@ export interface AgenticTrustMiddlewareOptions {
    * then `https://api.trustflow.systems`.
    */
   verificationApiUrl?: string;
-  /** Per-request timeout in milliseconds. Default 4000. */
+  /** Budget in milliseconds for one lookup (did.json, llms.txt, and registry together). Default 4000. */
   timeoutMs?: number;
   /** TTL for successful middleware lookups. Default 5 minutes. */
   cacheTtlMs?: number;
@@ -66,7 +73,7 @@ type ToolMethod = (this: unknown, input: unknown, ...rest: unknown[]) => unknown
 
 export interface AgenticTrustMiddleware {
   /**
-   * Validate a domain, URL, or `did:web` against the registry.
+   * Validate a domain, URL, or `did:web` against its did:web proof and the registry.
    * Network errors resolve to an unverified warning. They do not throw.
    */
   verify(target: string): Promise<AgenticTrustMetadata>;
@@ -88,7 +95,8 @@ export interface AgenticTrustMiddleware {
   /**
    * Fetch wrapper for standard `fetch` and Vercel AI SDK provider `fetch` options.
    * Always sets the trust response header. JSON bodies gain `agenticTrust`.
-   * Unverified JSON bodies also gain `securityWarning: true`.
+   * Unverified JSON bodies also gain `securityWarning: true`. An llms.txt response
+   * whose body does not hash to the signed value is reported as RISK.
    */
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
   /**
@@ -112,6 +120,8 @@ interface Lookup {
   meta: AgenticTrustMetadata;
   /** How long this answer may be cached. `0` means do not store it. */
   cacheTtlMs: number;
+  /** The verification result to cache. Absent for cache hits. */
+  result: VerifyResult | undefined;
 }
 
 function envUrl(): string | undefined {
@@ -142,43 +152,27 @@ export function domainFromTarget(target: string): string {
     throw new Error("Empty verification target");
   }
   if (/^did:web:/i.test(trimmed)) {
-    const host = trimmed.slice("did:web:".length).split(":")[0]?.trim().toLowerCase();
-    if (!host) throw new Error("Invalid did:web");
-    return host;
+    const encoded = trimmed.slice("did:web:".length).split(":")[0]?.trim();
+    if (!encoded) throw new Error("Invalid did:web");
+    let host: string;
+    try {
+      host = decodeURIComponent(encoded);
+    } catch {
+      throw new Error("Invalid did:web");
+    }
+    return normalizeDomain(host);
   }
   return normalizeDomain(trimmed);
 }
 
-function readTrustScore(body: Record<string, unknown>): number | undefined {
-  const claims =
-    body.claims && typeof body.claims === "object"
-      ? (body.claims as Record<string, unknown>)
-      : {};
-  const candidates = [
-    body.trustScore,
-    body.trust_score,
-    body.score,
-    claims.trustScore,
-    claims.trust_score,
-    claims.score,
-  ];
-  for (const candidate of candidates) {
+function readTrustScore(claims: Record<string, unknown>): number | undefined {
+  for (const candidate of [claims.trustScore, claims.trust_score, claims.score]) {
     if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
     if (typeof candidate === "string" && candidate.trim() && Number.isFinite(Number(candidate))) {
       return Number(candidate);
     }
   }
   return undefined;
-}
-
-function readDid(body: Record<string, unknown>, domain: string, verified: boolean): string | undefined {
-  const claims =
-    body.claims && typeof body.claims === "object"
-      ? (body.claims as Record<string, unknown>)
-      : {};
-  if (typeof body.did === "string" && body.did) return body.did;
-  if (typeof claims.did === "string" && claims.did) return claims.did;
-  return verified ? didWebId(domain) : undefined;
 }
 
 function unverified(
@@ -197,66 +191,28 @@ function unverified(
   };
 }
 
-function isVerifiedStatus(body: Record<string, unknown>): boolean {
-  const statusRaw = typeof body.status === "string" ? body.status.toUpperCase() : "";
-  if (statusRaw === "VERIFIED") return true;
-  if (statusRaw === "UNVERIFIED" || statusRaw === "RISK") return false;
-  return body.verified === true;
-}
-
-function metadataFromRegistry(
-  domain: string,
-  body: Record<string, unknown>
-): AgenticTrustMetadata {
-  const statusRaw = typeof body.status === "string" ? body.status.toUpperCase() : "";
-  const verified = isVerifiedStatus(body);
-  const trustScore = readTrustScore(body);
-  const did = readDid(body, domain, verified);
-  const reason = typeof body.reason === "string" ? body.reason : undefined;
-
-  if (verified) {
+function metadataFromResult(result: VerifyResult): AgenticTrustMetadata {
+  const claims = result.claims ?? {};
+  const did = typeof claims.did === "string" && claims.did ? claims.did : undefined;
+  const llmsTxtSha256 = typeof claims.llmsTxtSha256 === "string" ? claims.llmsTxtSha256 : undefined;
+  if (result.status === "VERIFIED") {
+    const trustScore = readTrustScore(claims);
     return {
       verified: true,
       ...(trustScore !== undefined ? { trustScore } : {}),
-      domain,
+      ...(result.reason ? { warning: result.reason } : {}),
+      domain: result.domain,
       status: "VERIFIED",
-      ...(did ? { did } : {}),
+      did: did ?? didWebId(result.domain),
+      ...(llmsTxtSha256 ? { llmsTxtSha256 } : {}),
     };
   }
-
-  const status: VerificationStatus = statusRaw === "RISK" ? "RISK" : "UNVERIFIED";
   return unverified(
-    domain,
-    reason ?? (status === "RISK" ? "Domain marked RISK" : "Domain is not verified"),
-    status,
+    result.domain,
+    result.reason ?? (result.status === "RISK" ? "Domain marked RISK" : "Domain is not verified"),
+    result.status,
     did
   );
-}
-
-function metadataFromCached(result: VerifyResult): AgenticTrustMetadata {
-  return metadataFromRegistry(result.domain, {
-    status: result.status,
-    reason: result.reason,
-    claims: result.claims,
-    did: result.claims.did,
-    trustScore: result.claims.trustScore,
-    trust_score: result.claims.trust_score,
-    score: result.claims.score,
-  });
-}
-
-function toCacheValue(meta: AgenticTrustMetadata): VerifyResult {
-  return {
-    status: meta.status,
-    domain: meta.domain,
-    claims: {
-      ...(meta.did ? { did: meta.did } : {}),
-      ...(meta.trustScore !== undefined ? { trustScore: meta.trustScore } : {}),
-    },
-    reason: meta.warning,
-    cached: false,
-    checkedAt: new Date().toISOString(),
-  };
 }
 
 function cacheKeys(domain: string): { sdk: string; middleware: string } {
@@ -266,159 +222,41 @@ function cacheKeys(domain: string): { sdk: string; middleware: string } {
 function readCache(domain: string, options: ResolvedOptions): AgenticTrustMetadata | undefined {
   if (options.bypassCache) return undefined;
   const keys = cacheKeys(domain);
-  const sdkHit = options.cache.get(keys.sdk);
-  if (sdkHit) return metadataFromCached(sdkHit);
-  const middlewareHit = options.cache.get(keys.middleware);
-  if (middlewareHit) return metadataFromCached(middlewareHit);
-  return undefined;
+  const hit = options.cache.get(keys.sdk) ?? options.cache.get(keys.middleware);
+  return hit ? metadataFromResult(hit) : undefined;
 }
 
-function errorWarning(err: unknown): string {
-  if (err instanceof Error) {
-    if (err.name === "AbortError" || err.name === "TimeoutError") {
-      return "Verification timed out; treating domain as unverified";
-    }
-    return `Verification unavailable: ${err.message}`;
-  }
-  return "Verification unavailable";
-}
-
-function isAbortError(err: unknown): boolean {
-  return err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
-}
-
-/**
- * Local `did:web` check. `null` means "not authoritative" — caller pings the registry.
- * RISK and VERIFIED are terminal. Abort errors propagate so the caller fail-closes.
- */
-async function lookupLocalDid(
-  domain: string,
-  options: ResolvedOptions,
-  signal: AbortSignal
-): Promise<Lookup | null> {
-  const loaded = await fetchDidDocument(domain, options.fetchImpl, signal);
-  if (loaded.kind === "network") {
-    if (signal.aborted || isAbortError(loaded.error)) throw loaded.error;
-    return null;
-  }
-  if (loaded.kind === "http") return null;
-  if (loaded.kind === "invalid-json") {
-    return {
-      meta: unverified(domain, "did.json is not valid JSON", "RISK"),
-      cacheTtlMs: options.cacheTtlMs,
-    };
-  }
-
-  const assessment = await assessDidDocument(domain, loaded.body);
-  if (assessment.outcome === "malformed") {
-    return {
-      meta: unverified(domain, assessment.reason, "RISK"),
-      cacheTtlMs: options.cacheTtlMs,
-    };
-  }
-  if (assessment.outcome === "incomplete") return null;
-  if (assessment.outcome === "risk") {
-    return {
-      meta: unverified(domain, assessment.reason, "RISK", assessment.didId),
-      cacheTtlMs: options.cacheTtlMs,
-    };
-  }
-
-  const trustScore = readTrustScore(assessment.record);
-  return {
-    meta: {
-      verified: true,
-      ...(trustScore !== undefined ? { trustScore } : {}),
-      domain,
-      status: "VERIFIED",
-      did: assessment.didId,
-    },
-    cacheTtlMs: options.cacheTtlMs,
-  };
-}
-
-async function lookupApi(
-  domain: string,
-  options: ResolvedOptions,
-  signal: AbortSignal
-): Promise<Lookup> {
-  const did = didWebId(domain);
-  const url = `${options.apiBase}/v1/verify?domain=${encodeURIComponent(domain)}&did=${encodeURIComponent(did)}`;
-  try {
-    const response = await options.fetchImpl(url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      signal,
-    });
-
-    if (!response.ok) {
-      const transient = response.status >= 500;
-      return {
-        meta: unverified(domain, `Verification API HTTP ${response.status}`),
-        cacheTtlMs: transient ? Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS) : options.cacheTtlMs,
-      };
-    }
-
-    let body: unknown;
-    try {
-      body = await response.json();
-    } catch {
-      return {
-        meta: unverified(domain, "Verification API returned invalid JSON"),
-        cacheTtlMs: Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS),
-      };
-    }
-
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return {
-        meta: unverified(domain, "Verification API returned an unexpected payload"),
-        cacheTtlMs: Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS),
-      };
-    }
-
-    return {
-      meta: metadataFromRegistry(domain, body as Record<string, unknown>),
-      cacheTtlMs: options.cacheTtlMs,
-    };
-  } catch (err) {
-    return {
-      meta: unverified(domain, errorWarning(err)),
-      cacheTtlMs: Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS),
-    };
-  }
-}
+const TIMED_OUT = "Verification timed out; treating domain as unverified";
 
 async function lookupTrust(domain: string, options: ResolvedOptions): Promise<Lookup> {
   const cached = readCache(domain, options);
-  if (cached) return { meta: cached, cacheTtlMs: 0 };
+  if (cached) return { meta: cached, cacheTtlMs: 0, result: undefined };
 
   const signal = AbortSignal.timeout(options.timeoutMs);
-  try {
-    const local = await lookupLocalDid(domain, options, signal);
-    if (local) return local;
-  } catch (err) {
-    return {
-      meta: unverified(domain, errorWarning(err)),
-      cacheTtlMs: Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS),
-    };
+  const { result, transient } = await evaluateDomainTrust(domain, {
+    fetchFn: options.fetchImpl,
+    apiBase: options.apiBase,
+    signal,
+    registryQuery: { did: didWebId(domain) },
+  });
+  const shortTtl = Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS);
+  if (signal.aborted && result.status !== "RISK") {
+    const timedOut = { ...result, status: "UNVERIFIED" as const, reason: TIMED_OUT };
+    return { meta: metadataFromResult(timedOut), cacheTtlMs: shortTtl, result: timedOut };
   }
-
-  if (signal.aborted) {
-    return {
-      meta: unverified(domain, "Verification timed out; treating domain as unverified"),
-      cacheTtlMs: Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS),
-    };
-  }
-
-  return lookupApi(domain, options, signal);
+  return {
+    meta: metadataFromResult(result),
+    cacheTtlMs: transient ? shortTtl : options.cacheTtlMs,
+    result,
+  };
 }
 
 const inflight = new WeakMap<ResolvedOptions, Map<string, Promise<AgenticTrustMetadata>>>();
 
 async function settle(domain: string, options: ResolvedOptions): Promise<AgenticTrustMetadata> {
   const lookup = await lookupTrust(domain, options);
-  if (lookup.cacheTtlMs > 0) {
-    options.cache.set(cacheKeys(domain).middleware, toCacheValue(lookup.meta), lookup.cacheTtlMs);
+  if (lookup.cacheTtlMs > 0 && lookup.result) {
+    options.cache.set(cacheKeys(domain).middleware, { ...lookup.result, cached: false }, lookup.cacheTtlMs);
   }
   return lookup.meta;
 }
@@ -522,6 +360,41 @@ function hostnameOf(url: string): string | undefined {
   }
 }
 
+function isLlmsTxtUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    return /(^|\/)llms\.txt$/i.test(url.pathname.replace(/\/+$/, ""));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * An llms.txt body is trusted only when it hashes to the value signed into did.json.
+ * A verified domain whose JWS does not sign llms.txt, or a body that differs, is RISK.
+ */
+function bindLlmsBody(url: string, body: string, meta: AgenticTrustMetadata): AgenticTrustMetadata {
+  if (!meta.verified || !isLlmsTxtUrl(url)) return meta;
+  if (!meta.llmsTxtSha256) {
+    return unverified(meta.domain, "llms.txt is not signed by the domain did.json", "RISK", meta.did);
+  }
+  if (hashLlmsTxt(body) !== meta.llmsTxtSha256) {
+    return unverified(meta.domain, "llms.txt body does not match the signed hash", "RISK", meta.did);
+  }
+  return meta;
+}
+
+function bodyText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (typeof record.pageContent === "string") return record.pageContent;
+    if (typeof record.content === "string") return record.content;
+  }
+  return undefined;
+}
+
 function stricter(primary: AgenticTrustMetadata, other: AgenticTrustMetadata): AgenticTrustMetadata {
   if (!primary.verified) return primary;
   if (!other.verified) return other;
@@ -591,7 +464,9 @@ function wrapMethod(method: ToolMethod, tool: object, options: ResolvedOptions):
     const result = await method.call(tool, input, ...rest);
     const target = extractTarget(input) ?? extractTarget(result);
     if (!target) return result;
-    const meta = await verifyWithOptions(target, options);
+    let meta = await verifyWithOptions(target, options);
+    const text = bodyText(result);
+    if (text !== undefined) meta = bindLlmsBody(target, text, meta);
     return mergeResult(result, meta);
   };
 }
@@ -599,10 +474,12 @@ function wrapMethod(method: ToolMethod, tool: object, options: ResolvedOptions):
 /**
  * Demand-side verification middleware.
  *
- * When an agent fetches a domain, the wrapper checks local `did:web` (JWS)
- * or calls `GET {base}/v1/verify` and appends `{ verified, trustScore }`
- * metadata. Unverified domains and registry outages append `securityWarning: true`
- * and do not throw.
+ * When an agent fetches a domain, the wrapper checks the domain's `did:web` JWS,
+ * requires any published llms.txt to match the signed hash, consults
+ * `GET {base}/v1/verify`, and appends `{ verified, trustScore }` metadata.
+ * An llms.txt body returned through `fetch`, `annotateDocuments`, or a wrapped tool
+ * must also hash to the signed value. Unverified or risky domains, and lookups that
+ * time out, append `securityWarning: true` and do not throw.
  *
  * @example
  * ```ts
@@ -632,6 +509,16 @@ export function agenticTrustMiddleware(
     if (finalHost && finalHost !== meta.domain) {
       meta = stricter(meta, await verifyWithOptions(finalHost, resolved));
     }
+    const servedUrl = response.url || requested;
+    if (response.ok && (isLlmsTxtUrl(servedUrl) || isLlmsTxtUrl(requested))) {
+      const text = await response.text();
+      meta = bindLlmsBody(isLlmsTxtUrl(servedUrl) ? servedUrl : requested, text, meta);
+      const headers = new Headers(response.headers);
+      headers.delete("content-length");
+      headers.delete("content-encoding");
+      const rebuilt = new Response(text, { status: response.status, statusText: response.statusText, headers });
+      return applyMetadata(rebuilt, meta, resolved.headerName);
+    }
     return applyMetadata(response, meta, resolved.headerName);
   };
 
@@ -651,9 +538,12 @@ export function agenticTrustMiddleware(
       return Promise.all(
         documents.map(async (doc) => {
           const target = extractTarget(doc.metadata) ?? extractTarget(doc) ?? fallbackUrl;
-          const meta = target
+          let meta = target
             ? await verifyWithOptions(target, resolved)
             : unverified("unknown", "Document has no source URL to verify");
+          if (target && typeof doc.pageContent === "string") {
+            meta = bindLlmsBody(target, doc.pageContent, meta);
+          }
           const metadata = {
             ...(doc.metadata ?? {}),
             agenticTrust: meta,

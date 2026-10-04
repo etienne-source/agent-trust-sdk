@@ -58,6 +58,16 @@ export function hashLlmsTxt(text: string): string {
   return createHash("sha256").update(normalized, "utf8").digest("hex");
 }
 
+function samePublicKey(candidatePem: string, derivedPem: string): boolean {
+  try {
+    const candidate = createPublicKey(candidatePem).export({ type: "spki", format: "der" });
+    const derived = createPublicKey(derivedPem).export({ type: "spki", format: "der" });
+    return Buffer.compare(candidate, derived) === 0;
+  } catch {
+    return false;
+  }
+}
+
 function pemToString(value: string | Buffer): string {
   return typeof value === "string" ? value : value.toString("utf8");
 }
@@ -123,6 +133,9 @@ export async function createSignedDidDocument(
   if (input.privateKeyPem) {
     const material = signingMaterial(input.privateKeyPem);
     privateKeyPem = material.pkcs8Pem;
+    if (input.publicKeyPem !== undefined && !samePublicKey(input.publicKeyPem, material.publicKeyPem)) {
+      throw new Error("publicKeyPem does not match privateKeyPem. Pass the matching public key or omit it.");
+    }
     publicKeyPem = input.publicKeyPem ?? material.publicKeyPem;
     alg = material.alg;
     signingKey = await importPKCS8(material.pkcs8Pem, alg);
@@ -188,4 +201,34 @@ export async function createSignedDidDocument(
     privateKeyPem,
     publicKeyHash: hashPublicKeyPem(publicKeyPem),
   };
+}
+
+/** Claim the register-confirm API requires inside `proofJws`. */
+export const REGISTER_CONFIRM_PURPOSE = "trustflow-register-confirm";
+
+/**
+ * Compact JWS that `POST /v1/register/confirm` verifies against the registered
+ * public key. Payload is exactly
+ * `{ purpose: "trustflow-register-confirm", domain, challengeToken }`.
+ * The private key is used to sign and is not included in the JWS.
+ */
+export async function signRegisterConfirmProof(input: {
+  domain: string;
+  challengeToken: string;
+  privateKeyPem: string;
+}): Promise<string> {
+  const domain = normalizeDomain(input.domain);
+  const challengeToken = input.challengeToken;
+  if (!challengeToken || !challengeToken.trim()) {
+    throw new Error("challengeToken is required to sign the register confirm proof.");
+  }
+  const material = signingMaterial(input.privateKeyPem);
+  const signingKey = await importPKCS8(material.pkcs8Pem, material.alg);
+  return new SignJWT({
+    purpose: REGISTER_CONFIRM_PURPOSE,
+    domain,
+    challengeToken,
+  })
+    .setProtectedHeader({ alg: material.alg })
+    .sign(signingKey);
 }

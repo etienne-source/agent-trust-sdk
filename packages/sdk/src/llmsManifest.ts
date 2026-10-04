@@ -61,6 +61,54 @@ export function alignLlmsTxt(body: string, domain: string): string {
   return `${text}\n`;
 }
 
+function hostOf(value: string): string | undefined {
+  try {
+    const input = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    return new URL(input).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Hostnames an llms.txt names in `Domain:`, `- DID: did:web:`, and `- Manifest:` lines. */
+export function llmsTxtDomains(body: string): string[] {
+  const found = new Set<string>();
+  const text = body.replace(/\r\n/g, "\n");
+  for (const match of text.matchAll(/^domain:\s*(\S+)/gim)) {
+    const host = hostOf(match[1] ?? "");
+    if (host) found.add(host);
+  }
+  for (const match of text.matchAll(/^- DID:\s*did:web:([^\s:]+)/gim)) {
+    let raw = match[1] ?? "";
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      // keep the encoded form
+    }
+    const host = hostOf(raw);
+    if (host) found.add(host);
+  }
+  for (const match of text.matchAll(/^- Manifest:\s*(https?:\/\/\S+)/gim)) {
+    const host = hostOf(match[1] ?? "");
+    if (host) found.add(host);
+  }
+  return [...found];
+}
+
+/**
+ * Throw when an llms.txt names a domain other than `domain`. Signing such a file would
+ * publish another site's manifest under this site's did:web.
+ */
+export function assertLlmsTxtDomain(body: string, domain: string): void {
+  const expected = domain.trim().toLowerCase();
+  const others = llmsTxtDomains(body).filter((host) => host !== expected);
+  if (others.length > 0) {
+    throw new Error(
+      `llms.txt names ${others.join(", ")}, not ${expected}. Fix its Domain, DID, and Manifest lines before signing.`
+    );
+  }
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

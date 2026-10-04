@@ -14,7 +14,7 @@ inputs:
     required: false
     default: ""
   description:
-    description: Used only when generating a missing root llms.txt.
+    description: Used only when the project has no llms.txt and the template is generated.
     required: false
     default: ""
   services:
@@ -85,7 +85,7 @@ outputs:
     description: "'true', 'false', or 'dry-run'."
     value: ${{ steps.sign.outputs.live }}
   llms-generated:
-    description: Whether root llms.txt was created from the standard template.
+    description: Whether llms.txt was created from the standard template because none existed.
     value: ${{ steps.sign.outputs.llms-generated }}
   did:
     description: did:web identifier that was signed.

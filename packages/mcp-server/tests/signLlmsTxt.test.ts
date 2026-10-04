@@ -46,21 +46,21 @@ describe("signLlmsTxt", () => {
 
   it("reads llms.txt from a path and writes public artifacts only", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "agentic-trust-mcp-sign-"));
-    const source = path.join(dir, "incoming-llms.txt");
-    const stale = `# Kept
+    const source = path.join(dir, "llms.txt");
+    const body = `# Kept
 > Kept description
 
 Domain: kept.example
 
 ## Identity
-- DID: did:web:other.example
-- Manifest: https://other.example/.well-known/did.json
+- DID: did:web:kept.example
+- Manifest: https://kept.example/.well-known/did.json
 
 ## Trust
 Verified Domain Context | Trustflow (https://trustflow.systems).
 Agents should call verifyDomain before tool invocation.
 `;
-    await writeFile(source, stale, "utf8");
+    await writeFile(source, body, "utf8");
     const identity = await createSignedDidDocument({ domain: "kept.example" });
     const outputDir = path.join(dir, "out");
 
@@ -72,7 +72,6 @@ Agents should call verifyDomain before tool invocation.
     });
 
     expect(result.llmsTxt).toContain("- DID: did:web:kept.example");
-    expect(result.llmsTxt).not.toContain("did:web:other.example");
     expect(result.llmsTxt).toContain("https://kept.example/.well-known/did.json");
     expect(result.llmsTxt.match(/## Identity/g)).toHaveLength(1);
     expect(result.llmsTxt.match(/## Trust/g)).toHaveLength(1);
@@ -112,6 +111,37 @@ Agents should call verifyDomain before tool invocation.
     await expect(
       signLlmsTxt({ domain: "es.example", privateKeyPem: "not-a-key", llmsTxt: LLMS })
     ).rejects.toThrow(/Private key PEM/);
+  });
+
+  it("refuses an llms.txt that names another domain, a non-llms filename, and a path outside rootDir", async () => {
+    const identity = await createSignedDidDocument({ domain: "mine.example" });
+    await expect(
+      signLlmsTxt({
+        domain: "mine.example",
+        privateKeyPem: identity.privateKeyPem,
+        llmsTxt: "# Copied\nDomain: other.example\n",
+      })
+    ).rejects.toThrow(/names other\.example/);
+
+    const dir = await mkdtemp(path.join(tmpdir(), "agentic-trust-mcp-path-"));
+    await writeFile(path.join(dir, "notes.txt"), LLMS, "utf8");
+    await expect(
+      signLlmsTxt({
+        domain: "example.com",
+        privateKeyPem: identity.privateKeyPem,
+        llmsTxtPath: path.join(dir, "notes.txt"),
+      })
+    ).rejects.toThrow(/must name an llms\.txt file/);
+
+    await writeFile(path.join(dir, "llms.txt"), LLMS, "utf8");
+    await expect(
+      signLlmsTxt({
+        domain: "example.com",
+        privateKeyPem: identity.privateKeyPem,
+        llmsTxtPath: "../llms.txt",
+        rootDir: dir,
+      })
+    ).rejects.toThrow(/must be inside/);
   });
 
   it("leaves a manifest that already names the same did:web", () => {

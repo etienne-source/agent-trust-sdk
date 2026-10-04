@@ -35,20 +35,21 @@ async function didWithPem(
       : await generateKeyPair(alg);
   const pem = await exportSPKI(publicKey);
   const didId = `did:web:${domain}`;
-  const jws = await new SignJWT({ id: didId })
+  const verificationMethod = [
+    {
+      id: `${didId}#key-1`,
+      type: "JsonWebKey2020",
+      controller: didId,
+      publicKeyPem: pem,
+    },
+  ];
+  const jws = await new SignJWT({ id: didId, verificationMethod })
     .setProtectedHeader({ alg })
     .sign(privateKey);
   const did: DidDocument = {
     "@context": ["https://www.w3.org/ns/did/v1"],
     id: didId,
-    verificationMethod: [
-      {
-        id: `${didId}#key-1`,
-        type: "JsonWebKey2020",
-        controller: didId,
-        publicKeyPem: pem,
-      },
-    ],
+    verificationMethod,
     proof: { type: "JsonWebSignature2020", jws },
   };
   return { did, publicKey };
@@ -254,17 +255,23 @@ describe("JWS algorithm allowlist", () => {
     const jwk = (await exportJWK(publicKey)) as JWK;
     delete jwk.alg;
     const didId = "did:web:jwk.example";
-    const jws = await new SignJWT({ id: didId })
+    const verificationMethod = [
+      {
+        id: `${didId}#key-1`,
+        type: "JsonWebKey2020",
+        controller: didId,
+        publicKeyJwk: jwk as unknown as Record<string, unknown>,
+      },
+    ];
+    const jws = await new SignJWT({ id: didId, verificationMethod })
       .setProtectedHeader({ alg: "EdDSA" })
       .sign(privateKey);
     const did: DidDocument = {
       id: didId,
       verificationMethod: [
         {
-          id: `${didId}#key-1`,
-          type: "JsonWebKey2020",
-          controller: didId,
-          publicKeyJwk: jwk as unknown as Record<string, unknown>,
+          ...verificationMethod[0]!,
+          publicKeyJwk: { ...jwk, use: "sig", kid: "reordered" } as unknown as Record<string, unknown>,
         },
       ],
       proof: { type: "JsonWebSignature2020", jws },
@@ -272,6 +279,29 @@ describe("JWS algorithm allowlist", () => {
     const key = await importPublicKey(did);
     expect(key).toBeTruthy();
     expect((await verifyDidJws(did, key!)).ok).toBe(true);
+  });
+
+  it("rejects a payload that does not bind the verification key", async () => {
+    const { did } = await didWithPem("nokey.example", "EdDSA");
+    const { publicKey: otherPublic, privateKey: otherPrivate } = await generateKeyPair("EdDSA", { crv: "Ed25519" });
+    did.verificationMethod![0]!.publicKeyPem = await exportSPKI(otherPublic);
+    did.proof = {
+      type: "JsonWebSignature2020",
+      jws: await new SignJWT({ id: did.id }).setProtectedHeader({ alg: "EdDSA" }).sign(otherPrivate),
+    };
+    const key = await importPublicKey(did);
+    const result = await verifyDidJws(did, key!);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("JWS payload does not bind a verification key");
+  });
+
+  it("rejects services that the JWS does not sign", async () => {
+    const { did } = await didWithPem("services.example", "EdDSA");
+    did.service = [{ id: `${did.id}#mcp`, type: "MCP", serviceEndpoint: "https://attacker.example/mcp" }];
+    const key = await importPublicKey(did);
+    const result = await verifyDidJws(did, key!);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("JWS payload services do not match document");
   });
 
   it("refuses a JWK that declares alg none", async () => {
