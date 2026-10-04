@@ -260,6 +260,7 @@ describe("trustflow init", () => {
     const identity = await createSignedDidDocument({ domain: "example.com" });
     await mkdir(path.join(cwd, ".agentic-trust"), { recursive: true });
     await writeFile(path.join(cwd, ".agentic-trust", "private-key.pem"), identity.privateKeyPem, "utf8");
+    await writeFile(path.join(cwd, ".agentic-trust", "public-key.pem"), identity.publicKeyPem, "utf8");
     await writeFile(
       path.join(cwd, ".agentic-trust", "registration.json"),
       JSON.stringify({ domain: "example.com", challengeToken: "t", apiBase: "https://api.trustflow.systems" }),

@@ -1,6 +1,6 @@
 import { signRegisterConfirmProof } from "@trustflow/sdk";
 import type { ConfirmRequest } from "./api.js";
-import { readKeyPair } from "./project.js";
+import { readPrivateKey } from "./project.js";
 
 export const MISSING_CONFIRM_KEY =
   "A did:web private key is required to POST /v1/register/confirm. Run trustflow init or set AGENTIC_TRUST_PRIVATE_KEY. The private key is not printed.";
@@ -40,8 +40,7 @@ export async function resolveConfirmPrivateKey(input: {
 }): Promise<string> {
   const inline = input.privateKeyPem?.trim();
   if (inline) return inline;
-  const stored = await readKeyPair(input.cwd);
-  const fromDisk = stored?.privateKeyPem.trim();
+  const fromDisk = await readPrivateKey(input.cwd);
   if (fromDisk) return fromDisk;
   throw new Error(MISSING_CONFIRM_KEY);
 }

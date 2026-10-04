@@ -155,4 +155,38 @@ describe("register confirm private-key proof", () => {
     expect(sign.lines.join("\n")).not.toContain("PRIVATE KEY");
     expect(JSON.stringify(signFetch.mock.calls)).not.toContain("PRIVATE KEY");
   });
+
+  it("confirm signs from private-key.pem even when public-key.pem is missing", async () => {
+    const cwd = await tempProject();
+    const identity = await createSignedDidDocument({ domain: "solo.example" });
+    await mkdir(path.join(cwd, ".agentic-trust"), { recursive: true });
+    await writeFile(path.join(cwd, ".agentic-trust", "private-key.pem"), identity.privateKeyPem, "utf8");
+    await writeFile(
+      path.join(cwd, ".agentic-trust", "registration.json"),
+      JSON.stringify({
+        domain: "solo.example",
+        challengeToken: "solo-token",
+        apiBase: "https://api.trustflow.systems",
+      }),
+      "utf8"
+    );
+    let body: ConfirmBody | undefined;
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/v1/register/confirm")) {
+        body = JSON.parse(String(init?.body)) as ConfirmBody;
+        return jsonResponse({ status: "VERIFIED", domain: "solo.example" });
+      }
+      return jsonResponse({ error: "unexpected" }, 500);
+    });
+    const { lines, log } = capture();
+    const code = await main(["confirm", "--domain", "solo.example", "--token", "solo-token"], {
+      cwd,
+      log,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      stdinIsTTY: false,
+    });
+    expect(code).toBe(0);
+    expectValidConfirmProof(body!, "solo.example", "solo-token", identity.privateKeyPem);
+    expect(lines.join("\n")).not.toContain("PRIVATE KEY");
+  });
 });
