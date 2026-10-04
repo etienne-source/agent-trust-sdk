@@ -1,7 +1,6 @@
-import { promises as fs } from "node:fs";
-import { createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
+import { assertLlmsTxtDomain, createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { resolveTrustflowApiBase } from "./api.js";
-import { applyBadge, verifyPageUrl } from "./badge.js";
+import { BADGE_DEFERRED, applyBadge, verifyPageUrl } from "./badge.js";
 import {
   detectProjectLayout,
   directoryExists,
@@ -9,14 +8,9 @@ import {
   shouldMirrorPublishedFiles,
   type ProjectLayout,
 } from "./framework.js";
-import {
-  parseServiceList,
-  readLlms,
-  renderLlms,
-} from "./llms.js";
+import { findPublishedLlms, parseServiceList, publishLlms, renderLlms } from "./llms.js";
 import {
   ensureGitignore,
-  ensurePublishedFile,
   gitignoreNotice,
   readKeyPair,
   writePrivateKey,
@@ -41,7 +35,10 @@ export interface InitOptions {
   envApiUrl?: string;
   nonInteractive: boolean;
   stdinIsTTY: boolean;
-  /** When false, register but do not POST /v1/register/confirm. Default true. */
+  /**
+   * When true, probe the live proofs once and POST /v1/register/confirm after registering.
+   * The CLI sets this from `--confirm` or `AGENTIC_TRUST_AUTO_CONFIRM`. Default false.
+   */
   autoConfirm: boolean;
   skipRegister: boolean;
   forceKeys: boolean;
@@ -56,7 +53,10 @@ export interface InitOptions {
 
 export async function runInit(options: InitOptions): Promise<number> {
   const interactive = !options.nonInteractive && options.stdinIsTTY;
-  const existing = await readLlms(options.cwd);
+  const layout = await detectProjectLayout(options.cwd);
+  const publicDirExists = await directoryExists(options.cwd, layout.publicDir);
+  const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
+  const existing = await findPublishedLlms(options.cwd, layout.publicDir, mirrorRoot);
 
   const domain = await requireValue({
     preset: options.domain ?? existing?.domain,
@@ -70,10 +70,8 @@ export async function runInit(options: InitOptions): Promise<number> {
   let name = options.name ?? existing?.name;
   let description = options.description ?? existing?.description;
   let services = options.services !== undefined ? parseServiceList(options.services) : existing?.services ?? [];
+  if (existing) assertLlmsTxtDomain(existing.body, normalizedDomain);
 
-  const layout = await detectProjectLayout(options.cwd);
-  const publicDirExists = await directoryExists(options.cwd, layout.publicDir);
-  const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
   options.log(`Project: ${frameworkLabel(layout.framework)}. Publishing to ${layout.publicDir}/ (${layout.reason}).`);
   if (layout.framework === "next") {
     const patched = await ensureNextIdentityRoutes(options.cwd);
@@ -109,11 +107,6 @@ export async function runInit(options: InitOptions): Promise<number> {
       services,
     });
     llmsBody = llms;
-    for (const leaf of ["llms.txt", ".well-known/llms.txt"] as const) {
-      for (const file of await writePublishedFile(options.cwd, layout.publicDir, leaf, llms, mirrorRoot)) {
-        options.log(`Wrote ${file}`);
-      }
-    }
   } else {
     options.log(`Found llms.txt at ${existing.path}`);
     if (!name || !description) {
@@ -132,13 +125,10 @@ export async function runInit(options: InitOptions): Promise<number> {
         missing: "llms.txt has no description. Pass --description.",
       });
     }
-    if (!existing.path) throw new Error("Found llms.txt has no path.");
-    llmsBody = await fs.readFile(existing.path, "utf8");
-    for (const leaf of ["llms.txt", ".well-known/llms.txt"] as const) {
-      for (const file of await ensurePublishedFile(options.cwd, layout.publicDir, leaf, llmsBody, mirrorRoot)) {
-        options.log(`Wrote ${file}`);
-      }
-    }
+    llmsBody = existing.body;
+  }
+  for (const file of await publishLlms(options.cwd, layout.publicDir, mirrorRoot, llmsBody)) {
+    options.log(`Wrote ${file}`);
   }
 
   const verificationType = parseVerificationType(options.verificationType);
@@ -207,7 +197,8 @@ export async function runInit(options: InitOptions): Promise<number> {
     if (!options.autoConfirm) {
       options.log("Run trustflow confirm after did.json and the challenge file are on HTTPS.");
       options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-      return finishInit(options, await applyBadge(options.cwd, normalizedDomain, options.log));
+      options.log(BADGE_DEFERRED);
+      return finishInit(options, 0);
     }
 
     options.log(`Trustflow API: POST ${apiBase}/v1/register/confirm`);
@@ -231,15 +222,19 @@ export async function runInit(options: InitOptions): Promise<number> {
       log: options.log,
     });
     options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-    const badgeCode = await applyBadge(options.cwd, normalizedDomain, options.log);
-    return finishInit(options, confirmed.code || badgeCode);
+    if (!confirmed.verified) {
+      options.log(BADGE_DEFERRED);
+      return finishInit(options, confirmed.code || 1);
+    }
+    return finishInit(options, await applyBadge(options.cwd, normalizedDomain, options.log));
   }
 
   options.log("Skipped Trustflow registration (--skip-register).");
   options.log(`Publish ${layout.publicDir}/.well-known/did.json and ${layout.publicDir}/llms.txt on the domain (HTTPS).`);
   options.log("Keep .agentic-trust/ out of git. It holds the private key.");
   options.log(`Verify: ${verifyPageUrl(normalizedDomain)}`);
-  return finishInit(options, await applyBadge(options.cwd, normalizedDomain, options.log));
+  options.log(BADGE_DEFERRED);
+  return finishInit(options, 0);
 }
 
 function finishInit(options: InitOptions, code: number): number {

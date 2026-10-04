@@ -4,6 +4,10 @@ import path from "node:path";
 const BADGE_LABEL = "Verified Domain Context | Trustflow";
 const LAYOUT_FILES = ["src/app/layout.tsx", "app/layout.tsx", "index.html", "app.html"];
 
+/** The badge says "Verified", so commands write it only after the registry verifies the domain. */
+export const BADGE_DEFERRED =
+  "Badge not written: the domain is not verified yet. trustflow confirm writes it once the registry verifies the domain.";
+
 /** Public verify page for a normalized domain. */
 export function verifyPageUrl(domain: string): string {
   return `https://trustflow.systems/verify/${encodeURIComponent(domain)}`;

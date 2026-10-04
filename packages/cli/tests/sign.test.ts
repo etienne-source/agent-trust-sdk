@@ -1,7 +1,7 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
+import { createSignedDidDocument, hashLlmsTxt, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { main } from "../src/cli.js";
 import { redactSecrets } from "../src/redact.js";
@@ -151,5 +151,60 @@ describe("trustflow sign", () => {
     });
     expect(code).toBe(1);
     expect(lines.join("\n")).toContain("AGENTIC_TRUST_PRIVATE_KEY");
+  });
+
+  it("signs a user's public/llms.txt and does not overwrite it with the template", async () => {
+    const cwd = await tempProject();
+    await mkdir(path.join(cwd, "public"), { recursive: true });
+    await writeFile(path.join(cwd, "next.config.mjs"), "export default {};\n");
+    const original = "# My Shop\n> Written by hand\n\nDomain: shop.example\n";
+    await writeFile(path.join(cwd, "public", "llms.txt"), original, "utf8");
+    const identity = await createSignedDidDocument({ domain: "shop.example" });
+    const { lines, log } = capture();
+    const code = await main(["sign", "--dry-run", "--domain", "shop.example"], {
+      cwd,
+      log,
+      stdinIsTTY: false,
+      env: { AGENTIC_TRUST_PRIVATE_KEY: identity.privateKeyPem },
+    });
+    expect(code).toBe(0);
+    expect(await readFile(path.join(cwd, "public", "llms.txt"), "utf8")).toBe(original);
+    expect(await readFile(path.join(cwd, "public", ".well-known", "llms.txt"), "utf8")).toBe(original);
+    const did = JSON.parse(await readFile(path.join(cwd, "public", ".well-known", "did.json"), "utf8")) as DidDocument;
+    expect(did.llmsTxtSha256).toBe(hashLlmsTxt(original));
+    expect(lines.join("\n")).toContain("Found public/llms.txt. Left it unchanged.");
+  });
+
+  it("refuses to sign an llms.txt that names another domain", async () => {
+    const cwd = await tempProject();
+    await writeFile(path.join(cwd, "llms.txt"), "# Copied\nDomain: other.example\n", "utf8");
+    const identity = await createSignedDidDocument({ domain: "mine.example" });
+    const { lines, log } = capture();
+    const code = await main(["sign", "--dry-run", "--domain", "mine.example"], {
+      cwd,
+      log,
+      stdinIsTTY: false,
+      env: { AGENTIC_TRUST_PRIVATE_KEY: identity.privateKeyPem },
+    });
+    expect(code).toBe(1);
+    expect(lines.join("\n")).toMatch(/names other\.example, not mine\.example/);
+  });
+
+  it("does not write the verified badge on a dry run or before confirm verifies", async () => {
+    const cwd = await tempProject();
+    await mkdir(path.join(cwd, "app"), { recursive: true });
+    const layout = "<html><body><main /></body></html>\n";
+    await writeFile(path.join(cwd, "app", "layout.tsx"), layout, "utf8");
+    const identity = await createSignedDidDocument({ domain: "badge.example" });
+    const { lines, log } = capture();
+    const code = await main(["sign", "--dry-run", "--domain", "badge.example"], {
+      cwd,
+      log,
+      stdinIsTTY: false,
+      env: { AGENTIC_TRUST_PRIVATE_KEY: identity.privateKeyPem },
+    });
+    expect(code).toBe(0);
+    expect(await readFile(path.join(cwd, "app", "layout.tsx"), "utf8")).toBe(layout);
+    expect(lines.join("\n")).toContain("Badge not written");
   });
 });

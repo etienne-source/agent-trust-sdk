@@ -1,8 +1,19 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createSignedDidDocument, hashLlmsTxt, normalizeDomain, type DidDocument } from "@trustflow/sdk";
-import { detectProjectLayout, ensureNextIdentityRoutes } from "./framework.js";
-import { readLlms } from "./llms.js";
+import {
+  assertLlmsTxtDomain,
+  createSignedDidDocument,
+  hashLlmsTxt,
+  normalizeDomain,
+  type DidDocument,
+} from "@trustflow/sdk";
+import {
+  detectProjectLayout,
+  directoryExists,
+  ensureNextIdentityRoutes,
+  shouldMirrorPublishedFiles,
+} from "./framework.js";
+import { findPublishedLlms, publishLlms } from "./llms.js";
 import { readKeyPair } from "./project.js";
 
 export interface SignLlmsOptions {
@@ -15,8 +26,11 @@ export interface SignLlmsOptions {
  * Does not call `/v1/register`, does not write a challenge, and does not rotate keys.
  */
 export async function runSignLlms(options: SignLlmsOptions): Promise<number> {
-  const llms = await readLlms(options.cwd);
-  if (!llms?.path) {
+  const layout = await detectProjectLayout(options.cwd);
+  const publicDirExists = await directoryExists(options.cwd, layout.publicDir);
+  const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
+  const llms = await findPublishedLlms(options.cwd, layout.publicDir, mirrorRoot);
+  if (!llms) {
     throw new Error(
       "Missing llms.txt. sign-llms signs an existing manifest and does not create one. Looked in llms.txt, .well-known/, public/, static/, docs/, and src/."
     );
@@ -29,7 +43,6 @@ export async function runSignLlms(options: SignLlmsOptions): Promise<number> {
     );
   }
 
-  const layout = await detectProjectLayout(options.cwd);
   const didFiles = await findDidFiles(options.cwd, layout.publicDir);
   if (didFiles.length === 0) {
     throw new Error(
@@ -44,19 +57,19 @@ export async function runSignLlms(options: SignLlmsOptions): Promise<number> {
       throw new Error("did.json files name different domains. sign-llms will not rewrite a mismatched JWS.");
     }
   }
-  if (llms.domain && normalizeDomain(llms.domain) !== domain) {
-    throw new Error(
-      `llms.txt Domain (${llms.domain}) does not match did.json (${domain}). sign-llms did not rewrite the JWS.`
-    );
+  try {
+    assertLlmsTxtDomain(llms.body, domain);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`${message} did.json is for ${domain}. sign-llms did not rewrite the JWS.`);
   }
 
-  const llmsText = await fs.readFile(llms.path, "utf8");
   const identity = await createSignedDidDocument({
     domain,
     privateKeyPem: keys.privateKeyPem,
     publicKeyPem: keys.publicKeyPem,
     services: documents[0].did.service,
-    llmsTxtSha256: hashLlmsTxt(llmsText),
+    llmsTxtSha256: hashLlmsTxt(llms.body),
   });
   if (!identity.did.proof?.jws) {
     throw new Error("Signing did not produce a JWS.");
@@ -72,11 +85,8 @@ export async function runSignLlms(options: SignLlmsOptions): Promise<number> {
   }
 
   for (const document of documents) {
-    const next: DidDocument = {
-      ...document.did,
-      llmsTxtSha256: identity.did.llmsTxtSha256,
-      proof: identity.did.proof,
-    };
+    // Every field the JWS covers comes from the freshly signed document.
+    const next: DidDocument = { ...document.did, ...identity.did };
     const body = `${JSON.stringify(next, null, 2)}\n`;
     if (body.includes("PRIVATE KEY")) {
       throw new Error("Refusing to write a private key into did.json.");
@@ -85,7 +95,10 @@ export async function runSignLlms(options: SignLlmsOptions): Promise<number> {
     options.log(`Rewrote JWS in ${path.relative(options.cwd, document.file)}`);
   }
 
-  options.log(`Signed existing llms.txt at ${path.relative(options.cwd, llms.path)}.`);
+  for (const file of await publishLlms(options.cwd, layout.publicDir, mirrorRoot, llms.body)) {
+    options.log(`Wrote ${path.relative(options.cwd, file)}`);
+  }
+  options.log(`Signed existing llms.txt at ${llms.path}.`);
   options.log("Did not call POST /v1/register and did not write a challenge.");
   if (layout.framework === "next") {
     const patched = await ensureNextIdentityRoutes(options.cwd);

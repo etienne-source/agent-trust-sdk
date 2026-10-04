@@ -25,4 +25,10 @@ describe("resolveTrustflowApiBase", () => {
   it("keeps a custom base", () => {
     expect(resolveTrustflowApiBase("https://api.example.test/prefix")).toBe("https://api.example.test/prefix");
   });
+
+  it("refuses plain HTTP except on loopback", () => {
+    expect(() => resolveTrustflowApiBase("http://api.example.test")).toThrow(/must use HTTPS/);
+    expect(resolveTrustflowApiBase("http://127.0.0.1:8787")).toBe("http://127.0.0.1:8787");
+    expect(resolveTrustflowApiBase("http://localhost:8787/")).toBe("http://localhost:8787");
+  });
 });

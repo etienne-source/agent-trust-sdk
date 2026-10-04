@@ -1,10 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
+import { assertLlmsTxtDomain, createSignedDidDocument, hashLlmsTxt, normalizeDomain } from "@trustflow/sdk";
 import { confirmRegistration, resolveTrustflowApiBase, TrustflowApiError } from "./api.js";
-import { applyBadge } from "./badge.js";
+import { BADGE_DEFERRED, applyBadge } from "./badge.js";
 import { detectProjectLayout, directoryExists, shouldMirrorPublishedFiles } from "./framework.js";
-import { parseLlms, parseServiceList, renderLlms } from "./llms.js";
+import { findPublishedLlms, parseServiceList, publishLlms, renderLlms } from "./llms.js";
 import {
   ensureGitignore,
   gitignoreNotice,
@@ -60,19 +60,19 @@ async function signDomain(
   secrets: string[],
   log: (line?: string) => void
 ): Promise<number> {
-  const domainInput = options.domain?.trim() || (options.dryRun ? "example.invalid" : "");
+  const layout = await detectProjectLayout(options.cwd);
+  const publicDirExists = await directoryExists(options.cwd, layout.publicDir);
+  const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
+  const existing = await findPublishedLlms(options.cwd, layout.publicDir, mirrorRoot);
+
+  const domainInput =
+    options.domain?.trim() || (options.dryRun ? existing?.domain?.trim() || "example.invalid" : "");
   if (!domainInput) {
     throw new Error("Domain is required. Set repository variable AGENTIC_TRUST_DOMAIN or pass --domain.");
   }
   const domain = normalizeDomain(domainInput);
   const verificationType = parseVerificationType(options.verificationType);
-
-  const layout = await detectProjectLayout(options.cwd);
-  const publicDirExists = await directoryExists(options.cwd, layout.publicDir);
-  const mirrorRoot = shouldMirrorPublishedFiles(layout.framework, publicDirExists);
-  const rootLlmsPath = path.join(options.cwd, "llms.txt");
-  const existingText = await readOptional(rootLlmsPath);
-  const existing = existingText !== undefined ? parseLlms(existingText) : undefined;
+  if (existing) assertLlmsTxtDomain(existing.body, domain);
   const services =
     options.services !== undefined && options.services.trim() !== ""
       ? parseServiceList(options.services)
@@ -80,21 +80,11 @@ async function signDomain(
   const businessName = (options.name?.trim() || existing?.name || domain).trim();
   const description = (options.description?.trim() || existing?.description || DEFAULT_DESCRIPTION).trim();
 
-  let manifest = existingText;
-  let llmsGenerated = false;
-  if (existingText === undefined) {
-    const llms = renderLlms({ name: businessName, description, domain, services });
-    manifest = llms;
-    const llmsPaths = [
-      ...(await writePublishedFile(options.cwd, layout.publicDir, "llms.txt", llms, mirrorRoot)),
-      ...(await writePublishedFile(options.cwd, layout.publicDir, ".well-known/llms.txt", llms, mirrorRoot)),
-    ];
-    llmsGenerated = true;
-    for (const file of llmsPaths) {
-      log(`Wrote ${path.relative(options.cwd, file).split(path.sep).join("/")}`);
-    }
-  } else {
-    log("Found llms.txt at repository root. Left it unchanged.");
+  const llmsGenerated = existing === undefined;
+  const manifest = existing ? existing.body : renderLlms({ name: businessName, description, domain, services });
+  if (existing) log(`Found ${existing.path}. Left it unchanged.`);
+  for (const file of await publishLlms(options.cwd, layout.publicDir, mirrorRoot, manifest)) {
+    log(`Wrote ${path.relative(options.cwd, file).split(path.sep).join("/")}`);
   }
 
   const providedKey = options.privateKeyPem?.trim();
@@ -107,7 +97,7 @@ async function signDomain(
   const identity = await createSignedDidDocument({
     domain,
     privateKeyPem: providedKey,
-    llmsTxtSha256: manifest ? hashLlmsTxt(manifest) : undefined,
+    llmsTxtSha256: hashLlmsTxt(manifest),
   });
   secrets.push(identity.privateKeyPem);
   maskForGitHubActions(identity.privateKeyPem);
@@ -142,14 +132,14 @@ async function signDomain(
   if (options.dryRun) {
     log(`Dry run: skipped POST ${apiBase}/v1/register`);
     log("Publish llms.txt and .well-known/did.json, then rerun without dry-run to register the domain.");
-    const badgeCode = await applyBadge(options.cwd, domain, log);
+    log(BADGE_DEFERRED);
     await writeGitHubResult(options, {
       publicKeyHash: identity.publicKeyHash,
       live: "dry-run",
       llmsGenerated,
       did: identity.did.id ?? "",
     });
-    return badgeCode;
+    return 0;
   }
 
   log(`Trustflow API: POST ${apiBase}/v1/register`);
@@ -213,7 +203,9 @@ async function signDomain(
     log("Skipped POST /v1/register/confirm.");
   }
 
-  const badgeCode = await applyBadge(options.cwd, domain, log);
+  let badgeCode = 0;
+  if (live) badgeCode = await applyBadge(options.cwd, domain, log);
+  else log(BADGE_DEFERRED);
   await writeGitHubResult(options, {
     publicKeyHash: identity.publicKeyHash,
     live: live ? "true" : "false",
@@ -250,13 +242,5 @@ async function writeGitHubResult(
       "",
     ].join("\n");
     await fs.appendFile(options.githubSummary, summary, "utf8");
-  }
-}
-
-async function readOptional(file: string): Promise<string | undefined> {
-  try {
-    return await fs.readFile(file, "utf8");
-  } catch {
-    return undefined;
   }
 }

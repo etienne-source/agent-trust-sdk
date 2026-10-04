@@ -1,6 +1,7 @@
 import { confirmRegistration, resolveTrustflowApiBase } from "./api.js";
 import { applyBadge, verifyPageUrl } from "./badge.js";
 import { readRegistration } from "./project.js";
+import { confirmResultVerified } from "./proofs.js";
 
 export interface ConfirmOptions {
   cwd: string;
@@ -10,8 +11,8 @@ export interface ConfirmOptions {
   envApiUrl?: string;
   fetch: typeof fetch;
   log: (line?: string) => void;
-  /** When false, the caller prints the badge (init already did). */
-  printBadge?: boolean;
+  /** When false, do not write the badge even after a verified confirm. */
+  writeBadge?: boolean;
 }
 
 export async function runConfirm(options: ConfirmOptions): Promise<number> {
@@ -37,10 +38,15 @@ export async function runConfirm(options: ConfirmOptions): Promise<number> {
     },
     options.fetch
   );
+  if (!confirmResultVerified(result)) {
+    options.log("Confirm returned without a verified status. The badge was not written.");
+    options.log(JSON.stringify(result, null, 2));
+    return 1;
+  }
   options.log("Registration confirmed.");
   options.log(JSON.stringify(result, null, 2));
   options.log(`Verify: ${verifyPageUrl(domain)}`);
-  if (options.printBadge !== false) {
+  if (options.writeBadge !== false) {
     return applyBadge(options.cwd, domain, options.log);
   }
   return 0;

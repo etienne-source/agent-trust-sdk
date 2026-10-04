@@ -41,19 +41,20 @@ init
   https://trustflow.systems/api/register is an alias of the API origin above.
 
 sign-llms
-  Sign an existing llms.txt by rewriting the JWS in the existing did.json only.
+  Sign the published llms.txt by rewriting the JWS in the existing did.json only.
   Does not call POST /v1/register and does not generate a challenge.
   Fails if llms.txt, .agentic-trust/private-key.pem, or did.json is missing.
 
 sign
-  CI entry used by the Trustflow GitHub Action. Checks root llms.txt, writes
-  the standard template when it is missing, signs a did:web document with
-  @trustflow/sdk, and POSTs /v1/register. The private key is read from
-  AGENTIC_TRUST_PRIVATE_KEY and is never printed.
+  CI entry used by the Trustflow GitHub Action. Signs the published llms.txt
+  (public/llms.txt, .well-known/llms.txt, or another existing llms.txt) and
+  writes the standard template only when there is no llms.txt anywhere. Signs a
+  did:web document with @trustflow/sdk and POSTs /v1/register. The private key
+  is read from AGENTIC_TRUST_PRIVATE_KEY and is never printed.
 
 confirm
-  POST /v1/register/confirm using .agentic-trust/registration.json, then print
-  the badge.
+  POST /v1/register/confirm using .agentic-trust/registration.json. Writes the
+  badge only when the registry returns a verified status.
 
 Options:
   --domain <host>                 Domain to register (example.com)
