@@ -60,7 +60,7 @@ Trustflow code in this repository signs and checks documents. Trustflow Systems 
 | `@trustflow/next-plugin` | [packages/next-plugin](packages/next-plugin) | `npm install @trustflow/next-plugin` |
 | `@trustflow/vercel-plugin` | [packages/vercel-plugin](packages/vercel-plugin) | `npm install @trustflow/vercel-plugin`. Binary: `agentic-trust-vercel` |
 
-Publishable packages share one version (2.0.0), MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
+Publishable packages share one version (2.0.1), MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm. Do not publish 2.0.1 until QA passes.
 
 ### Upgrade from 1.x
 
@@ -211,7 +211,7 @@ Set `VERIFICATION_API_URL=https://api.trustflow.systems` to use the hosted regis
 
 ### Demand-side middleware
 
-`agenticTrustMiddleware` checks a domain when an agent fetches it. The wrapper verifies local `did:web`, requires any published `llms.txt` to match the signed hash, and always consults `GET https://api.trustflow.systems/v1/verify` (base URL configurable, HTTPS required). A registry `RISK` is not ignored. `trustScore` comes from the registry, not from `did.json`. Verified content gets `{ verified: true, trustScore }` on the context and, for `fetch`, an `x-agentic-trust` header. An `llms.txt` body that is unsigned or swapped is reported as `RISK`. Unverified domains and registry timeouts or network errors set `securityWarning: true` and do not throw. Results reuse the SDK memory cache (middleware misses for 5 minutes; transport failures for 15 seconds). The check times out after 4 seconds.
+`agenticTrustMiddleware` checks a domain when an agent fetches it. The wrapper verifies local `did:web`, requires any published `llms.txt` to match the signed hash, and always consults `GET https://api.trustflow.systems/v1/verify` (base URL configurable, HTTPS required). `verified: true` only when that local proof is ok and the registry `status` is `VERIFIED` with the same key. A registry `RISK` is not ignored. `trustScore` comes from the registry, not from `did.json`. Verified content gets `{ verified: true, trustScore }` on the context and, for `fetch`, an `x-agentic-trust` header. An unsigned or swapped `llms.txt` body is still returned; the middleware annotates it as `RISK` with `securityWarning`. It does not block the response. Unverified domains and registry timeouts or network errors set `securityWarning: true` and do not throw. Results reuse the SDK memory cache (middleware misses for 5 minutes; transport failures for 15 seconds). The check times out after 4 seconds.
 
 ```ts
 import { agenticTrustMiddleware } from "@trustflow/sdk";
@@ -267,9 +267,9 @@ Function names are unchanged. Install `@trustflow/sdk` and scaffold with `npx @t
 
 Statuses:
 
-- **VERIFIED** — Trustflow `did:web` JWS verifies, published `llms.txt` matches the signed hash when one exists, and the registry does not report `RISK` or a different key/hash
-- **UNVERIFIED** — missing manifest, key, proof, or registry entry
-- **RISK** — bad signature, non-`did:web`, unsigned or swapped `llms.txt`, registry `RISK` or key/hash mismatch, or unsafe endpoint (for example non-HTTPS)
+- **VERIFIED** — the local did:web proof is ok and the registry `status` is `VERIFIED` with the same `publicKeyHash`
+- **UNVERIFIED** — no local proof, registry unreachable or not `VERIFIED`, or the registry omitted the key. A valid local signature then has `signature: "VALID"`
+- **RISK** — bad signature, non-`did:web`, unsigned or swapped local `llms.txt`, registry `RISK`, a different key, or an unsafe endpoint (for example non-HTTPS)
 
 ## Trustflow register API
 

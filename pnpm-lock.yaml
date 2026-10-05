@@ -11,12 +11,15 @@ importers:
   packages/cli:
     dependencies:
       '@trustflow/sdk':
-        specifier: workspace:^2.0.0
+        specifier: workspace:^2.0.1
         version: link:../sdk
     devDependencies:
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.3
+      jose:
+        specifier: ^5.9.6
+        version: 5.10.0
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -30,7 +33,7 @@ importers:
         specifier: ^1.30.0
         version: 1.30.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)
       '@trustflow/sdk':
-        specifier: workspace:^2.0.0
+        specifier: workspace:^2.0.1
         version: link:../sdk
       zod:
         specifier: ^3.25.76

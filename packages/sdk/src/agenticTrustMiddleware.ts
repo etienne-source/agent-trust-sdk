@@ -24,9 +24,8 @@ const WARNING_HEADER_NAME = "x-agentic-trust-warning";
 
 export interface AgenticTrustMetadata {
   /**
-   * True when the domain verifies: either its did:web JWS verifies (with any published
-   * llms.txt bound to the signed hash) and the registry does not report RISK, or the
-   * registry reports VERIFIED when there is no local proof.
+   * True only when the local did:web proof is ok and the registry status is
+   * `VERIFIED` with the same key. A registry listing alone is not verified.
    */
   verified: boolean;
   /** Registry trust score. Never read from the domain's own did.json. */
@@ -371,8 +370,8 @@ function isLlmsTxtUrl(value: string): boolean {
 }
 
 /**
- * An llms.txt body is trusted only when it hashes to the value signed into did.json.
- * A verified domain whose JWS does not sign llms.txt, or a body that differs, is RISK.
+ * Annotate an llms.txt body. The bytes are returned either way.
+ * A verified domain whose JWS does not sign llms.txt, or a body that differs, is marked RISK.
  */
 function bindLlmsBody(url: string, body: string, meta: AgenticTrustMetadata): AgenticTrustMetadata {
   if (!meta.verified || !isLlmsTxtUrl(url)) return meta;
@@ -477,6 +476,9 @@ function wrapMethod(method: ToolMethod, tool: object, options: ResolvedOptions):
  * When an agent fetches a domain, the wrapper checks the domain's `did:web` JWS,
  * requires any published llms.txt to match the signed hash, consults
  * `GET {base}/v1/verify`, and appends `{ verified, trustScore }` metadata.
+ * `verified` is true only when the local proof is ok and the registry status is
+ * `VERIFIED` with the same key. A swapped `llms.txt` body is still returned;
+ * the metadata is annotated `RISK`.
  * An llms.txt body returned through `fetch`, `annotateDocuments`, or a wrapped tool
  * must also hash to the signed value. Unverified or risky domains, and lookups that
  * time out, append `securityWarning: true` and do not throw.

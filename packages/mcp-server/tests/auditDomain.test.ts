@@ -37,18 +37,18 @@ describe("auditDomain", () => {
       fetch: fetch as unknown as typeof globalThis.fetch,
     });
 
-    expect(fetch).toHaveBeenCalledTimes(1);
     expect(String(fetch.mock.calls[0]?.[0])).toBe(
       "https://registry.test/v1/verify?domain=example.com"
     );
+    expect(fetch.mock.calls.length).toBeGreaterThan(1);
     expect(result.domain).toBe("example.com");
-    expect(result.status).toBe("VERIFIED");
-    expect(result.isVerified).toBe(true);
+    expect(result.status).not.toBe("VERIFIED");
+    expect(result.isVerified).toBe(false);
     expect(result.audit.score).toBe(100);
     expect(result.audit.max).toBe(100);
     expect(result.audit.factors).toHaveLength(2);
     expect(result.audit.factors[0]).toMatchObject({ id: "did", points: 20, state: "pass" });
-    expect(result.checkedAt).toBe("2026-09-22T18:00:00.000Z");
+    expect(result.reason).toBe("DID id is not did:web");
     expect(result.source).toBe("https://registry.test/v1/verify?domain=example.com");
   });
 
@@ -72,10 +72,10 @@ describe("auditDomain", () => {
     );
     expect(DEFAULT_TRUSTFLOW_API_BASE).toBe("https://api.trustflow.systems");
     expect(result.isVerified).toBe(false);
-    expect(result.status).toBe("UNVERIFIED");
+    expect(result.status).not.toBe("VERIFIED");
     expect(result.audit.score).toBe(0);
     expect(result.audit.factors[0]).toMatchObject({ id: "registry", state: "fail" });
-    expect(result.reason).toBe("Domain not in registry");
+    expect(result.reason).toBe("DID id is not did:web");
     expect(result.domain).toBe("missing.example");
   });
 
@@ -116,7 +116,8 @@ describe("auditDomain", () => {
       fetch: fetch as unknown as typeof globalThis.fetch,
     });
     expect(String(fetch.mock.calls[0]?.[0])).toBe("http://127.0.0.1:9/v1/verify?domain=scored.example");
-    expect(result.isVerified).toBe(true);
+    expect(result.isVerified).toBe(false);
+    expect(result.status).not.toBe("VERIFIED");
     expect(result.audit.score).toBe(88);
     expect(result.audit.factors).toEqual([]);
   });

@@ -1,4 +1,4 @@
-import { normalizeDomain, secureApiBase } from "@trustflow/sdk";
+import { normalizeDomain, secureApiBase, verifyDomain } from "@trustflow/sdk";
 
 /** Hosted Trustflow Systems verification API. The protocol is Trustflow. */
 export const DEFAULT_TRUSTFLOW_API_BASE = "https://api.trustflow.systems";
@@ -79,19 +79,23 @@ export async function auditDomain(input: AuditDomainInput): Promise<AuditDomainR
     throw new Error("Trustflow verify returned an unexpected payload");
   }
 
-  const status = typeof body.status === "string" && body.status.trim() ? body.status : "UNVERIFIED";
   const auditRecord = asRecord(body.audit);
   const claims = asRecord(body.claims);
   const score = readScore(body, auditRecord, claims);
   const factors = readFactors(auditRecord);
+  const verdict = await verifyDomain(domain, {
+    fetch: fetchFn,
+    verificationApiUrl: apiBase,
+    bypassCache: true,
+  });
 
   const result: AuditDomainResult = {
-    // The registry answers for the domain that was asked; a different `domain` in the body is ignored.
+    // Status is the SDK verdict. A registry VERIFIED is not copied through.
     domain,
-    status,
-    isVerified: readIsVerified(body, status),
+    status: verdict.status,
+    isVerified: verdict.status === "VERIFIED",
     audit: {
-      score,
+      score: score ?? readScore(verdict.claims, undefined, verdict.claims),
       factors,
     },
     source,
@@ -104,9 +108,12 @@ export async function auditDomain(input: AuditDomainInput): Promise<AuditDomainR
   if (Array.isArray(auditRecord?.recommendations)) {
     result.audit.recommendations = auditRecord.recommendations;
   }
-  if (typeof body.reason === "string") result.reason = body.reason;
-  if (typeof body.checkedAt === "string") result.checkedAt = body.checkedAt;
-  if (claims) result.claims = claims;
+  if (typeof verdict.reason === "string") result.reason = verdict.reason;
+  else if (typeof body.reason === "string") result.reason = body.reason;
+  if (typeof verdict.checkedAt === "string") result.checkedAt = verdict.checkedAt;
+  else if (typeof body.checkedAt === "string") result.checkedAt = body.checkedAt;
+  if (verdict.claims && Object.keys(verdict.claims).length > 0) result.claims = verdict.claims;
+  else if (claims) result.claims = claims;
   return result;
 }
 
@@ -126,12 +133,6 @@ export function resolveApiBase(input?: string): string {
   if (path.endsWith("/v1/verify")) path = path.slice(0, -"/v1/verify".length);
   const suffix = path === "/" ? "" : path;
   return `${url.origin}${suffix}`;
-}
-
-function readIsVerified(body: Record<string, unknown>, status: string): boolean {
-  if (typeof body.isVerified === "boolean") return body.isVerified;
-  if (typeof body.verified === "boolean") return body.verified;
-  return status.toUpperCase() === "VERIFIED";
 }
 
 function readScore(

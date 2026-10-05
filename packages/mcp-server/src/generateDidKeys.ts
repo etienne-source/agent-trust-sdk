@@ -1,14 +1,14 @@
 import { generateKeyPairSync } from "node:crypto";
 import { mkdir, writeFile, chmod } from "node:fs/promises";
 import path from "node:path";
-import { createSignedDidDocument, normalizeDomain, type DidDocument } from "@trustflow/sdk";
+import { hashPublicKeyPem, normalizeDomain, publicKeyPemFromPrivate } from "@trustflow/sdk";
 import { resolveInsideRoot } from "./paths.js";
 
 export type DidKeyAlgorithm = "Ed25519" | "ES256";
 
 /** Shown next to `privateKeyPem` in every tool result. */
 export const PRIVATE_KEY_SECRET_WARNING =
-  "SECRET — Trustflow did:web private key (PKCS#8 PEM). Do not commit, log, paste into a public channel, or publish this value. Publish only did.json.";
+  "SECRET — Trustflow did:web private key (PKCS#8 PEM). Do not commit, log, or paste this value. Sign the did.json with sign_llms_txt.";
 
 export interface GenerateDidKeysInput {
   domain: string;
@@ -30,11 +30,9 @@ export interface GenerateDidKeysInput {
 
 export interface GenerateDidKeysResult {
   domain: string;
+  /** `did:web` identifier. This tool does not return a signed document. */
   did: string;
   algorithm: DidKeyAlgorithm;
-  /** Pretty-printed did.json for `/.well-known/did.json`. Public material only. */
-  didJson: string;
-  didDocument: DidDocument;
   publicKeyPem: string;
   publicKeyHash: string;
   /** SECRET. Unencrypted PKCS#8 PEM. Absent when `returnPrivateKey` is false. */
@@ -44,11 +42,6 @@ export interface GenerateDidKeysResult {
     field: "privateKeyPem";
     warning: string;
     writtenTo?: string;
-  };
-  publish: {
-    didJsonPath: ".well-known/did.json";
-    didJsonUrl: string;
-    llmsTxtUrl: string;
   };
 }
 
@@ -60,19 +53,14 @@ export function parseDidKeyAlgorithm(value: string | undefined): DidKeyAlgorithm
 }
 
 /**
- * Generate a did:web key and a signed W3C document.
- * Ed25519 keys come from `@trustflow/sdk` `createSignedDidDocument`.
- * ES256 uses a P-256 PKCS#8 key passed into that same signer — the DID proof is not built here.
+ * Generate a did:web key pair only. Signing a document is `sign_llms_txt`.
  */
 export async function generateDidKeys(input: GenerateDidKeysInput): Promise<GenerateDidKeysResult> {
   const domain = normalizeDomain(input.domain);
   const algorithm = parseDidKeyAlgorithm(input.algorithm);
-  const privateKeyPem = algorithm === "ES256" ? generateP256PrivateKeyPem() : undefined;
-  const identity = await createSignedDidDocument({ domain, privateKeyPem });
-  const didJson = `${JSON.stringify(identity.did, null, 2)}\n`;
-  if (didJson.includes("PRIVATE KEY")) {
-    throw new Error("Refusing to return a did.json that contains a private key");
-  }
+  const privatePem = algorithm === "ES256" ? generateP256PrivateKeyPem() : generateEd25519PrivateKeyPem();
+  const publicKeyPem = publicKeyPemFromPrivate(privatePem);
+  const publicKeyHash = hashPublicKeyPem(publicKeyPem);
 
   const returnPrivateKey = input.returnPrivateKey !== false;
   let writtenTo: string | undefined;
@@ -84,30 +72,29 @@ export async function generateDidKeys(input: GenerateDidKeysInput): Promise<Gene
     const target = input.rootDir
       ? resolveInsideRoot(input.rootDir, requestedPath, "privateKeyPath")
       : path.resolve(requestedPath);
-    writtenTo = await writeSecretPem(target, identity.privateKeyPem);
+    writtenTo = await writeSecretPem(target, privatePem);
   }
 
   return {
     domain,
-    did: identity.did.id,
+    did: `did:web:${domain}`,
     algorithm,
-    didJson,
-    didDocument: identity.did,
-    publicKeyPem: identity.publicKeyPem,
-    publicKeyHash: identity.publicKeyHash,
-    ...(returnPrivateKey ? { privateKeyPem: identity.privateKeyPem } : {}),
+    publicKeyPem,
+    publicKeyHash,
+    ...(returnPrivateKey ? { privateKeyPem: privatePem } : {}),
     secret: {
       label: "SECRET",
       field: "privateKeyPem",
       warning: PRIVATE_KEY_SECRET_WARNING,
       ...(writtenTo ? { writtenTo } : {}),
     },
-    publish: {
-      didJsonPath: ".well-known/did.json",
-      didJsonUrl: `https://${domain}/.well-known/did.json`,
-      llmsTxtUrl: `https://${domain}/.well-known/llms.txt`,
-    },
   };
+}
+
+function generateEd25519PrivateKeyPem(): string {
+  const { privateKey } = generateKeyPairSync("ed25519");
+  const exported = privateKey.export({ type: "pkcs8", format: "pem" });
+  return typeof exported === "string" ? exported : exported.toString("utf8");
 }
 
 function generateP256PrivateKeyPem(): string {

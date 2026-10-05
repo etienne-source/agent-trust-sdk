@@ -22,8 +22,10 @@ function defaultApiBase(): string {
  * Verify a domain against the **Trustflow** protocol (`did:web` DID signature + JWS)
  * and the Trustflow Systems registry. A warm in-memory cache hit stays under 5ms.
  *
- * A local `VERIFIED` is still checked against the registry: a registry `RISK`, a
- * different registered key, or a different registered llms.txt hash is `RISK`.
+ * `VERIFIED` means the local did:web proof is ok and the registry status is
+ * `VERIFIED` with the same `publicKeyHash`. A valid local signature without
+ * that confirmation is `UNVERIFIED` with `signature: "VALID"`. No local proof
+ * is never `VERIFIED`. A registry `RISK` or a different key is `RISK`.
  * A published llms.txt (at `/.well-known/llms.txt` or `/llms.txt`) that the JWS does
  * not sign, or that does not match the signed hash, is `RISK`.
  */

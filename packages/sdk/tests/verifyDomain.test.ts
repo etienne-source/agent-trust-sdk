@@ -82,11 +82,17 @@ describe("verifyDomain", () => {
   it("returns VERIFIED for valid did.json + JWS", async () => {
     const domain = "readyaccounting.co.za";
     const llms = "# Ready Accounting\n> Bookkeeping for SMEs";
-    const { did } = await makeSignedDid(domain, { llms });
+    const { did, pem } = await makeSignedDid(domain, { llms });
     const fetchFn = mockFetchRouter({
       "/.well-known/did.json": { body: did },
       "/.well-known/llms.txt": { text: llms },
       [`${domain}/llms.txt`]: { text: `${llms}\n` },
+      "/v1/verify": {
+        body: {
+          status: "VERIFIED",
+          claims: { publicKeyHash: hashPublicKeyPem(pem), llmsTxtSha256: hashLlmsTxt(llms) },
+        },
+      },
     });
 
     const result = await verifyDomain(domain, {
@@ -99,6 +105,7 @@ describe("verifyDomain", () => {
     expect(result.claims.llmsTxtPresent).toBe(true);
     expect(result.claims.did).toBe(`did:web:${domain}`);
     expect(result.claims.llmsTxtSha256).toBe(hashLlmsTxt(llms));
+    expect(result.claims.registryStatus).toBe("VERIFIED");
     expect(result.cached).toBeFalsy();
   });
 
@@ -155,7 +162,10 @@ describe("verifyDomain", () => {
       "/.well-known/did.json": { body: did },
       "/v1/verify": { body: { status: "RISK", reason: "Key reported compromised", claims: {} } },
     });
-    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    const result = await verifyDomain(domain, {
+      fetch: fetchFn,
+      verificationApiUrl: "https://api.test",
+    });
     expect(result.status).toBe("RISK");
     expect(result.reason).toBe("Trustflow registry marked the domain RISK: Key reported compromised");
     expect(result.claims.registryStatus).toBe("RISK");
@@ -173,18 +183,60 @@ describe("verifyDomain", () => {
     expect(result.reason).toBe("did.json key does not match the key registered with Trustflow");
   });
 
-  it("returns RISK when the signed llms hash differs from the registered hash", async () => {
+  it("ignores a registry llms hash and still requires the same key", async () => {
     const domain = "rollback.example";
     const llms = "# Old\n";
-    const { did } = await makeSignedDid(domain, { llms });
+    const { did, pem } = await makeSignedDid(domain, { llms });
     const fetchFn = mockFetchRouter({
       "/.well-known/did.json": { body: did },
       "/.well-known/llms.txt": { text: llms },
-      "/v1/verify": { body: { status: "VERIFIED", claims: { llmsTxtSha256: hashLlmsTxt("# New\n") } } },
+      [`${domain}/llms.txt`]: { text: llms },
+      "/v1/verify": {
+        body: {
+          status: "VERIFIED",
+          claims: { publicKeyHash: hashPublicKeyPem(pem), llmsTxtSha256: hashLlmsTxt("# New\n") },
+        },
+      },
     });
     const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
-    expect(result.status).toBe("RISK");
-    expect(result.reason).toMatch(/registered with Trustflow/);
+    expect(result.status).toBe("VERIFIED");
+    expect(result.reason ?? "").not.toMatch(/registered with Trustflow/);
+  });
+
+  it("returns UNVERIFIED when the registry omits publicKeyHash", async () => {
+    const domain = "nokey.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", claims: {} } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBe("VALID");
+    expect(result.reason).toMatch(/same publicKeyHash/);
+  });
+
+  it("does not treat isVerified without status as VERIFIED", async () => {
+    const domain = "flagonly.example";
+    const { did, pem } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { isVerified: true, claims: { publicKeyHash: hashPublicKeyPem(pem) } } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBe("VALID");
+  });
+
+  it("returns UNVERIFIED when did.json is missing even if the registry says VERIFIED", async () => {
+    const domain = "nodid.example";
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { status: 404, text: "" },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { publicKeyHash: "ab".repeat(32) } } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBeUndefined();
   });
 
   it("uses the registry trust score and key when they agree with did.json", async () => {
@@ -203,7 +255,7 @@ describe("verifyDomain", () => {
     expect(result.claims.registryStatus).toBe("VERIFIED");
   });
 
-  it("keeps a local VERIFIED but flags it when the registry is unreachable", async () => {
+  it("returns UNVERIFIED when the registry is unreachable for a valid local signature", async () => {
     const domain = "regdown.example";
     const { did } = await makeSignedDid(domain);
     const fetchFn = mockFetchRouter({
@@ -211,9 +263,53 @@ describe("verifyDomain", () => {
       "/v1/verify": { status: 503, text: "down" },
     });
     const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
-    expect(result.status).toBe("VERIFIED");
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBe("VALID");
     expect(result.claims.registryStatus).toBe("unreachable");
-    expect(result.reason).toMatch(/registry not checked/);
+    expect(result.reason).toMatch(/registry unreachable/);
+
+    const again = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(again.status).toBe("UNVERIFIED");
+    expect(again.signature).toBe("VALID");
+    expect(again.cached).toBe(true);
+  });
+
+  it("returns UNVERIFIED when a valid local signature has no proved registry listing", async () => {
+    const domain = "unlisted.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "UNVERIFIED", reason: "Not registered", claims: {} } },
+    });
+    const result = await verifyDomain(domain, {
+      fetch: fetchFn,
+      verificationApiUrl: "https://api.test",
+    });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBe("VALID");
+    expect(result.claims.registryStatus).toBe("UNVERIFIED");
+    expect(result.reason).toMatch(/did not confirm a proved listing/);
+  });
+
+  it("returns UNVERIFIED when the registry network call fails for a valid local signature", async () => {
+    const domain = "regthrow.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/.well-known/did.json")) {
+        return new Response(JSON.stringify(did), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/v1/verify")) throw new TypeError("network down");
+      return new Response("missing", { status: 404 });
+    }) as unknown as typeof fetch;
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBe("VALID");
+    expect(result.claims.registryStatus).toBe("unreachable");
+    expect(result.reason).toMatch(/network down/);
   });
 
   it("refuses a plain-HTTP registry URL", async () => {
@@ -239,6 +335,12 @@ describe("verifyDomain", () => {
     const match = mockFetchRouter({
       "/.well-known/did.json": { body: identity.did },
       "/.well-known/llms.txt": { text: body },
+      "/v1/verify": {
+        body: {
+          status: "VERIFIED",
+          claims: { publicKeyHash: identity.publicKeyHash, llmsTxtSha256: hashLlmsTxt(body) },
+        },
+      },
     });
     const ok = await verifyDomain(domain, {
       fetch: match,
@@ -309,10 +411,11 @@ describe("verifyDomain", () => {
 
   it("serves cache on second call", async () => {
     const domain = "cached.example";
-    const { did } = await makeSignedDid(domain);
+    const { did, pem } = await makeSignedDid(domain);
     const fetchFn = mockFetchRouter({
       "/.well-known/did.json": { body: did },
       "/.well-known/llms.txt": { status: 404, text: "" },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { publicKeyHash: hashPublicKeyPem(pem) } } },
     });
 
     await verifyDomain(domain, { fetch: fetchFn });
@@ -424,9 +527,15 @@ describe("verifyDomain", () => {
 
   it("follows one www to apex hop when the DID still names the requested host", async () => {
     const domain = "www.ready.example";
-    const { did } = await makeSignedDid(domain);
+    const { did, pem } = await makeSignedDid(domain);
     const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/v1/verify")) {
+        return new Response(
+          JSON.stringify({ status: "VERIFIED", claims: { publicKeyHash: hashPublicKeyPem(pem) } }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
       if (url.startsWith("https://www.ready.example/") && url.includes("did.json")) {
         return new Response(null, {
           status: 302,
@@ -551,10 +660,11 @@ describe("inspectEndpointBeforeExecution", () => {
 
   it("allows listed MCP endpoint on verified domain", async () => {
     const domain = "mcpgood.example";
-    const { did } = await makeSignedDid(domain);
+    const { did, pem } = await makeSignedDid(domain);
     const fetchFn = mockFetchRouter({
       "/.well-known/did.json": { body: did },
       "/.well-known/llms.txt": { status: 404, text: "" },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { publicKeyHash: hashPublicKeyPem(pem) } } },
     });
 
     const r = await inspectEndpointBeforeExecution(`https://${domain}/mcp`, {
@@ -566,8 +676,11 @@ describe("inspectEndpointBeforeExecution", () => {
 
   it("blocks every endpoint when a verified did.json lists no MCP services", async () => {
     const domain = "nomcp.example";
-    const { did } = await makeSignedDid(domain, { services: false });
-    const fetchFn = mockFetchRouter({ "/.well-known/did.json": { body: did } });
+    const { did, pem } = await makeSignedDid(domain, { services: false });
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { publicKeyHash: hashPublicKeyPem(pem) } } },
+    });
     const r = await inspectEndpointBeforeExecution(`https://${domain}/mcp`, { fetch: fetchFn });
     expect(r.allowed).toBe(false);
     expect(r.reason).toBe("Domain did.json lists no MCP service endpoints");
@@ -575,8 +688,11 @@ describe("inspectEndpointBeforeExecution", () => {
 
   it("blocks an endpoint the did.json does not list", async () => {
     const domain = "mcplisted.example";
-    const { did } = await makeSignedDid(domain);
-    const fetchFn = mockFetchRouter({ "/.well-known/did.json": { body: did } });
+    const { did, pem } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { publicKeyHash: hashPublicKeyPem(pem) } } },
+    });
     const r = await inspectEndpointBeforeExecution(`https://${domain}/other`, { fetch: fetchFn });
     expect(r.allowed).toBe(false);
   });

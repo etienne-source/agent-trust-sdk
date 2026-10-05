@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createSignedDidDocument, importPublicKey, verifyDidJws, type DidDocument } from "@trustflow/sdk";
+import { createSignedDidDocument } from "@trustflow/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { createAgenticTrustMcpServer, type AgenticTrustMcpServerOptions } from "../src/server.js";
 
@@ -51,6 +51,9 @@ describe("MCP server", () => {
   it("calls audit_domain through the server apiBase, not a tool argument", async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/.well-known/did.json") || url.includes("/llms.txt")) {
+        return new Response("missing", { status: 404 });
+      }
       expect(url).toBe("https://api.example.test/v1/verify?domain=audited.example");
       return jsonResponse({
         status: "VERIFIED",
@@ -77,11 +80,14 @@ describe("MCP server", () => {
       isVerified: boolean;
       audit: { score: number; factors: Array<{ id: string }> };
     };
-    expect(payload.status).toBe("VERIFIED");
-    expect(payload.isVerified).toBe(true);
+    expect(payload.status).not.toBe("VERIFIED");
+    expect(payload.isVerified).toBe(false);
     expect(payload.audit.score).toBe(80);
     expect(payload.audit.factors[0]?.id).toBe("signed");
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls.length).toBeGreaterThan(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(
+      "https://api.example.test/v1/verify?domain=audited.example"
+    );
     await client.close();
     await server.close();
   });
@@ -96,18 +102,18 @@ describe("MCP server", () => {
     const keys = toolPayload(generated) as {
       did: string;
       algorithm: string;
-      didJson: string;
+      didJson?: string;
       privateKeyPem?: string;
       secret: { label: string; writtenTo?: string };
-      didDocument: DidDocument;
+      didDocument?: unknown;
     };
     expect(keys.did).toBe("did:web:mcp.example");
     expect(keys.algorithm).toBe("ES256");
     expect(keys.secret.label).toBe("SECRET");
     expect(keys.privateKeyPem).toBeUndefined();
+    expect(keys.didJson).toBeUndefined();
+    expect(keys.didDocument).toBeUndefined();
     expect(JSON.stringify(keys)).not.toContain("BEGIN PRIVATE KEY");
-    expect(keys.didJson).not.toContain("PRIVATE KEY");
-    expect((await verifyDidJws(keys.didDocument, (await importPublicKey(keys.didDocument))!)).ok).toBe(true);
     const pem = await readFile(path.join(rootDir, ".agentic-trust", "private-key.pem"), "utf8");
     expect(pem).toContain("BEGIN PRIVATE KEY");
 

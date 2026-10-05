@@ -37,7 +37,7 @@ export function createAgenticTrustMcpServer(options: AgenticTrustMcpServerOption
     {
       title: "Audit domain",
       description:
-        "Fetch the live Trustflow Systems TrustScore and verification status for a domain (GET https://api.trustflow.systems/v1/verify?domain=). Returns status, isVerified, and the audit score with factors. Protocol: Trustflow.",
+        "Audit a domain with the same Trustflow SDK verdict as verifyDomain: VERIFIED only when the local did:web proof is ok and the registry status is VERIFIED with the same key. Returns that status, isVerified, and the audit score. A registry VERIFIED alone is not VERIFIED. Protocol: Trustflow.",
       inputSchema: {
         domain: z.string().describe("Hostname or URL to audit, for example example.com"),
       },
@@ -59,7 +59,7 @@ export function createAgenticTrustMcpServer(options: AgenticTrustMcpServerOption
     {
       title: "Generate did:web keys",
       description:
-        "Generate an Ed25519 (default) or ES256 (P-256) key pair and a signed W3C did:web document for /.well-known/did.json. Signing uses @trustflow/sdk createSignedDidDocument. The private key is written to privateKeyPath (a new file inside the server root, mode 0600) and is not returned. Returns did.json and the public key.",
+        "Generate an Ed25519 (default) or ES256 (P-256) key pair only. Does not return a signed did.json. Sign with sign_llms_txt. The private key is written to privateKeyPath (a new file inside the server root, mode 0600) and is not returned.",
       inputSchema: {
         domain: z.string().describe("Hostname for did:web, for example example.com"),
         algorithm: z

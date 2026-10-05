@@ -1,6 +1,6 @@
 {
   "name": "@trustflow/mcp-server",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Trustflow MCP server. Stdio tools for Trustflow Systems domain audits, did:web keys, and signed llms.txt. Binary: agentic-trust-mcp. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {
@@ -40,7 +40,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@trustflow/sdk": "workspace:^2.0.0",
+    "@trustflow/sdk": "workspace:^2.0.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^3.25.76"
   },

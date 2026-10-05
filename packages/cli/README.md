@@ -18,7 +18,7 @@ npx @trustflow/cli@latest init
 
 ### Upgrade from 1.x
 
-Confirm (`init --confirm`, `sign --confirm`, and `confirm`) now sends a private-key `proofJws` on `POST /v1/register/confirm`. The PEM is not sent or printed. `@trustflow/cli` depends on `@trustflow/sdk` `^2.0.0`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
+Confirm (`init --confirm`, `sign --confirm`, and `confirm`) now sends a private-key `proofJws` on `POST /v1/register/confirm`. The PEM is not sent or printed. `@trustflow/cli` depends on `@trustflow/sdk` `^2.0.1`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
 
 ### Contributors
 

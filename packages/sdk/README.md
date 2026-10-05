@@ -34,6 +34,10 @@ Clone and `pnpm install` apply only when changing this monorepo. They are not th
 | `@agentic-trust/sdk` | `@trustflow/sdk` |
 | `npx agentic-trust init` | `npx @trustflow/cli@latest init` |
 
+### Upgrade from 2.0.0
+
+`VERIFIED` now requires a local did:web proof and a registry `status` of `VERIFIED` with the same `publicKeyHash`. A valid local signature without that is `UNVERIFIED` with `signature: "VALID"`. There is no offline opt-in. See the repository [CHANGELOG.md](../../CHANGELOG.md).
+
 ### Upgrade from 1.x
 
 `llmsContext` and `audit` are no longer exported. `signBuildArtifacts` requires `llmsTxtSha256`. Confirm (`@trustflow/cli`) now sends a private-key `proofJws`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
@@ -62,7 +66,7 @@ if (!gate.allowed) {
 
 ## Demand-side middleware
 
-`agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It verifies local `did:web` (JWS on `/.well-known/did.json`), requires any published `llms.txt` to match the signed hash, and consults `GET {base}/v1/verify` (default `https://api.trustflow.systems`, HTTPS required). A registry `RISK` is not ignored. `trustScore` comes from the registry. Verified results append `{ verified: true, trustScore }`. An unsigned or swapped `llms.txt` body is `RISK`. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
+`agenticTrustMiddleware` wraps LangChain tools (`invoke` / `call`), Vercel AI SDK tools (`execute`), and `fetch`. It verifies local `did:web` (JWS on `/.well-known/did.json`), requires any published `llms.txt` to match the signed hash, and consults `GET {base}/v1/verify` (default `https://api.trustflow.systems`, HTTPS required). `verified: true` only when that local proof is ok and the registry `status` is `VERIFIED` with the same key. A registry `RISK` is not ignored. `trustScore` comes from the registry. Verified results append `{ verified: true, trustScore }`. An unsigned or swapped `llms.txt` body is still returned and annotated `RISK`. Otherwise it appends `securityWarning: true` and does not throw, including on timeout (4s) or when the API is down. Lookups reuse the SDK memory cache.
 
 ```ts
 import { agenticTrustMiddleware } from "@trustflow/sdk";

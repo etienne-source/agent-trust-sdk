@@ -19,6 +19,11 @@ export interface VerifyResult {
   status: VerificationStatus;
   domain: string;
   claims: DomainClaims;
+  /**
+   * Set when the local did:web signature verified but the registry did not
+   * confirm a proved listing. `VERIFIED` is never decided from this field alone.
+   */
+  signature?: "VALID";
   reason?: string;
   cached?: boolean;
   checkedAt?: string;
