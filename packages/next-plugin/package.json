@@ -1,6 +1,6 @@
 {
   "name": "@trustflow/next-plugin",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Trustflow Next.js config wrapper. Warns in development when public/llms.txt or public/.well-known/did.json is missing or invalid. Scaffold with npx @trustflow/cli@latest init.",
   "license": "MIT",
   "repository": {

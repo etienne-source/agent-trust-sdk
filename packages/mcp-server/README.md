@@ -27,7 +27,7 @@ Run `npx @trustflow/cli@latest init`. Binary: `agentic-trust-mcp`.
 
 ### Upgrade from 1.x
 
-`audit_domain` no longer accepts a `baseUrl` tool argument (use `TRUSTFLOW_API_URL` or the server `apiBase` option). `generate_did_keys` and `sign_llms_txt` require `privateKeyPath` and do not return the private key. `@trustflow/mcp-server` depends on `@trustflow/sdk` `^2.0.0`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
+`audit_domain` no longer accepts a `baseUrl` tool argument (use `TRUSTFLOW_API_URL` or the server `apiBase` option). `generate_did_keys` and `sign_llms_txt` require `privateKeyPath` and do not return the private key. `@trustflow/mcp-server` depends on `@trustflow/sdk` `^2.1.0`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
 
 ### Contributors
 

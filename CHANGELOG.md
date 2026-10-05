@@ -2,7 +2,7 @@
 
 ## 2.1.0
 
-Breaking change in `@trustflow/sdk` only. `@trustflow/cli`, `@trustflow/mcp-server`, `@trustflow/next-plugin`, and `@trustflow/vercel-plugin` stay at 2.0.0.
+Lockstep version of `@trustflow/sdk`, `@trustflow/cli`, `@trustflow/mcp-server`, `@trustflow/next-plugin`, and `@trustflow/vercel-plugin`. The behaviour change is in `@trustflow/sdk`.
 
 ### Breaking
 

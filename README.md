@@ -60,7 +60,7 @@ Trustflow code in this repository signs and checks documents. Trustflow Systems 
 | `@trustflow/next-plugin` | [packages/next-plugin](packages/next-plugin) | `npm install @trustflow/next-plugin` |
 | `@trustflow/vercel-plugin` | [packages/vercel-plugin](packages/vercel-plugin) | `npm install @trustflow/vercel-plugin`. Binary: `agentic-trust-vercel` |
 
-Publishable packages are MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. `@trustflow/sdk` is 2.1.0. The CLI, MCP server, Next plugin, and Vercel plugin stay at 2.0.0. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm. Do not publish 2.1.0 until QA passes.
+Publishable packages share one version (2.1.0), MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm. Do not publish 2.1.0 until QA passes.
 
 ### Upgrade from 1.x
 
