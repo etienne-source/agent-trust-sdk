@@ -60,7 +60,14 @@ Trustflow code in this repository signs and checks documents. Trustflow Systems 
 | `@trustflow/next-plugin` | [packages/next-plugin](packages/next-plugin) | `npm install @trustflow/next-plugin` |
 | `@trustflow/vercel-plugin` | [packages/vercel-plugin](packages/vercel-plugin) | `npm install @trustflow/vercel-plugin`. Binary: `agentic-trust-vercel` |
 
-Publishable packages share one version, MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
+Publishable packages share one version (2.0.0), MIT, with `"publishConfig": { "access": "public" }` and `repository` `git+https://github.com/etienne-source/agent-trust-sdk.git`. [docs/publishing/npm.md](docs/publishing/npm.md) describes the `NPM_TOKEN` secret and the `v1.*` / `v*` tag workflow. Merging this repository does not publish to npm.
+
+### Upgrade from 1.x
+
+- Remove imports of `llmsContext` and `audit` from `@trustflow/sdk`. Those exports are gone.
+- Pass `llmsTxtSha256` to `signBuildArtifacts`.
+- MCP: drop the `baseUrl` tool argument on `audit_domain`. `generate_did_keys` and `sign_llms_txt` take `privateKeyPath` and do not return the private key.
+- Confirm now sends a private-key `proofJws` on `POST /v1/register/confirm`. See [CHANGELOG.md](CHANGELOG.md).
 
 WordPress sites copy [plugins/wordpress/agentic-trust.php](plugins/wordpress/agentic-trust.php) to serve `/.well-known/did.json` and `llms.txt`. Shopify and Webflow use the header and asset-routing snippets in [docs/cms/shopify-webflow-guide.md](docs/cms/shopify-webflow-guide.md). **Trustflow** is the protocol. **Trustflow Systems** is the hosted registry. Do not install the unrelated `trustflow-sdk` package.
 
