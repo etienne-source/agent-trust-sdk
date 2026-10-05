@@ -98,9 +98,9 @@ A `did:web` id for a different host is `RISK` (`DID id does not match domain`). 
 `evaluateDomainTrust` (used by `verifyDomain` and the middleware) is the one decision:
 
 - A local `RISK` (bad JWS, swapped services, swapped or unbound `llms.txt`) is final. The registry is not queried.
-- A local signature that passes is always checked against the registry. `VERIFIED` requires a proved registry listing (`status: "VERIFIED"`) whose `publicKeyHash` and `llmsTxtSha256`, when the registry sends them, match the domain. A registry `RISK`, a different registered key, or a different registered `llmsTxtSha256` is `RISK`. A registry `VERIFIED` may add `trustScore` (never read from `did.json`).
-- When the registry is unreachable, the result is `UNVERIFIED` with `signature: "VALID"` and `claims.registryStatus: "unreachable"`, cached briefly. `allowSelfSignedOffline: true` keeps the previous `VERIFIED` result for that transport failure only. A reachable registry that is not `VERIFIED` is also `UNVERIFIED` with `signature: "VALID"`; the opt-in does not apply.
-- When there is no usable local proof, a registry `VERIFIED` or `RISK` is returned as-is. Otherwise the result is `UNVERIFIED`.
+- `VERIFIED` requires a local proof that passes and a registry `status` of `VERIFIED` whose `publicKeyHash` equals the key the domain serves. A registry `RISK` or a different key is `RISK`. A registry `VERIFIED` may add `trustScore` (never read from `did.json`). The registry's `llmsTxtSha256` is not consulted.
+- When the registry is unreachable, returns 5xx, times out, returns bad JSON, has a bad API base, or returns an unknown status, the result is `UNVERIFIED`. A valid local signature then has `signature: "VALID"` and `claims.registryStatus: "unreachable"` when the failure is transport. It is cached briefly.
+- No local proof is never `VERIFIED`. The registry answer is used only to raise `RISK`. Otherwise the result is `UNVERIFIED`.
 
 ## 3. Algorithm pinning
 
@@ -133,7 +133,7 @@ When the JWS verifies, the SDK GETs both `https://<domain>/.well-known/llms.txt`
 
 `verifyDomain`’s registry GET uses a 10 second timeout. The default base is `VERIFICATION_API_URL`, or `https://api.trustflow.systems` when that variable is unset. The base must be HTTPS (plain HTTP only on loopback). A `domain` field in the registry body is ignored; the answer is applied to the host that was asked.
 
-`agenticTrustMiddleware` uses one `AbortSignal` of 4 seconds (`DEFAULT_MIDDLEWARE_TIMEOUT_MS`) for one lookup (did.json, both llms.txt URLs, and the registry). Its default base is `AGENTIC_TRUST_API_URL`, then `VERIFICATION_API_URL`, then `https://api.trustflow.systems`. Timeout and transport failure set `securityWarning` and do not throw, except a local `RISK` stays `RISK`. An `llms.txt` body returned through `fetch`, `annotateDocuments`, or a wrapped tool must hash to the signed value; an unsigned or swapped body is `RISK`. Middleware cache TTL is 5 minutes for a successful lookup and 15 seconds for a transport failure. A warm in-memory hit for `verifyDomain` or the middleware stays under 5ms. `AGENTIC_TRUST_CACHE_DIR` is an optional disk copy of those public results. A cache directory or file that another user can write, or a record that is not a verify result, is ignored.
+`agenticTrustMiddleware` uses one `AbortSignal` of 4 seconds (`DEFAULT_MIDDLEWARE_TIMEOUT_MS`) for one lookup (did.json, both llms.txt URLs, and the registry). Its default base is `AGENTIC_TRUST_API_URL`, then `VERIFICATION_API_URL`, then `https://api.trustflow.systems`. Timeout and transport failure set `securityWarning` and do not throw, except a local `RISK` stays `RISK`. An `llms.txt` body returned through `fetch`, `annotateDocuments`, or a wrapped tool is still delivered. If it is unsigned or does not match the signed hash, the metadata is annotated `RISK`. The middleware does not reject or strip that body. Middleware cache TTL is 5 minutes for a successful lookup and 15 seconds for a transport failure. A warm in-memory hit for `verifyDomain` or the middleware stays under 5ms. `AGENTIC_TRUST_CACHE_DIR` is an optional disk copy of those public results. A cache directory or file that another user can write, or a record that is not a verify result, is ignored.
 
 `inspectEndpointBeforeExecution` allows the call only when the endpoint URL’s protocol is `https:`, `verifyDomain` on that hostname is `VERIFIED`, and the URL is one of the MCP service endpoints signed into `did.json`. When that list is empty, every endpoint is blocked (`Domain did.json lists no MCP service endpoints`). This HTTPS check is a string check on the URL. It is not the registry fetcher below.
 
@@ -158,9 +158,9 @@ The SDK timeouts in section 4.1 are client deadlines. They are not this registry
 
 | Status | When the SDK uses it |
 |--------|----------------------|
-| `VERIFIED` | Local `did:web` JWS verifies, published `llms.txt` (if any) matches the signed hash, and the registry reports a proved listing whose key and `llmsTxtSha256` match. Or the registry reports `VERIFIED` when there is no usable local proof. `allowSelfSignedOffline` can also return `VERIFIED` for a valid local signature when the registry cannot be reached. |
-| `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), the registry is unreachable or returns a non-status payload, or a valid local signature has no proved registry listing (`signature: "VALID"`). |
-| `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg` or unbound services/key), a published `llms.txt` is unsigned or swapped, the registry marked the domain `RISK`, the registered key or llms hash differs, or the endpoint is not HTTPS. |
+| `VERIFIED` | Local `did:web` JWS verifies, published `llms.txt` (if any) matches the signed hash, and the registry `status` is `VERIFIED` with the same `publicKeyHash`. |
+| `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS, no local proof, the registry is unreachable or returns a non-status payload, the registry omits `publicKeyHash`, or a valid local signature has no proved listing (`signature: "VALID"`). |
+| `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg` or unbound services/key), a published `llms.txt` is unsigned or swapped, the registry marked the domain `RISK`, the registered key differs, or the endpoint is not HTTPS. |
 
 `claims.registryStatus` is set when a valid local signature is combined with the registry (`VERIFIED`, `UNVERIFIED`, `RISK`, or `unreachable`). `trustScore` is copied from the registry only. `signature: "VALID"` is set when that local signature is not promoted to `VERIFIED`.
 

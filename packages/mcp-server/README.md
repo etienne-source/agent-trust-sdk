@@ -6,8 +6,8 @@ Stdio [Model Context Protocol](https://modelcontextprotocol.io) server for **Tru
 
 | Tool | What it does |
 |------|----------------|
-| `audit_domain` | `GET /v1/verify?domain=` — status, `isVerified`, TrustScore, and audit factors |
-| `generate_did_keys` | Ed25519 (default) or ES256 (P-256) key pair and a signed W3C `did:web` document. The private key is written to `privateKeyPath` and is not returned. |
+| `audit_domain` | SDK verdict for a domain (same rule as `verifyDomain`), plus TrustScore and audit factors |
+| `generate_did_keys` | Ed25519 (default) or ES256 (P-256) key pair only. The private key is written to `privateKeyPath` and is not returned. Signing is `sign_llms_txt`. |
 | `sign_llms_txt` | Sign an `llms.txt` manifest with the domain private key read from `privateKeyPath` |
 
 Signing uses `@trustflow/sdk` `createSignedDidDocument` (EdDSA or ES256 compact JWS). This package does not invent a second proof format. Paths a tool reads or writes must be inside the server root (`AGENTIC_TRUST_MCP_ROOT`, or the process working directory). The registry base is a server option (`TRUSTFLOW_API_URL`), not a tool argument.
@@ -27,7 +27,7 @@ Run `npx @trustflow/cli@latest init`. Binary: `agentic-trust-mcp`.
 
 ### Upgrade from 1.x
 
-`audit_domain` no longer accepts a `baseUrl` tool argument (use `TRUSTFLOW_API_URL` or the server `apiBase` option). `generate_did_keys` and `sign_llms_txt` require `privateKeyPath` and do not return the private key. `@trustflow/mcp-server` depends on `@trustflow/sdk` `^2.1.0`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
+`audit_domain` no longer accepts a `baseUrl` tool argument (use `TRUSTFLOW_API_URL` or the server `apiBase` option). `generate_did_keys` and `sign_llms_txt` require `privateKeyPath` and do not return the private key. `@trustflow/mcp-server` depends on `@trustflow/sdk` `^2.0.1`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
 
 ### Contributors
 
@@ -93,8 +93,8 @@ Fetches `GET {base}/v1/verify?domain=`. Default base: `https://api.trustflow.sys
 
 Returns structured content:
 
-- `status` — registry status (`VERIFIED`, `UNVERIFIED`, or `RISK`)
-- `isVerified` — `true` when the registry says so, or when `status` is `VERIFIED`
+- `status` — SDK verdict (`VERIFIED`, `UNVERIFIED`, or `RISK`). A registry `VERIFIED` is not copied through
+- `isVerified` — `true` only when `status` is `VERIFIED`
 - `audit.score` — TrustScore (`audit.score`, or a top-level `trustScore` when that is all the payload has)
 - `audit.factors` — score factors from the Trustflow Domain Audit
 - `domain` — the hostname that was asked, even if the body names another host
@@ -103,9 +103,9 @@ Returns structured content:
 
 Arguments: `domain`, optional `algorithm` (`Ed25519` default, or `ES256` / `P-256`), required `privateKeyPath`.
 
-Ed25519 generation and the JWS proof both go through `createSignedDidDocument`. ES256 generates a P-256 PKCS#8 key and passes it into that same SDK function.
+The tool returns the public key, `publicKeyHash`, and `did:web` id. It does not return a signed `did.json`. Use `sign_llms_txt` to sign.
 
-The private key is written to a new file at `privateKeyPath` (mode `0600`) inside the server root. An existing file is not replaced. The tool result includes `didJson` (public, suitable for `.well-known/did.json`) and does not include `privateKeyPem`.
+The private key is written to a new file at `privateKeyPath` (mode `0600`) inside the server root. An existing file is not replaced. The tool result does not include `privateKeyPem`.
 
 ### `sign_llms_txt`
 

@@ -74,12 +74,4 @@ export interface VerifyDomainOptions {
    * A warm hit is the sub-5ms path.
    */
   cache?: import("./cache.js").MemoryCache;
-  /**
-   * Opt in to the 2.0 behaviour: a valid local signature is `VERIFIED` when the
-   * registry cannot be reached. Default is fail-closed (`UNVERIFIED`,
-   * `signature: "VALID"`, `claims.registryStatus: "unreachable"`).
-   * A reachable registry `RISK` or a different registered key or llms hash
-   * stays `RISK`.
-   */
-  allowSelfSignedOffline?: boolean;
 }

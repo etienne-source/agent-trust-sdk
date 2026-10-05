@@ -1,14 +1,14 @@
 # Changelog
 
-## 2.1.0
+## 2.0.1
 
-Lockstep version of `@trustflow/sdk`, `@trustflow/cli`, `@trustflow/mcp-server`, `@trustflow/next-plugin`, and `@trustflow/vercel-plugin`. The behaviour change is in `@trustflow/sdk`.
+Patch of `@trustflow/sdk`, `@trustflow/cli`, `@trustflow/mcp-server`, `@trustflow/next-plugin`, and `@trustflow/vercel-plugin`. This is 2.0.1, not 2.1.0: there is no new option. It closes the 2.0.0 fail-open.
 
-### Breaking
+### Fixed
 
-`verifyDomain` and `agenticTrustMiddleware` no longer return `VERIFIED` for a valid local did:web signature unless the Trustflow registry confirms a proved listing whose key and `llmsTxtSha256` match the domain. When the registry is unreachable, the result is `UNVERIFIED` with `signature: "VALID"` and `claims.registryStatus: "unreachable"`. A reachable registry that does not return `VERIFIED` is the same `UNVERIFIED` result. Registry `RISK`, a different registered key, or a different registered `llmsTxtSha256` is still `RISK`.
+`VERIFIED` means the local did:web proof is ok and the registry `status` is `VERIFIED` with the same `publicKeyHash`. A registry listing alone is not `VERIFIED`. Registry unreachable, 5xx, timeout, bad JSON, a bad API base, or an unknown status is `UNVERIFIED`. A valid local signature in that case has `signature: "VALID"`. Registry `RISK` and a different key stay `RISK`. There is no offline opt-in.
 
-`allowSelfSignedOffline: true` on `verifyDomain` or `agenticTrustMiddleware` keeps the 2.0.0 offline `VERIFIED` result. The default is fail-closed. That option does not override a reachable registry answer.
+`audit_domain` uses that same verdict. `generate_did_keys` returns a key pair only; signing is `sign_llms_txt`.
 
 Do not publish this version until QA passes.
 

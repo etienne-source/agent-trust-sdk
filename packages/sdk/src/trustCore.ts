@@ -22,16 +22,6 @@ export interface TrustCoreOptions {
   signal?: AbortSignal;
   /** Extra query parameters for `GET /v1/verify`. */
   registryQuery?: Record<string, string>;
-  /**
-   * When true, a valid local signature stays `VERIFIED` if the registry cannot
-   * be reached. Default false: that case is `UNVERIFIED`.
-   */
-  allowSelfSignedOffline?: boolean;
-}
-
-/** Cache key shared by `verifyDomain` and the middleware. The opt-in does not reuse fail-closed entries. */
-export function verifyCacheKey(domain: string, allowSelfSignedOffline = false): string {
-  return allowSelfSignedOffline ? `verify:${domain}:self-signed-offline` : `verify:${domain}`;
 }
 
 export interface TrustEvaluation {
@@ -49,7 +39,7 @@ interface LlmsCopy {
 }
 
 type LocalOutcome =
-  | { kind: "verified"; result: VerifyResult; keyHash?: string; llmsTxtSha256?: string; transient: boolean }
+  | { kind: "verified"; result: VerifyResult; keyHash?: string; transient: boolean }
   | { kind: "risk"; result: VerifyResult; transient: boolean }
   | { kind: "unverified"; result: VerifyResult }
   | { kind: "network"; error: unknown };
@@ -201,7 +191,6 @@ async function evaluateLocal(domain: string, options: TrustCoreOptions): Promise
     kind: "verified",
     result: makeResult(domain, "VERIFIED", { claims }),
     keyHash: keyFp,
-    llmsTxtSha256: assessment.llmsTxtSha256,
     transient,
   };
 }
@@ -213,7 +202,6 @@ function isStatus(value: unknown): value is VerificationStatus {
 function readStatus(body: Record<string, unknown>): VerificationStatus | undefined {
   const raw = typeof body.status === "string" ? body.status.toUpperCase() : "";
   if (isStatus(raw)) return raw;
-  if (body.verified === true || body.isVerified === true) return "VERIFIED";
   return undefined;
 }
 
@@ -296,10 +284,13 @@ function lowerHex(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : undefined;
 }
 
-function unconfirmedReason(registry: RegistryAnswer): string {
+function unconfirmedReason(registry: RegistryAnswer, sameKey: boolean): string {
   const reg = registry.result;
   if (registry.transport) {
     return `Local did:web signature is valid; registry unreachable (${reg.reason ?? "unreachable"})`;
+  }
+  if (reg.status === "VERIFIED" && !sameKey) {
+    return "Local did:web signature is valid; registry did not present the same publicKeyHash";
   }
   const detail = reg.reason ? `: ${reg.reason}` : "";
   return `Local did:web signature is valid; registry did not confirm a proved listing (${reg.status}${detail})`;
@@ -307,13 +298,14 @@ function unconfirmedReason(registry: RegistryAnswer): string {
 
 function combineVerified(
   local: Extract<LocalOutcome, { kind: "verified" }>,
-  registry: RegistryAnswer,
-  allowSelfSignedOffline: boolean
+  registry: RegistryAnswer
 ): VerifyResult {
   const domain = local.result.domain;
   const reg = registry.result;
   const registryStatus = registry.transport ? "unreachable" : reg.status;
   const claims: Record<string, unknown> = { ...local.result.claims, registryStatus };
+  const registeredKey = lowerHex(reg.claims.publicKeyHash);
+  const sameKey = Boolean(registeredKey && local.keyHash && registeredKey === local.keyHash);
 
   if (!registry.transport && reg.status === "RISK") {
     return makeResult(domain, "RISK", {
@@ -321,49 +313,33 @@ function combineVerified(
       reason: `Trustflow registry marked the domain RISK${reg.reason ? `: ${reg.reason}` : ""}`,
     });
   }
-  const registeredKey = lowerHex(reg.claims.publicKeyHash);
   if (!registry.transport && registeredKey && local.keyHash && registeredKey !== local.keyHash) {
     return makeResult(domain, "RISK", {
       claims,
       reason: "did.json key does not match the key registered with Trustflow",
     });
   }
-  const registeredLlms = lowerHex(reg.claims.llmsTxtSha256);
-  if (!registry.transport && registeredLlms && registeredLlms !== local.llmsTxtSha256) {
-    return makeResult(domain, "RISK", {
-      claims,
-      reason: "Signed llms.txt does not match the hash registered with Trustflow",
-    });
-  }
-  if (!registry.transport && reg.status === "VERIFIED") {
+  if (!registry.transport && reg.status === "VERIFIED" && sameKey) {
     for (const key of REGISTRY_SCORE_KEYS) {
       if (reg.claims[key] !== undefined) claims[key] = reg.claims[key];
     }
-    if (registeredKey) claims.publicKeyHash = registeredKey;
+    claims.publicKeyHash = registeredKey;
     return makeResult(domain, "VERIFIED", { claims });
-  }
-  if (registry.transport && allowSelfSignedOffline) {
-    return makeResult(domain, "VERIFIED", {
-      claims,
-      reason: `Local did:web verified; registry not checked (${reg.reason ?? "unreachable"})`,
-    });
   }
   return makeResult(domain, "UNVERIFIED", {
     claims,
     signature: "VALID",
-    reason: unconfirmedReason(registry),
+    reason: unconfirmedReason(registry, sameKey),
   });
 }
 
 /**
  * The one verification decision used by `verifyDomain` and the middleware.
  *
- * - A local JWS failure, a swapped llms.txt, or an llms.txt the JWS does not cover is `RISK`.
- * - `VERIFIED` requires a proved registry listing. A registry `RISK`, a different registered
- *   key, or a different registered llms.txt hash is `RISK`.
- * - A valid local signature without that listing is `UNVERIFIED` with `signature: "VALID"`.
- *   `allowSelfSignedOffline` keeps `VERIFIED` only when the registry cannot be reached.
- * - When there is no usable local proof, the registry answer is used.
+ * `VERIFIED` means the local did:web proof is ok and the registry status is
+ * `VERIFIED` with the same `publicKeyHash`. Anything else is `UNVERIFIED`,
+ * except a local `RISK` or a registry `RISK` or a different registered key.
+ * A missing local proof is never `VERIFIED`. The registry cannot promote it.
  */
 export async function evaluateDomainTrust(domain: string, options: TrustCoreOptions): Promise<TrustEvaluation> {
   const local = await evaluateLocal(domain, options);
@@ -372,14 +348,14 @@ export async function evaluateDomainTrust(domain: string, options: TrustCoreOpti
   const registry = await queryRegistry(domain, options);
   if (local.kind === "verified") {
     return {
-      result: combineVerified(local, registry, options.allowSelfSignedOffline === true),
+      result: combineVerified(local, registry),
       transient: registry.transport || local.transient,
     };
   }
 
   const reg = registry.result;
-  if (reg.status === "VERIFIED" || reg.status === "RISK") {
-    return { result: reg, transient: registry.transport };
+  if (!registry.transport && reg.status === "RISK") {
+    return { result: reg, transient: false };
   }
   const base = local.kind === "unverified" ? local.result : reg;
   return {

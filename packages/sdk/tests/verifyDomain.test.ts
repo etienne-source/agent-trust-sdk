@@ -165,7 +165,6 @@ describe("verifyDomain", () => {
     const result = await verifyDomain(domain, {
       fetch: fetchFn,
       verificationApiUrl: "https://api.test",
-      allowSelfSignedOffline: true,
     });
     expect(result.status).toBe("RISK");
     expect(result.reason).toBe("Trustflow registry marked the domain RISK: Key reported compromised");
@@ -184,18 +183,60 @@ describe("verifyDomain", () => {
     expect(result.reason).toBe("did.json key does not match the key registered with Trustflow");
   });
 
-  it("returns RISK when the signed llms hash differs from the registered hash", async () => {
+  it("ignores a registry llms hash and still requires the same key", async () => {
     const domain = "rollback.example";
     const llms = "# Old\n";
-    const { did } = await makeSignedDid(domain, { llms });
+    const { did, pem } = await makeSignedDid(domain, { llms });
     const fetchFn = mockFetchRouter({
       "/.well-known/did.json": { body: did },
       "/.well-known/llms.txt": { text: llms },
-      "/v1/verify": { body: { status: "VERIFIED", claims: { llmsTxtSha256: hashLlmsTxt("# New\n") } } },
+      [`${domain}/llms.txt`]: { text: llms },
+      "/v1/verify": {
+        body: {
+          status: "VERIFIED",
+          claims: { publicKeyHash: hashPublicKeyPem(pem), llmsTxtSha256: hashLlmsTxt("# New\n") },
+        },
+      },
     });
     const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
-    expect(result.status).toBe("RISK");
-    expect(result.reason).toMatch(/registered with Trustflow/);
+    expect(result.status).toBe("VERIFIED");
+    expect(result.reason ?? "").not.toMatch(/registered with Trustflow/);
+  });
+
+  it("returns UNVERIFIED when the registry omits publicKeyHash", async () => {
+    const domain = "nokey.example";
+    const { did } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "VERIFIED", claims: {} } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBe("VALID");
+    expect(result.reason).toMatch(/same publicKeyHash/);
+  });
+
+  it("does not treat isVerified without status as VERIFIED", async () => {
+    const domain = "flagonly.example";
+    const { did, pem } = await makeSignedDid(domain);
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { isVerified: true, claims: { publicKeyHash: hashPublicKeyPem(pem) } } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBe("VALID");
+  });
+
+  it("returns UNVERIFIED when did.json is missing even if the registry says VERIFIED", async () => {
+    const domain = "nodid.example";
+    const fetchFn = mockFetchRouter({
+      "/.well-known/did.json": { status: 404, text: "" },
+      "/v1/verify": { body: { status: "VERIFIED", claims: { publicKeyHash: "ab".repeat(32) } } },
+    });
+    const result = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
+    expect(result.status).toBe("UNVERIFIED");
+    expect(result.signature).toBeUndefined();
   });
 
   it("uses the registry trust score and key when they agree with did.json", async () => {
@@ -227,16 +268,6 @@ describe("verifyDomain", () => {
     expect(result.claims.registryStatus).toBe("unreachable");
     expect(result.reason).toMatch(/registry unreachable/);
 
-    const opted = await verifyDomain(domain, {
-      fetch: fetchFn,
-      verificationApiUrl: "https://api.test",
-      allowSelfSignedOffline: true,
-    });
-    expect(opted.status).toBe("VERIFIED");
-    expect(opted.claims.registryStatus).toBe("unreachable");
-    expect(opted.reason).toMatch(/registry not checked/);
-    expect(opted.cached).toBeFalsy();
-
     const again = await verifyDomain(domain, { fetch: fetchFn, verificationApiUrl: "https://api.test" });
     expect(again.status).toBe("UNVERIFIED");
     expect(again.signature).toBe("VALID");
@@ -253,7 +284,6 @@ describe("verifyDomain", () => {
     const result = await verifyDomain(domain, {
       fetch: fetchFn,
       verificationApiUrl: "https://api.test",
-      allowSelfSignedOffline: true,
     });
     expect(result.status).toBe("UNVERIFIED");
     expect(result.signature).toBe("VALID");

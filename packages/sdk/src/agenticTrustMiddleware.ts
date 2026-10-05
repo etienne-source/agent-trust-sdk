@@ -1,6 +1,6 @@
 import { defaultCache, type MemoryCache } from "./cache.js";
 import { hashLlmsTxt } from "./identity.js";
-import { evaluateDomainTrust, verifyCacheKey } from "./trustCore.js";
+import { evaluateDomainTrust } from "./trustCore.js";
 import { didWebId, normalizeDomain } from "./tls.js";
 import type { VerificationStatus, VerifyResult } from "./types.js";
 
@@ -24,9 +24,8 @@ const WARNING_HEADER_NAME = "x-agentic-trust-warning";
 
 export interface AgenticTrustMetadata {
   /**
-   * True only for a proved registry listing whose key and llms hash match the domain,
-   * or a registry `VERIFIED` when the domain serves no usable local proof.
-   * A valid local signature with the registry unreachable is not verified.
+   * True only when the local did:web proof is ok and the registry status is
+   * `VERIFIED` with the same key. A registry listing alone is not verified.
    */
   verified: boolean;
   /** Registry trust score. Never read from the domain's own did.json. */
@@ -61,11 +60,6 @@ export interface AgenticTrustMiddlewareOptions {
   headerName?: string;
   /** Cache implementation. Defaults to the SDK memory cache. */
   cache?: MemoryCache;
-  /**
-   * Opt in to the 2.0 behaviour: a valid local signature is verified when the
-   * registry cannot be reached. Default is fail-closed. Registry `RISK` still wins.
-   */
-  allowSelfSignedOffline?: boolean;
 }
 
 export interface LangChainLikeDocument {
@@ -119,7 +113,6 @@ interface ResolvedOptions {
   fetchImpl: typeof globalThis.fetch;
   headerName: string;
   cache: MemoryCache;
-  allowSelfSignedOffline: boolean;
 }
 
 interface Lookup {
@@ -149,7 +142,6 @@ function resolveOptions(options: AgenticTrustMiddlewareOptions = {}): ResolvedOp
     fetchImpl: options.fetch ?? globalThis.fetch.bind(globalThis),
     headerName: options.headerName ?? HEADER_NAME,
     cache: options.cache ?? defaultCache,
-    allowSelfSignedOffline: options.allowSelfSignedOffline === true,
   };
 }
 
@@ -222,14 +214,13 @@ function metadataFromResult(result: VerifyResult): AgenticTrustMetadata {
   );
 }
 
-function cacheKeys(domain: string, allowSelfSignedOffline: boolean): { sdk: string; middleware: string } {
-  const sdk = verifyCacheKey(domain, allowSelfSignedOffline);
-  return { sdk, middleware: `mw:${sdk}` };
+function cacheKeys(domain: string): { sdk: string; middleware: string } {
+  return { sdk: `verify:${domain}`, middleware: `mw:verify:${domain}` };
 }
 
 function readCache(domain: string, options: ResolvedOptions): AgenticTrustMetadata | undefined {
   if (options.bypassCache) return undefined;
-  const keys = cacheKeys(domain, options.allowSelfSignedOffline);
+  const keys = cacheKeys(domain);
   const hit = options.cache.get(keys.sdk) ?? options.cache.get(keys.middleware);
   return hit ? metadataFromResult(hit) : undefined;
 }
@@ -246,7 +237,6 @@ async function lookupTrust(domain: string, options: ResolvedOptions): Promise<Lo
     apiBase: options.apiBase,
     signal,
     registryQuery: { did: didWebId(domain) },
-    allowSelfSignedOffline: options.allowSelfSignedOffline,
   });
   const shortTtl = Math.min(options.cacheTtlMs, FAILURE_CACHE_TTL_MS);
   if (signal.aborted && result.status !== "RISK") {
@@ -265,11 +255,7 @@ const inflight = new WeakMap<ResolvedOptions, Map<string, Promise<AgenticTrustMe
 async function settle(domain: string, options: ResolvedOptions): Promise<AgenticTrustMetadata> {
   const lookup = await lookupTrust(domain, options);
   if (lookup.cacheTtlMs > 0 && lookup.result) {
-    options.cache.set(
-      cacheKeys(domain, options.allowSelfSignedOffline).middleware,
-      { ...lookup.result, cached: false },
-      lookup.cacheTtlMs
-    );
+    options.cache.set(cacheKeys(domain).middleware, { ...lookup.result, cached: false }, lookup.cacheTtlMs);
   }
   return lookup.meta;
 }
@@ -384,8 +370,8 @@ function isLlmsTxtUrl(value: string): boolean {
 }
 
 /**
- * An llms.txt body is trusted only when it hashes to the value signed into did.json.
- * A verified domain whose JWS does not sign llms.txt, or a body that differs, is RISK.
+ * Annotate an llms.txt body. The bytes are returned either way.
+ * A verified domain whose JWS does not sign llms.txt, or a body that differs, is marked RISK.
  */
 function bindLlmsBody(url: string, body: string, meta: AgenticTrustMetadata): AgenticTrustMetadata {
   if (!meta.verified || !isLlmsTxtUrl(url)) return meta;
@@ -490,9 +476,9 @@ function wrapMethod(method: ToolMethod, tool: object, options: ResolvedOptions):
  * When an agent fetches a domain, the wrapper checks the domain's `did:web` JWS,
  * requires any published llms.txt to match the signed hash, consults
  * `GET {base}/v1/verify`, and appends `{ verified, trustScore }` metadata.
- * `verified` is true only when the registry confirms the listing. A valid local
- * signature with the registry unreachable stays unverified unless
- * `allowSelfSignedOffline` is set.
+ * `verified` is true only when the local proof is ok and the registry status is
+ * `VERIFIED` with the same key. A swapped `llms.txt` body is still returned;
+ * the metadata is annotated `RISK`.
  * An llms.txt body returned through `fetch`, `annotateDocuments`, or a wrapped tool
  * must also hash to the signed value. Unverified or risky domains, and lookups that
  * time out, append `securityWarning: true` and do not throw.

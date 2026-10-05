@@ -5,18 +5,20 @@ import {
   clearVerifyCache,
   defaultCache,
   hashLlmsTxt,
+  hashPublicKeyPem,
 } from "../src/index.js";
 import type { DidDocument } from "../src/types.js";
 
 const API = "https://api.trustflow.systems";
 
-function verifiedBody(domain: string, trustScore = 91) {
+function verifiedBody(domain: string, trustScore = 91, publicKeyHash?: string) {
   return {
     status: "VERIFIED",
     domain,
     claims: {
       did: `did:web:${domain}`,
       trustScore,
+      ...(publicKeyHash ? { publicKeyHash } : {}),
     },
   };
 }
@@ -55,7 +57,11 @@ function verifyCalls(fetchFn: typeof fetch): string[] {
     .filter((url) => url.includes("/v1/verify"));
 }
 
-async function makeSignedDid(domain: string, trustScore = 95, llms?: string): Promise<DidDocument> {
+async function makeSignedDid(
+  domain: string,
+  trustScore = 95,
+  llms?: string
+): Promise<{ did: DidDocument; publicKeyHash: string }> {
   const { publicKey, privateKey } = await generateKeyPair("ES256");
   const pem = await exportSPKI(publicKey);
   const didId = `did:web:${domain}`;
@@ -75,13 +81,16 @@ async function makeSignedDid(domain: string, trustScore = 95, llms?: string): Pr
   };
   const jws = await new SignJWT(payloadDoc).setProtectedHeader({ alg: "ES256" }).sign(privateKey);
   return {
-    ...payloadDoc,
-    "@context": ["https://www.w3.org/ns/did/v1"],
-    proof: {
-      type: "JsonWebSignature2020",
-      jws,
-      verificationMethod: `${didId}#key-1`,
+    did: {
+      ...payloadDoc,
+      "@context": ["https://www.w3.org/ns/did/v1"],
+      proof: {
+        type: "JsonWebSignature2020",
+        jws,
+        verificationMethod: `${didId}#key-1`,
+      },
     },
+    publicKeyHash: hashPublicKeyPem(pem),
   };
 }
 
@@ -90,7 +99,7 @@ describe("agenticTrustMiddleware", () => {
     clearVerifyCache();
   });
 
-  it("appends verified metadata and trustScore from the registry", async () => {
+  it("does not treat a registry VERIFIED as verified when did.json is missing", async () => {
     const fetchFn = mockFetch({
       "/v1/verify": { body: verifiedBody("example.com", 91) },
     });
@@ -98,18 +107,16 @@ describe("agenticTrustMiddleware", () => {
 
     const meta = await trust.verify("https://example.com/pricing");
     expect(meta).toMatchObject({
-      verified: true,
-      trustScore: 91,
+      verified: false,
+      securityWarning: true,
       domain: "example.com",
-      status: "VERIFIED",
-      did: "did:web:example.com",
+      status: "UNVERIFIED",
     });
-    expect(meta.securityWarning).toBeUndefined();
 
     const context = await trust.annotateContext({ snippet: "prices" }, "example.com");
     expect(context.snippet).toBe("prices");
-    expect(context.agenticTrust).toMatchObject({ verified: true, trustScore: 91 });
-    expect(context.securityWarning).toBeUndefined();
+    expect(context.agenticTrust).toMatchObject({ verified: false, securityWarning: true, status: "UNVERIFIED" });
+    expect(context.securityWarning).toBe(true);
 
     const [called] = verifyCalls(fetchFn);
     expect(called).toContain(`${API}/v1/verify?`);
@@ -119,8 +126,10 @@ describe("agenticTrustMiddleware", () => {
   });
 
   it("sets a trust header and JSON metadata on fetch when verified", async () => {
+    const signed = await makeSignedDid("example.com");
     const fetchFn = mockFetch({
-      "/v1/verify": { body: verifiedBody("example.com", 88) },
+      "/.well-known/did.json": { body: signed.did },
+      "/v1/verify": { body: verifiedBody("example.com", 88, signed.publicKeyHash) },
       "example.com/data.json": { body: { title: "catalog" } },
     });
     const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
@@ -260,8 +269,10 @@ describe("agenticTrustMiddleware", () => {
   });
 
   it("keeps a warm middleware verify under 5ms", async () => {
+    const signed = await makeSignedDid("fast.example");
     const fetchFn = mockFetch({
-      "/v1/verify": { body: verifiedBody("fast.example", 90) },
+      "/.well-known/did.json": { body: signed.did },
+      "/v1/verify": { body: verifiedBody("fast.example", 90, signed.publicKeyHash) },
     });
     const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
     await trust.verify("fast.example");
@@ -282,8 +293,10 @@ describe("agenticTrustMiddleware", () => {
   });
 
   it("wraps LangChain and AI SDK tools and annotates documents", async () => {
+    const signed = await makeSignedDid("docs.example");
     const fetchFn = mockFetch({
-      "/v1/verify": { body: verifiedBody("docs.example", 80) },
+      "/.well-known/did.json": { body: signed.did },
+      "/v1/verify": { body: verifiedBody("docs.example", 80, signed.publicKeyHash) },
     });
     const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
 
@@ -321,8 +334,10 @@ describe("agenticTrustMiddleware", () => {
   });
 
   it("leaves non-JSON bodies intact and still sets the trust header", async () => {
+    const signed = await makeSignedDid("example.com");
     const fetchFn = mockFetch({
-      "/v1/verify": { body: verifiedBody("example.com", 70) },
+      "/.well-known/did.json": { body: signed.did },
+      "/v1/verify": { body: verifiedBody("example.com", 70, signed.publicKeyHash) },
       "example.com/file.txt": { text: "plain text" },
     });
     const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
@@ -336,10 +351,10 @@ describe("agenticTrustMiddleware", () => {
 
   it("checks a local did:web document against the registry and ignores its self-reported score", async () => {
     const domain = "local.example";
-    const did = await makeSignedDid(domain, 95);
+    const { did, publicKeyHash } = await makeSignedDid(domain, 95);
     const fetchFn = mockFetch({
       "/.well-known/did.json": { body: did },
-      "/v1/verify": { body: verifiedBody(domain, 1) },
+      "/v1/verify": { body: verifiedBody(domain, 1, publicKeyHash) },
     });
     const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
 
@@ -357,37 +372,45 @@ describe("agenticTrustMiddleware", () => {
 
   it("does not return VERIFIED when the registry is unreachable for a locally signed domain", async () => {
     const domain = "offline-signed.example";
-    const did = await makeSignedDid(domain);
-    const fetchFn = mockFetch({
+    const { did } = await makeSignedDid(domain);
+    const down = mockFetch({
       "/.well-known/did.json": { body: did },
       "/v1/verify": { status: 503, body: { error: "down" } },
     });
-    const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
-    const meta = await trust.verify(domain);
-    expect(meta).toMatchObject({
+    const trust = agenticTrustMiddleware({ fetch: down, verificationApiUrl: API });
+    await expect(trust.verify(domain)).resolves.toMatchObject({
       verified: false,
       securityWarning: true,
       status: "UNVERIFIED",
       domain,
     });
-    expect(meta.warning).toMatch(/registry unreachable/);
 
-    const opted = agenticTrustMiddleware({
-      fetch: fetchFn,
-      verificationApiUrl: API,
-      allowSelfSignedOffline: true,
-      bypassCache: true,
+    clearVerifyCache();
+    const thrown = mockFetch({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { throw: new TypeError("network down") },
     });
-    await expect(opted.verify(domain)).resolves.toMatchObject({
-      verified: true,
-      status: "VERIFIED",
-      domain,
+    const offline = agenticTrustMiddleware({ fetch: thrown, verificationApiUrl: API });
+    const network = await offline.verify(domain);
+    expect(network).toMatchObject({ verified: false, securityWarning: true, status: "UNVERIFIED" });
+    expect(network.warning).toMatch(/network down/);
+
+    clearVerifyCache();
+    const revokedFetch = mockFetch({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { body: { status: "REVOKED" } },
+    });
+    const revoked = agenticTrustMiddleware({ fetch: revokedFetch, verificationApiUrl: API });
+    await expect(revoked.verify(domain)).resolves.toMatchObject({
+      verified: false,
+      securityWarning: true,
+      status: "UNVERIFIED",
     });
   });
 
   it("does not return VERIFIED when the registry says RISK for a locally signed domain", async () => {
     const domain = "revoked.example";
-    const did = await makeSignedDid(domain);
+    const { did } = await makeSignedDid(domain);
     const fetchFn = mockFetch({
       "/.well-known/did.json": { body: did },
       "/v1/verify": { body: { status: "RISK", reason: "Revoked", claims: {} } },
@@ -398,10 +421,10 @@ describe("agenticTrustMiddleware", () => {
     expect(meta.warning).toMatch(/registry marked the domain RISK: Revoked/);
   });
 
-  it("rejects an llms.txt body swapped after verification", async () => {
+  it("annotates an llms.txt body swapped after verification and still returns the body", async () => {
     const domain = "swap.example";
     const signed = "# Swap\n> Signed body\n";
-    const did = await makeSignedDid(domain, 95, signed);
+    const { did, publicKeyHash } = await makeSignedDid(domain, 95, signed);
     let llmsCalls = 0;
     const fetchFn = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -409,7 +432,9 @@ describe("agenticTrustMiddleware", () => {
         return new Response(JSON.stringify(did), { headers: { "Content-Type": "application/json" } });
       }
       if (url.includes("/v1/verify")) {
-        return new Response(JSON.stringify(verifiedBody(domain, 80)), { headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify(verifiedBody(domain, 80, publicKeyHash)), {
+          headers: { "Content-Type": "application/json" },
+        });
       }
       if (url.endsWith("/llms.txt")) {
         llmsCalls += 1;
@@ -457,29 +482,26 @@ describe("agenticTrustMiddleware", () => {
     expect(good?.metadata?.agenticTrust).toMatchObject({ verified: true });
   });
 
-  it("rejects an llms.txt from a verified domain whose did.json does not sign one", async () => {
+  it("annotates an unsigned published llms.txt and still returns the body", async () => {
+    const domain = "unbound.example";
+    const { did } = await makeSignedDid(domain);
     const fetchFn = mockFetch({
-      "/v1/verify": { body: verifiedBody("unbound.example", 90) },
-      "unbound.example/llms.txt": { text: "# Unbound\n" },
+      "/.well-known/did.json": { body: did },
+      "/llms.txt": { text: "# Unbound\n" },
     });
     const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
-    const response = await trust.fetch("https://unbound.example/llms.txt");
+    const response = await trust.fetch(`https://${domain}/llms.txt`);
     expect(await response.text()).toBe("# Unbound\n");
     expect(response.headers.get("x-agentic-trust-warning")).toBe("true");
-
-    const [doc] = await trust.annotateDocuments([
-      { pageContent: "# Unbound\n", metadata: { source: "https://unbound.example/llms.txt" } },
-    ]);
-    expect(doc?.metadata?.agenticTrust).toMatchObject({
+    expect(JSON.parse(response.headers.get("x-agentic-trust") ?? "{}")).toEqual({
       verified: false,
-      status: "RISK",
-      warning: "llms.txt is not signed by the domain did.json",
+      securityWarning: true,
     });
   });
 
   it("fail-closes on a bad local did:web signature and does not upgrade via the API", async () => {
     const domain = "forged.example";
-    const did = await makeSignedDid(domain);
+    const { did } = await makeSignedDid(domain);
     did.proof = {
       type: "JsonWebSignature2020",
       jws: "eyJhbGciOiJSUzI1NiJ9.eyJpZCI6ImJhZCJ9.invalid-signature",
@@ -502,7 +524,7 @@ describe("agenticTrustMiddleware", () => {
 
   it("fail-closes on alg none, HS256, and a did.json that is not JSON", async () => {
     const noneDomain = "none.example";
-    const noneDid = await makeSignedDid(noneDomain);
+    const { did: noneDid } = await makeSignedDid(noneDomain);
     const nonePayload = Buffer.from(JSON.stringify({ id: noneDid.id })).toString("base64url");
     noneDid.proof = {
       type: "JsonWebSignature2020",
@@ -520,7 +542,7 @@ describe("agenticTrustMiddleware", () => {
 
     clearVerifyCache();
     const hmacDomain = "hmac.example";
-    const hmacDid = await makeSignedDid(hmacDomain);
+    const { did: hmacDid } = await makeSignedDid(hmacDomain);
     const hmacPayload = Buffer.from(JSON.stringify({ id: hmacDid.id })).toString("base64url");
     hmacDid.proof = {
       type: "JsonWebSignature2020",
