@@ -19,6 +19,11 @@ export interface VerifyResult {
   status: VerificationStatus;
   domain: string;
   claims: DomainClaims;
+  /**
+   * Set when the local did:web signature verified but the registry did not
+   * confirm a proved listing. `VERIFIED` is never decided from this field alone.
+   */
+  signature?: "VALID";
   reason?: string;
   cached?: boolean;
   checkedAt?: string;
@@ -69,4 +74,12 @@ export interface VerifyDomainOptions {
    * A warm hit is the sub-5ms path.
    */
   cache?: import("./cache.js").MemoryCache;
+  /**
+   * Opt in to the 2.0 behaviour: a valid local signature is `VERIFIED` when the
+   * registry cannot be reached. Default is fail-closed (`UNVERIFIED`,
+   * `signature: "VALID"`, `claims.registryStatus: "unreachable"`).
+   * A reachable registry `RISK` or a different registered key or llms hash
+   * stays `RISK`.
+   */
+  allowSelfSignedOffline?: boolean;
 }

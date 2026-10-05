@@ -98,7 +98,8 @@ A `did:web` id for a different host is `RISK` (`DID id does not match domain`). 
 `evaluateDomainTrust` (used by `verifyDomain` and the middleware) is the one decision:
 
 - A local `RISK` (bad JWS, swapped services, swapped or unbound `llms.txt`) is final. The registry is not queried.
-- A local `VERIFIED` is always checked against the registry. A registry `RISK`, a different registered `publicKeyHash`, or a different registered `llmsTxtSha256` is `RISK`. A registry `VERIFIED` may add `trustScore` (never read from `did.json`). When the registry is unreachable the local `VERIFIED` is kept, `claims.registryStatus` is `unreachable`, and the result is cached briefly.
+- A local signature that passes is always checked against the registry. `VERIFIED` requires a proved registry listing (`status: "VERIFIED"`) whose `publicKeyHash` and `llmsTxtSha256`, when the registry sends them, match the domain. A registry `RISK`, a different registered key, or a different registered `llmsTxtSha256` is `RISK`. A registry `VERIFIED` may add `trustScore` (never read from `did.json`).
+- When the registry is unreachable, the result is `UNVERIFIED` with `signature: "VALID"` and `claims.registryStatus: "unreachable"`, cached briefly. `allowSelfSignedOffline: true` keeps the previous `VERIFIED` result for that transport failure only. A reachable registry that is not `VERIFIED` is also `UNVERIFIED` with `signature: "VALID"`; the opt-in does not apply.
 - When there is no usable local proof, a registry `VERIFIED` or `RISK` is returned as-is. Otherwise the result is `UNVERIFIED`.
 
 ## 3. Algorithm pinning
@@ -157,11 +158,11 @@ The SDK timeouts in section 4.1 are client deadlines. They are not this registry
 
 | Status | When the SDK uses it |
 |--------|----------------------|
-| `VERIFIED` | Local `did:web` JWS verifies, published `llms.txt` (if any) matches the signed hash, and the registry does not report `RISK` or a different key/hash. Or the registry reports `VERIFIED` when there is no usable local proof. |
-| `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), or the registry is unreachable or returns a non-status payload. |
+| `VERIFIED` | Local `did:web` JWS verifies, published `llms.txt` (if any) matches the signed hash, and the registry reports a proved listing whose key and `llmsTxtSha256` match. Or the registry reports `VERIFIED` when there is no usable local proof. `allowSelfSignedOffline` can also return `VERIFIED` for a valid local signature when the registry cannot be reached. |
+| `UNVERIFIED` | Invalid domain, HTTP error from `did.json`, missing key or missing JWS (when the registry does not verify), the registry is unreachable or returns a non-status payload, or a valid local signature has no proved registry listing (`signature: "VALID"`). |
 | `RISK` | `did.json` is not JSON or not an object, the id is not `did:web`, the JWS fails (including disallowed `alg` or unbound services/key), a published `llms.txt` is unsigned or swapped, the registry marked the domain `RISK`, the registered key or llms hash differs, or the endpoint is not HTTPS. |
 
-`claims.registryStatus` is set when a local `VERIFIED` is combined with the registry (`VERIFIED`, `RISK`, or `unreachable`). `trustScore` is copied from the registry only.
+`claims.registryStatus` is set when a valid local signature is combined with the registry (`VERIFIED`, `UNVERIFIED`, `RISK`, or `unreachable`). `trustScore` is copied from the registry only. `signature: "VALID"` is set when that local signature is not promoted to `VERIFIED`.
 
 `agenticTrustMiddleware` does not throw on `UNVERIFIED` or `RISK`. Call `verifyDomain` and refuse the tool when the status is not `VERIFIED`.
 

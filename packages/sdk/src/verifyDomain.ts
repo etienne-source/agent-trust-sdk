@@ -1,5 +1,5 @@
 import { defaultCache, type MemoryCache } from "./cache.js";
-import { evaluateDomainTrust, makeResult } from "./trustCore.js";
+import { evaluateDomainTrust, makeResult, verifyCacheKey } from "./trustCore.js";
 import { normalizeDomain, assertHttpsEndpoint } from "./tls.js";
 import type { EndpointInspectionResult, VerifyDomainOptions, VerifyResult } from "./types.js";
 
@@ -22,8 +22,12 @@ function defaultApiBase(): string {
  * Verify a domain against the **Trustflow** protocol (`did:web` DID signature + JWS)
  * and the Trustflow Systems registry. A warm in-memory cache hit stays under 5ms.
  *
- * A local `VERIFIED` is still checked against the registry: a registry `RISK`, a
- * different registered key, or a different registered llms.txt hash is `RISK`.
+ * `VERIFIED` requires a proved registry listing whose key and `llmsTxtSha256`
+ * match the document the domain serves now. A registry `RISK`, a different
+ * registered key, or a different registered llms.txt hash is `RISK`. A valid
+ * local signature without that confirmation is `UNVERIFIED` with
+ * `signature: "VALID"`. Pass `allowSelfSignedOffline: true` to keep a local
+ * `VERIFIED` when the registry cannot be reached.
  * A published llms.txt (at `/.well-known/llms.txt` or `/llms.txt`) that the JWS does
  * not sign, or that does not match the signed hash, is `RISK`.
  */
@@ -37,7 +41,8 @@ export async function verifyDomain(
   } catch {
     return makeResult(domainUrl.trim() || "(empty)", "UNVERIFIED", { reason: "Invalid domain" });
   }
-  const cacheKey = `verify:${domain}`;
+  const allowSelfSignedOffline = options.allowSelfSignedOffline === true;
+  const cacheKey = verifyCacheKey(domain, allowSelfSignedOffline);
   const ttl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
   const cache: MemoryCache = options.cache ?? defaultCache;
 
@@ -49,6 +54,7 @@ export async function verifyDomain(
   const { result, transient } = await evaluateDomainTrust(domain, {
     fetchFn: getFetch(options),
     apiBase: options.verificationApiUrl ?? defaultApiBase(),
+    allowSelfSignedOffline,
   });
 
   cache.set(cacheKey, { ...result, cached: false }, transient ? Math.min(ttl, TRANSIENT_CACHE_TTL_MS) : ttl);

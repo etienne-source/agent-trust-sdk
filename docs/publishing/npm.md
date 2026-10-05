@@ -2,7 +2,7 @@
 
 **Trustflow** is the open protocol. These packages publish under the npm scope `@trustflow` because `@agentic-trust` is registered to an unrelated maintainer. **Trustflow Systems** is the hosted registry at https://trustflow.systems.
 
-These workspace packages share one version, MIT licensed, and ready to publish. Their `repository` URL is `git+https://github.com/etienne-source/agent-trust-sdk.git`. Each has `"publishConfig": { "access": "public" }`.
+These workspace packages are MIT licensed and ready to publish. `@trustflow/sdk` is 2.1.0; the other publishable packages remain 2.0.0 until the next lockstep release. Do not publish 2.1.0 until QA passes. Their `repository` URL is `git+https://github.com/etienne-source/agent-trust-sdk.git`. Each has `"publishConfig": { "access": "public" }`.
 
 | Package | Path |
 |---------|------|

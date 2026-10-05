@@ -22,6 +22,16 @@ export interface TrustCoreOptions {
   signal?: AbortSignal;
   /** Extra query parameters for `GET /v1/verify`. */
   registryQuery?: Record<string, string>;
+  /**
+   * When true, a valid local signature stays `VERIFIED` if the registry cannot
+   * be reached. Default false: that case is `UNVERIFIED`.
+   */
+  allowSelfSignedOffline?: boolean;
+}
+
+/** Cache key shared by `verifyDomain` and the middleware. The opt-in does not reuse fail-closed entries. */
+export function verifyCacheKey(domain: string, allowSelfSignedOffline = false): string {
+  return allowSelfSignedOffline ? `verify:${domain}:self-signed-offline` : `verify:${domain}`;
 }
 
 export interface TrustEvaluation {
@@ -286,9 +296,19 @@ function lowerHex(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : undefined;
 }
 
+function unconfirmedReason(registry: RegistryAnswer): string {
+  const reg = registry.result;
+  if (registry.transport) {
+    return `Local did:web signature is valid; registry unreachable (${reg.reason ?? "unreachable"})`;
+  }
+  const detail = reg.reason ? `: ${reg.reason}` : "";
+  return `Local did:web signature is valid; registry did not confirm a proved listing (${reg.status}${detail})`;
+}
+
 function combineVerified(
   local: Extract<LocalOutcome, { kind: "verified" }>,
-  registry: RegistryAnswer
+  registry: RegistryAnswer,
+  allowSelfSignedOffline: boolean
 ): VerifyResult {
   const domain = local.result.domain;
   const reg = registry.result;
@@ -320,10 +340,18 @@ function combineVerified(
       if (reg.claims[key] !== undefined) claims[key] = reg.claims[key];
     }
     if (registeredKey) claims.publicKeyHash = registeredKey;
+    return makeResult(domain, "VERIFIED", { claims });
   }
-  return makeResult(domain, "VERIFIED", {
+  if (registry.transport && allowSelfSignedOffline) {
+    return makeResult(domain, "VERIFIED", {
+      claims,
+      reason: `Local did:web verified; registry not checked (${reg.reason ?? "unreachable"})`,
+    });
+  }
+  return makeResult(domain, "UNVERIFIED", {
     claims,
-    ...(registry.transport ? { reason: `Local did:web verified; registry not checked (${reg.reason ?? "unreachable"})` } : {}),
+    signature: "VALID",
+    reason: unconfirmedReason(registry),
   });
 }
 
@@ -331,8 +359,10 @@ function combineVerified(
  * The one verification decision used by `verifyDomain` and the middleware.
  *
  * - A local JWS failure, a swapped llms.txt, or an llms.txt the JWS does not cover is `RISK`.
- * - A local `VERIFIED` is always checked against the registry. A registry `RISK`, a different
- *   registered key, or a different registered llms.txt hash turns it into `RISK`.
+ * - `VERIFIED` requires a proved registry listing. A registry `RISK`, a different registered
+ *   key, or a different registered llms.txt hash is `RISK`.
+ * - A valid local signature without that listing is `UNVERIFIED` with `signature: "VALID"`.
+ *   `allowSelfSignedOffline` keeps `VERIFIED` only when the registry cannot be reached.
  * - When there is no usable local proof, the registry answer is used.
  */
 export async function evaluateDomainTrust(domain: string, options: TrustCoreOptions): Promise<TrustEvaluation> {
@@ -341,7 +371,10 @@ export async function evaluateDomainTrust(domain: string, options: TrustCoreOpti
 
   const registry = await queryRegistry(domain, options);
   if (local.kind === "verified") {
-    return { result: combineVerified(local, registry), transient: registry.transport || local.transient };
+    return {
+      result: combineVerified(local, registry, options.allowSelfSignedOffline === true),
+      transient: registry.transport || local.transient,
+    };
   }
 
   const reg = registry.result;

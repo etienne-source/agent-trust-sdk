@@ -355,6 +355,36 @@ describe("agenticTrustMiddleware", () => {
     expect(verifyCalls(fetchFn)).toHaveLength(1);
   });
 
+  it("does not return VERIFIED when the registry is unreachable for a locally signed domain", async () => {
+    const domain = "offline-signed.example";
+    const did = await makeSignedDid(domain);
+    const fetchFn = mockFetch({
+      "/.well-known/did.json": { body: did },
+      "/v1/verify": { status: 503, body: { error: "down" } },
+    });
+    const trust = agenticTrustMiddleware({ fetch: fetchFn, verificationApiUrl: API });
+    const meta = await trust.verify(domain);
+    expect(meta).toMatchObject({
+      verified: false,
+      securityWarning: true,
+      status: "UNVERIFIED",
+      domain,
+    });
+    expect(meta.warning).toMatch(/registry unreachable/);
+
+    const opted = agenticTrustMiddleware({
+      fetch: fetchFn,
+      verificationApiUrl: API,
+      allowSelfSignedOffline: true,
+      bypassCache: true,
+    });
+    await expect(opted.verify(domain)).resolves.toMatchObject({
+      verified: true,
+      status: "VERIFIED",
+      domain,
+    });
+  });
+
   it("does not return VERIFIED when the registry says RISK for a locally signed domain", async () => {
     const domain = "revoked.example";
     const did = await makeSignedDid(domain);
