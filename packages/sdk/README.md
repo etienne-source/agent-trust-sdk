@@ -34,6 +34,10 @@ Clone and `pnpm install` apply only when changing this monorepo. They are not th
 | `@agentic-trust/sdk` | `@trustflow/sdk` |
 | `npx agentic-trust init` | `npx @trustflow/cli@latest init` |
 
+### Upgrade from 1.x
+
+`llmsContext` and `audit` are no longer exported. `signBuildArtifacts` requires `llmsTxtSha256`. Confirm (`@trustflow/cli`) now sends a private-key `proofJws`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
+
 ## Quick start
 
 ```ts

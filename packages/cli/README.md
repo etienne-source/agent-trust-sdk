@@ -16,6 +16,10 @@ npx @trustflow/cli@latest init
 
 `trustflow` is the binary from `@trustflow/cli`.
 
+### Upgrade from 1.x
+
+Confirm (`init --confirm`, `sign --confirm`, and `confirm`) now sends a private-key `proofJws` on `POST /v1/register/confirm`. The PEM is not sent or printed. `@trustflow/cli` depends on `@trustflow/sdk` `^2.0.0`. See the repository [CHANGELOG.md](../../CHANGELOG.md).
+
 ### Contributors
 
 People changing this monorepo clone it and use pnpm. That is not the product install.
